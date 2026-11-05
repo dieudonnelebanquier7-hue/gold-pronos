@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b0b0d">
+  <meta name="description" content="Gold Pronos — analyses football prudentes, statistiques et rapports quotidiens.">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+  <title>GOLD PRONOS</title>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./"><span class="brand-mark">G</span><span>GOLD <b>PRONOS</b><small>ANALYSE FOOTBALL</small></span></a>
+    <span class="live-dot">VERSION 0.1</span>
+  </header>
+  <main>
+    <section class="hero">
+      <p class="eyebrow">LE FOOTBALL, ANALYSÉ AVEC MÉTHODE</p>
+      <h1>Décider avec<br><em>les bonnes données.</em></h1>
+      <p class="hero-copy">Analyses statistiques, contexte des équipes et lecture prudente des risques.</p>
+      <div class="date-line" id="today"></div>
+    </section>
+    <section class="summary-grid">
+      <article class="summary-card"><span class="muted">MATCHS ANALYSÉS</span><strong id="match-count">—</strong><small>Après vérification des données</small></article>
+      <article class="summary-card"><span class="muted">RAPPORT DU JOUR</span><strong class="gold-text">EN PRÉPARATION</strong><small>Aucune donnée inventée</small></article>
+    </section>
+    <section class="section">
+      <div class="section-heading"><div><p class="eyebrow">SÉLECTION DU JOUR</p><h2>Les rencontres</h2></div><span class="tag">DONNÉES À VÉRIFIER</span></div>
+      <div class="empty-state"><div class="ball">⚽</div><h3>Les matchs vérifiés apparaîtront ici</h3><p>Les affiches, horaires, statistiques et cotes seront affichés uniquement lorsqu’une source fiable sera disponible.</p></div>
+    </section>
+    <section class="section report">
+      <p class="eyebrow">RAPPORT QUOTIDIEN</p><h2>Une analyse, pas une promesse.</h2>
+      <div class="report-row"><span>01</span><div><b>Contexte</b><p>Forme récente, calendrier, domicile/extérieur et effectifs confirmés.</p></div></div>
+      <div class="report-row"><span>02</span><div><b>Statistiques</b><p>Indicateurs vérifiables, avec distinction entre faits et estimations.</p></div></div>
+      <div class="report-row"><span>03</span><div><b>Risques</b><p>Marché étudié, arguments, incertitudes et niveau de confiance prudent.</p></div></div>
+    </section>
+    <section class="notice"><b>JEU RESPONSABLE</b><p>Aucun pronostic n’est sûr et aucun gain n’est garanti. Une combinaison augmente le risque de perte. Ne mise jamais l’argent nécessaire à tes dépenses.</p></section>
+  </main>
+  <nav class="bottom-nav"><a class="active" href="#today">⌂<span>Accueil</span></a><a href="#matches">⚽<span>Matchs</span></a><a href="#report">▤<span>Rapport</span></a></nav>
+  <script src="./app.js"></script>
+</body>
+</html>
