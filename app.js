@@ -518,10 +518,10 @@
         const batch=await Promise.all(articles.slice(i,i+4).map(async article=>{
           const originalTitle=article.headline;
           const originalDescription=article.description||article.summary||'';
-          const combined=[originalTitle,originalDescription].filter(Boolean).join('\\n');
+          const combined=[originalTitle,originalDescription].filter(Boolean).join('\n');
           const localized=await translateNewsText(combined,language);
-          const parts=localized?localized.split('\\n'):[];
-          return {...article,localizedTitle:parts[0]||'',localizedDescription:parts.slice(1).join('\\n').trim()};
+          const parts=localized?localized.split('\n'):[];
+          return {...article,localizedTitle:parts[0]||'',localizedDescription:parts.slice(1).join('\n').trim()};
         }));
         translated.push(...batch);
       }
