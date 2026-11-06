@@ -201,9 +201,10 @@
   }
   function renderMatches() {
     const list=$('match-list');if(!list)return;list.replaceChildren();const now=new Date();
-    const filtered=state.matches.filter(m=>{const d=new Date(m.utcDate);if(state.filter==='finished')return m.status==='FINISHED';if(state.filter==='today')return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth()&&d.getDate()===now.getDate();return !['FINISHED','CANCELLED'].includes(m.status);}).sort((a,b)=>competitionOrder(a)-competitionOrder(b)||competitionName(a).localeCompare(competitionName(b),'fr')||new Date(a.utcDate)-new Date(b.utcDate));
-    setText('match-count',String(filtered.length));setText('match-period',state.filter==='today'?'Rencontres du jour':state.filter==='finished'?'Résultats terminés':'Rencontres à venir');
-    if(!filtered.length){const e=document.createElement('div');e.className='status-panel';e.textContent=state.filter==='finished'?'Aucun résultat terminé dans la période fournie par la source.':state.matches.length?'Aucun match dans ce filtre pour la période chargée.':'Aucune rencontre disponible pour le moment.';list.append(e);return;}
+    const isLive=m=>['IN_PLAY','PAUSED','LIVE','HALFTIME','EXTRA_TIME','PENALTY_SHOOTOUT'].includes(String(m.status||'').toUpperCase());
+    const filtered=state.matches.filter(m=>{const d=new Date(m.utcDate);if(state.filter==='live')return isLive(m);if(state.filter==='finished')return m.status==='FINISHED'&&hasFinalScore(m);if(state.filter==='upcoming')return !isLive(m)&&!['FINISHED','CANCELLED','POSTPONED','SUSPENDED'].includes(m.status);if(state.filter==='today')return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth()&&d.getDate()===now.getDate()&&!isLive(m)&&m.status!=='FINISHED';return !['FINISHED','CANCELLED'].includes(m.status);}).sort((a,b)=>competitionOrder(a)-competitionOrder(b)||competitionName(a).localeCompare(competitionName(b),'fr')||(state.filter==='finished'?new Date(b.utcDate)-new Date(a.utcDate):new Date(a.utcDate)-new Date(b.utcDate)));
+    setText('match-count',String(filtered.length));setText('match-period',state.filter==='live'?'Matchs en direct':state.filter==='today'?'Rencontres du jour':state.filter==='finished'?'Résultats par championnat':'Calendrier des matchs à venir');
+    if(!filtered.length){const e=document.createElement('div');e.className='status-panel';e.textContent=state.filter==='live'?'Aucun match en direct actuellement dans les données reçues.':state.filter==='finished'?'Aucun résultat terminé avec score disponible dans les données reçues.':state.matches.length?'Aucun match dans ce filtre pour la période chargée.':'Aucune rencontre disponible pour le moment.';list.append(e);return;}
     let currentCompetition='';
     filtered.forEach(m=>{
       const group=competitionName(m);
@@ -253,7 +254,7 @@
       if(!response.ok)throw new Error('Fichier des rencontres inaccessible (HTTP '+response.status+').');
       const data=await response.json();if(!data||!Array.isArray(data.matches))throw new Error('Format du calendrier invalide : liste des matchs absente.');
       state.matches=data.matches.filter(validMatch);state.generatedAt=data.generatedAt||null;state.sources=data.sources||{};
-      updateSourceDetails();renderAnalysisPicker();setText('match-status',state.matches.length+' rencontre(s) chargée(s). Les horaires suivent le fuseau de ton téléphone.');renderMatches();
+      updateSourceDetails();renderAnalysisPicker();setText('match-status',state.matches.length+' rencontre(s) chargée(s) · '+state.matches.filter(m=>['IN_PLAY','PAUSED','LIVE','HALFTIME','EXTRA_TIME','PENALTY_SHOOTOUT'].includes(String(m.status||'').toUpperCase())).length+' en direct · '+state.matches.filter(m=>m.status==='FINISHED'&&hasFinalScore(m)).length+' résultats. Les horaires suivent le fuseau de ton téléphone.');renderMatches();
     } catch(error) {
       state.matches=[];setText('match-count','0');setText('source-status','INDISPONIBLE');setText('source-detail','Données à vérifier');
       setText('match-status',error.name==='AbortError'?'La source met trop de temps à répondre. Réessaie.':error.message||'Erreur inconnue.');
