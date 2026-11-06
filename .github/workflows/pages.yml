@@ -94,7 +94,8 @@ jobs:
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE
       - name: Verify generated fixtures JSON
-        run: node -e "const d=JSON.parse(require('fs').readFileSync('matches.json','utf8')); if(!Array.isArray(d.matches)||!d.matches.length) process.exit(1); console.log('JSON valide : '+d.matches.length+' matchs');"
+        run: |
+          node -e "const d=JSON.parse(require('fs').readFileSync('matches.json','utf8')); if(!Array.isArray(d.matches)||!d.matches.length) process.exit(1); console.log(d.matches.length+' fixtures validated');"
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload site
