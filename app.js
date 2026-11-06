@@ -353,11 +353,45 @@
     const selected=upcoming.find(m=>String(m.id)===select.value);output.replaceChildren();
     if(selected)output.append(createAnalysis(selected));else{const empty=document.createElement('div');empty.className='status-panel';empty.textContent='Aucune rencontre à analyser dans le calendrier chargé.';output.append(empty);}
   }
+
+  const LEAGUE_LIST=[['eng.1','Premier League'],['eng.2','Championship'],['esp.1','La Liga'],['esp.2','Segunda División'],['ger.1','Bundesliga'],['ita.1','Serie A'],['fra.1','Ligue 1'],['ned.1','Eredivisie'],['por.1','Primeira Liga'],['tur.1','Süper Lig'],['nor.1','Eliteserien'],['swe.1','Allsvenskan'],['sui.1','Swiss Super League'],['ksa.1','Saudi Pro League'],['cze.1','Czech First League'],['usa.1','MLS'],['rou.1','Liga I'],['rus.1','Russian Premier League'],['chn.1','Chinese Super League'],['jpn.1','J1 League'],['bra.1','Brasileirão'],['arg.1','Liga Profesional Argentina'],['mex.1','Liga MX'],['uefa.champions','Ligue des champions'],['uefa.europa','Ligue Europa'],['uefa.europa.conf','Ligue Conférence']];
+  async function leagueJson(url){const r=await fetch(url,{cache:'no-store',signal:AbortSignal.timeout(14000)});if(!r.ok)throw Error('HTTP '+r.status);return r.json();}
+  function leagueEntries(x,out=[]){if(!x||typeof x!=='object')return out;if(Array.isArray(x.entries))out.push(...x.entries);if(Array.isArray(x.children))x.children.forEach(v=>leagueEntries(v,out));if(x.standings)leagueEntries(x.standings,out);return out;}
+  function leagueStat(entry,keys){for(const s of entry.stats||[]){const n=String(s.name||s.abbreviation||s.displayName||'').toLowerCase();if(keys.some(k=>n.includes(k)))return s.displayValue??s.value??'—';}return '—';}
+  function renderLeagueTable(data){
+    const host=$('league-standings');host.replaceChildren();const entries=leagueEntries(data.standings||data);
+    if(!entries.length){host.textContent='Classement indisponible pour cette compétition.';return;}
+    const table=document.createElement('table');table.className='league-standings-table';table.innerHTML='<thead><tr><th>#</th><th>Équipe</th><th>MJ</th><th>V</th><th>N</th><th>D</th><th>BP</th><th>BC</th><th>Diff.</th><th>Pts</th></tr></thead>';
+    const body=document.createElement('tbody');entries.forEach((e,i)=>{const tr=document.createElement('tr');if(i===0)tr.className='league-first';const team=e.team||{};const vals=[i+1,team.displayName||team.name||e.name||'Équipe',leagueStat(e,['gamesplayed','played','gp']),leagueStat(e,['wins','win']),leagueStat(e,['ties','draw']),leagueStat(e,['losses','loss']),leagueStat(e,['pointsfor','goalsfor','gf']),leagueStat(e,['pointsagainst','goalsagainst','ga']),leagueStat(e,['pointdifferential','goaldifference','gd']),leagueStat(e,['points','pts'])];vals.forEach((v,j)=>{const td=document.createElement('td');td.textContent=v;if(j===1)td.className='team-cell';tr.append(td);});body.append(tr);});table.append(body);host.append(table);
+  }
+  async function renderLeagueLeaders(data,type){
+    const host=$(type==='goals'?'league-scorers':'league-assists');host.replaceChildren();
+    const cats=Array.isArray(data.categories)?data.categories:Object.values(data.categories||data.leaders||{});
+    const cat=cats.find(x=>{const n=String(x.name||x.displayName||x.abbreviation||'').toLowerCase();return type==='goals'?/goal|scor|but/.test(n):/assist|pass/.test(n);});
+    const leaders=(cat?.leaders||cat?.items||[]).slice(0,5);
+    if(!leaders.length){host.textContent='Statistiques non publiées par la source.';return;}
+    for(let i=0;i<leaders.length;i++){
+      const item=leaders[i];let athlete=item.athlete||item.player||{};
+      try{if(typeof athlete==='string')athlete=await leagueJson(athlete);else if(athlete.$ref)athlete=await leagueJson(athlete.$ref);}catch(_){}
+      const row=document.createElement('div');row.className='leader-row';const rank=document.createElement('b');rank.textContent=String(i+1).padStart(2,'0');const name=document.createElement('strong');name.textContent=athlete.displayName||athlete.fullName||athlete.name||'Joueur';const value=document.createElement('b');value.className='leader-value';value.textContent=item.displayValue||item.value||'—';row.append(rank,name,value);host.append(row);
+    }
+  }
+  async function loadLeagueHub(){
+    const select=$('league-select');if(!select)return;
+    if(!select.options.length)LEAGUE_LIST.forEach(([id,name])=>{const o=document.createElement('option');o.value=id;o.textContent=name;select.append(o);});
+    const league=LEAGUE_LIST.find(x=>x[0]===select.value)||LEAGUE_LIST[0];setText('league-updated','Chargement de '+league[1]+'…');
+    const results=await Promise.allSettled([leagueJson('https://site.api.espn.com/apis/v2/sports/soccer/'+league[0]+'/standings'),leagueJson('https://sports.core.api.espn.com/v2/sports/soccer/leagues/'+league[0]+'/leaders?limit=100')]);
+    if(results[0].status==='fulfilled')renderLeagueTable(results[0].value);else $('league-standings').textContent='Classement indisponible actuellement.';
+    if(results[1].status==='fulfilled')await Promise.all([renderLeagueLeaders(results[1].value,'goals'),renderLeagueLeaders(results[1].value,'assists')]);else{$('league-scorers').textContent='Buteurs indisponibles.';$('league-assists').textContent='Passeurs indisponibles.';}
+    setText('league-updated',league[1]+' · Dernière vérification : '+timeFmt.format(new Date())+'. Les données absentes ne sont pas estimées.');
+  }
+
   function showPage(id) {
-    const pageId=['page-accueil','page-matches','page-live','page-news','page-analysis','page-settings'].includes(id)?id:'page-accueil';
+    const pageId=['page-accueil','page-matches','page-live','page-leagues','page-news','page-analysis','page-settings'].includes(id)?id:'page-accueil';
     document.querySelectorAll('.app-page').forEach(page=>page.classList.toggle('active',page.id===pageId));
     document.querySelectorAll('.bottom-nav a[data-page]').forEach(link=>link.classList.toggle('active',link.dataset.page===pageId));
     if(pageId==='page-live')fetchLiveScores();
+    if(pageId==='page-leagues')loadLeagueHub();
     if(pageId==='page-news')loadFootballNews();
     if(pageId==='page-analysis')renderAnalysisPicker();
     if(pageId==='page-matches')renderFeaturedPicks();
@@ -573,6 +607,8 @@
   if(resetSettings)resetSettings.addEventListener('click',()=>{state.settings={threshold:0.65,minimumHistory:5};loadSettings();saveSettings();});
   const refresh=$('refresh-btn');if(refresh)refresh.addEventListener('click',loadMatches);
   const liveRefresh=$('refresh-live');if(liveRefresh)liveRefresh.addEventListener('click',fetchLiveScores);
+  const leagueSelect=$('league-select');if(leagueSelect)leagueSelect.addEventListener('change',loadLeagueHub);
+  const leagueRefresh=$('refresh-leagues');if(leagueRefresh)leagueRefresh.addEventListener('click',loadLeagueHub);
   const newsRefresh=$('refresh-news');if(newsRefresh)newsRefresh.addEventListener('click',loadFootballNews);
   const alertButton=$('enable-goal-alerts');if(alertButton)alertButton.addEventListener('click',toggleGoalAlerts);
   try{state.goalAlerts=localStorage.getItem('gold-goal-alerts')==='on';}catch(e){}
