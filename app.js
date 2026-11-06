@@ -513,14 +513,18 @@
       host.replaceChildren();
       if(!articles.length){setText('news-status',newsText('news_empty'));return;}
       // Translate titles and summaries before rendering: English source text is never silently shown in another selected language.
-      const translated=await Promise.all(articles.map(async article=>{
-        const originalTitle=article.headline;
-        const originalDescription=article.description||article.summary||'';
-        const combined=[originalTitle,originalDescription].filter(Boolean).join('\n');
-        const localized=await translateNewsText(combined,language);
-        const parts=localized?localized.split('\n'):[];
-        return {...article,localizedTitle:parts[0]||'',localizedDescription:parts.slice(1).join('\n').trim()};
-      }));
+      const translated=[];
+      for(let i=0;i<articles.length;i+=4) {
+        const batch=await Promise.all(articles.slice(i,i+4).map(async article=>{
+          const originalTitle=article.headline;
+          const originalDescription=article.description||article.summary||'';
+          const combined=[originalTitle,originalDescription].filter(Boolean).join('\\n');
+          const localized=await translateNewsText(combined,language);
+          const parts=localized?localized.split('\\n'):[];
+          return {...article,localizedTitle:parts[0]||'',localizedDescription:parts.slice(1).join('\\n').trim()};
+        }));
+        translated.push(...batch);
+      }
       translated.forEach(article=>{
         const card=document.createElement('article');card.className='news-card';
         const category=document.createElement('small');category.textContent=newsText(NEWS_SECTION_KEYS[article.section]||'news_section');
