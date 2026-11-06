@@ -65,6 +65,7 @@
     try{localStorage.setItem('gold-pronos-settings',JSON.stringify(state.settings));}catch(_){}
     state.openAnalysis=null;
     renderMatches();
+    renderFeaturedPicks();
     setText('settings-message','Réglages enregistrés sur cet appareil. Seuil : '+pct(state.settings.threshold)+' · Historique minimum : '+state.settings.minimumHistory+' matchs par équipe.');
   }
   function analyze(match) {
@@ -219,6 +220,53 @@
   function competitionName(match) {
     return (match.competition?.name||'Autres compétitions').trim();
   }
+  function renderFeaturedPicks() {
+    const host=$('featured-picks');if(!host)return;host.replaceChildren();
+    const now=new Date();
+    const today=state.matches.filter(m=>{
+      const d=new Date(m.utcDate);
+      return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth()&&d.getDate()===now.getDate()&&
+        !['FINISHED','CANCELLED','POSTPONED','SUSPENDED'].includes(String(m.status||'').toUpperCase());
+    });
+    const picks=[];
+    today.forEach(match=>{
+      const result=analyze(match);if(!result.ready)return;
+      const markets=[
+        ['1X · Double chance domicile',result.markets.homeOrDraw],
+        ['X2 · Double chance extérieur',result.markets.awayOrDraw],
+        ['+1,5 buts',result.markets.over15],['+2,5 buts',result.markets.over25],
+        ['+3,5 buts',result.markets.over35],['BTTS · Les deux marquent',result.markets.btts]
+      ];
+      if(result.cornerMarkets){
+        markets.push(['+7,5 corners',result.cornerMarkets.over75],['+8,5 corners',result.cornerMarkets.over85],
+          ['+9,5 corners',result.cornerMarkets.over95],['+10,5 corners',result.cornerMarkets.over105]);
+      }
+      const best=markets.filter(x=>Number.isFinite(x[1])&&x[1]>=state.settings.threshold).sort((a,b)=>b[1]-a[1])[0];
+      if(best)picks.push({match,label:best[0],probability:best[1],confidence:result.confidence});
+    });
+    picks.sort((a,b)=>b.probability-a.probability);
+    const heading=document.createElement('div');heading.className='featured-picks-heading';
+    const title=document.createElement('h3');title.textContent='LES SÉLECTIONS STATISTIQUES DU JOUR';
+    const sub=document.createElement('p');sub.textContent='Marchés dépassant ton seuil de '+pct(state.settings.threshold)+' · classement par probabilité estimée';
+    heading.append(title,sub);host.append(heading);
+    if(!picks.length){
+      const empty=document.createElement('p');empty.className='featured-picks-empty';
+      empty.textContent=today.length?'Aucune sélection ne franchit le seuil avec un historique suffisant. Les matchs restent consultables dans le calendrier.':'Aucune rencontre programmée aujourd’hui dans les données chargées.';
+      host.append(empty);return;
+    }
+    picks.slice(0,5).forEach((pick,index)=>{
+      const card=document.createElement('article');card.className='featured-pick-card';
+      const rank=document.createElement('span');rank.className='featured-pick-rank';rank.textContent=String(index+1).padStart(2,'0');
+      const info=document.createElement('div');info.className='featured-pick-info';
+      const comp=document.createElement('small');comp.textContent=competitionName(pick.match)+' · '+timeFmt.format(new Date(pick.match.utcDate));
+      const fixture=document.createElement('strong');fixture.textContent=teamName(pick.match.homeTeam)+' – '+teamName(pick.match.awayTeam);
+      const market=document.createElement('span');market.className='featured-pick-market';market.textContent=pick.label;
+      info.append(comp,fixture,market);
+      const probability=document.createElement('strong');probability.className='featured-pick-probability';probability.textContent=pct(pick.probability);
+      card.append(rank,info,probability);host.append(card);
+    });
+    const note=document.createElement('p');note.className='featured-picks-note';note.textContent='Estimations du modèle statistique, pas des cotes bookmaker ni des garanties de résultat. Les rencontres sans historique suffisant sont écartées.';host.append(note);
+  }
   function renderMatches() {
     const list=$('match-list');if(!list)return;list.replaceChildren();const now=new Date();
     const isLive=m=>['IN_PLAY','PAUSED','LIVE','HALFTIME','EXTRA_TIME','PENALTY_SHOOTOUT'].includes(String(m.status||'').toUpperCase());
@@ -255,6 +303,7 @@
     document.querySelectorAll('.app-page').forEach(page=>page.classList.toggle('active',page.id===pageId));
     document.querySelectorAll('.bottom-nav a[data-page]').forEach(link=>link.classList.toggle('active',link.dataset.page===pageId));
     if(pageId==='page-analysis')renderAnalysisPicker();
+    if(pageId==='page-matches')renderFeaturedPicks();
     window.scrollTo({top:0,behavior:'instant'});
   }
   function updateSourceDetails() {
@@ -274,7 +323,7 @@
       if(!response.ok)throw new Error('Fichier des rencontres inaccessible (HTTP '+response.status+').');
       const data=await response.json();if(!data||!Array.isArray(data.matches))throw new Error('Format du calendrier invalide : liste des matchs absente.');
       state.matches=data.matches.filter(validMatch);state.generatedAt=data.generatedAt||null;state.sources=data.sources||{};
-      updateSourceDetails();renderAnalysisPicker();setText('match-status',state.matches.length+' rencontre(s) chargée(s) · '+state.matches.filter(m=>['IN_PLAY','PAUSED','LIVE','HALFTIME','EXTRA_TIME','PENALTY_SHOOTOUT'].includes(String(m.status||'').toUpperCase())).length+' en direct · '+state.matches.filter(m=>m.status==='FINISHED'&&hasFinalScore(m)).length+' résultats. Les horaires suivent le fuseau de ton téléphone.');renderMatches();
+      updateSourceDetails();renderAnalysisPicker();renderFeaturedPicks();setText('match-status',state.matches.length+' rencontre(s) chargée(s) · '+state.matches.filter(m=>['IN_PLAY','PAUSED','LIVE','HALFTIME','EXTRA_TIME','PENALTY_SHOOTOUT'].includes(String(m.status||'').toUpperCase())).length+' en direct · '+state.matches.filter(m=>m.status==='FINISHED'&&hasFinalScore(m)).length+' résultats. Les horaires suivent le fuseau de ton téléphone.');renderMatches();
     } catch(error) {
       state.matches=[];setText('match-count','0');setText('source-status','INDISPONIBLE');setText('source-detail','Données à vérifier');
       setText('match-status',error.name==='AbortError'?'La source met trop de temps à répondre. Réessaie.':error.message||'Erreur inconnue.');
