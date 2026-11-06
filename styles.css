@@ -167,3 +167,6 @@ html[dir="rtl"] .competition-heading{border-left:0;border-right:3px solid var(--
 .analysis-intro{overflow-wrap:anywhere}
 .analysis-picks .analysis-stat{gap:8px}
 .analysis-picks .analysis-stat span{line-height:1.45}
+
+/* Navigation par rubriques distinctes */
+.app-page{display:none;min-height:55vh}.app-page.active{display:block}.bottom-nav a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-decoration:none;color:var(--muted);min-height:58px}.bottom-nav a.active{color:var(--gold2)}.analysis-workspace{margin:12px 0;padding:16px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}.analysis-workspace>label{display:block;color:var(--gold2);font-size:12px;font-weight:700;margin:12px 0 7px}.analysis-workspace select{width:100%;padding:13px;border:1px solid #66532f;border-radius:8px;background:#09090b;color:var(--white);font-size:13px}.daily-analysis-result{margin-top:14px}
