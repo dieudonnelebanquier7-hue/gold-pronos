@@ -62,14 +62,14 @@ jobs:
           const ymd = d => d.toISOString().slice(0,10).replace(/-/g,'');
           const analysisRange = ymd(pastFrom)+'-'+ymd(futureTo);
           const leagues = [
-            ['eng.1','Premier League'],['eng.2','Championship'],['esp.1','La Liga'],['esp.2','Segunda División'],
+            ['caf.champions','CAF Champions League'],['caf.confed','CAF Confederation Cup'],['caf.nations','Africa Cup of Nations'],['fifa.worldq.caf','FIFA World Cup Qualifying CAF'],['rsa.1','South African Premiership'],['nga.1','Nigeria Premier League'],['gha.1','Ghana Premier League'],['eng.1','Premier League'],['eng.2','Championship'],['esp.1','La Liga'],['esp.2','Segunda División'],
             ['ger.1','Bundesliga'],['ita.1','Serie A'],['fra.1','Ligue 1'],['ned.1','Eredivisie'],['por.1','Primeira Liga'],
             ['tur.1','Süper Lig'],['nor.1','Eliteserien'],['swe.1','Allsvenskan'],['sui.1','Swiss Super League'],
             ['ksa.1','Saudi Pro League'],['cze.1','Czech First League'],['usa.1','MLS'],['rou.1','Liga I'],
             ['rus.1','Russian Premier League'],['chn.1','Chinese Super League'],['jpn.1','J1 League'],['bra.1','Brasileirão'],
             ['arg.1','Liga Profesional Argentina'],['mex.1','Liga MX'],['uefa.champions','Ligue des champions'],
             ['uefa.europa','Ligue Europa'],['uefa.europa.conf','Ligue Conférence'],['afc.champions','Ligue des champions AFC'],
-            ['fifa.world','Compétitions FIFA']
+            ['fifa.world','Compétitions FIFA'],['fifa.worldq.caf','Qualifications Coupe du monde Afrique'],['uefa.wchampions','Ligue des championnes UEFA'],['conmebol.libertadores','Copa Libertadores'],['conmebol.sudamericana','Copa Sudamericana'],['concacaf.champions','Ligue des champions CONCACAF'],['afc.cup','Ligue des champions AFC 2']
           ];
           const sleep = ms => new Promise(r=>setTimeout(r,ms));
           async function fetchLeague([code,label], year) {
