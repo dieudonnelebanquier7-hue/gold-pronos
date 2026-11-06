@@ -139,3 +139,6 @@ body{font-size:16px;-webkit-text-size-adjust:100%;text-size-adjust:100%}.brand{f
 .settings-controls label{font-size:12px;font-weight:700;color:var(--gold2);margin-top:4px}
 .settings-controls select{width:100%;padding:13px 12px;border-radius:8px;border:1px solid #494348;background:#1c1a1e;color:#f4f0e8;font:inherit;font-size:13px}
 .settings-reset{margin-top:7px;padding:12px;border:1px solid #66512f;border-radius:8px;background:#211b11;color:#e0bd70;font-weight:700}
+
+/* Groupement des rencontres par championnat */
+.competition-heading{margin:18px 2px 2px;padding:10px 12px;border-left:3px solid var(--gold);background:#211b10;color:var(--gold2);font-size:12px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;border-radius:0 7px 7px 0}
