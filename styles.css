@@ -309,3 +309,13 @@ html[dir="rtl"] .competition-heading{border-left:0;border-right:3px solid var(--
 .bottom-nav{grid-template-columns:repeat(8,minmax(58px,1fr));overflow-x:auto;overscroll-behavior-x:contain}
 .bottom-nav a{min-width:58px}
 @media(min-width:700px){.national-competitions{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Player roster directory */
+.player-roster-title{margin:20px 0 10px;color:#d9b45b;font-size:1rem;letter-spacing:.04em}
+.player-roster-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-top:10px}
+.player-roster-item{display:flex;align-items:center;gap:9px;min-width:0;padding:9px;border:1px solid rgba(217,180,91,.2);border-radius:12px;background:rgba(255,255,255,.035)}
+.player-roster-item img{width:48px;height:54px;flex:0 0 48px;object-fit:cover;object-position:top center;border-radius:8px;background:#202024}
+.player-roster-item img.photo-unavailable{background:linear-gradient(145deg,#25252b,#111);border:1px dashed #68605a}
+.player-roster-info{display:flex;flex-direction:column;gap:4px;min-width:0}
+.player-roster-info strong{font-size:.82rem;line-height:1.2;overflow-wrap:anywhere}
+.player-roster-info small{font-size:.7rem;color:#aaa;line-height:1.25}
