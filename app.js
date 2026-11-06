@@ -471,9 +471,34 @@
     const liveCount=collected.filter(m=>isLiveStatus(m.status)).length;
     setText('live-count',String(liveCount));
   }
+  const NEWS_LANGS={fr:'fr',en:'en',es:'es',pt:'pt',de:'de',it:'it',ar:'ar'};
+  const NEWS_SECTION_KEYS={'Football international':'news_international','Espagne':'news_spain','France':'news_france','Allemagne':'news_germany','Italie':'news_italy','Ligue des champions':'news_champions'};
+  const newsTranslationCache=new Map();
+  const newsText=key=>window.GoldI18n?.t(key)||key;
+  async function translateNewsText(value,language) {
+    const textValue=String(value||'').trim();
+    if(!textValue)return '';
+    if(language==='en')return textValue;
+    const cacheKey=language+'|'+textValue;
+    if(newsTranslationCache.has(cacheKey))return newsTranslationCache.get(cacheKey);
+    try {
+      const url='https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl='+encodeURIComponent(language)+'&dt=t&q='+encodeURIComponent(textValue);
+      const response=await fetch(url,{cache:'force-cache',signal:AbortSignal.timeout(12000)});
+      if(!response.ok)throw new Error('translation_http_'+response.status);
+      const data=await response.json();
+      const translated=Array.isArray(data?.[0])?data[0].map(part=>part?.[0]||'').join('').trim():'';
+      if(!translated)throw new Error('empty_translation');
+      newsTranslationCache.set(cacheKey,translated);
+      return translated;
+    } catch(error) {
+      console.warn('Traduction actualité indisponible',error);
+      return '';
+    }
+  }
   async function loadFootballNews() {
     const host=$('news-list');if(!host)return;
-    setText('news-status','Récupération des dernières actualités football…');
+    const language=NEWS_LANGS[window.GoldI18n?.getLanguage?.()||'fr']||'fr';
+    setText('news-status',newsText('news_loading'));
     const leagues=[['eng.1','Football international'],['esp.1','Espagne'],['fra.1','France'],['ger.1','Allemagne'],['ita.1','Italie'],['uefa.champions','Ligue des champions']];
     try {
       const responses=await Promise.all(leagues.map(async ([code,label])=>{
@@ -484,22 +509,36 @@
           return (data.articles||[]).map(article=>({...article,section:label}));
         } catch(e){return [];}
       }));
-      const articles=responses.flat().filter(a=>a.headline).sort((a,b)=>new Date(b.published||0)-new Date(a.published||0)).slice(0,30);
+      const articles=responses.flat().filter(a=>a.headline).sort((a,b)=>new Date(b.published||0)-new Date(a.published||0)).slice(0,24);
       host.replaceChildren();
-      if(!articles.length){setText('news-status','La source d’actualités ne répond pas pour le moment. Réessaie plus tard.');return;}
-      articles.forEach(article=>{
+      if(!articles.length){setText('news-status',newsText('news_empty'));return;}
+      // Translate titles and summaries before rendering: English source text is never silently shown in another selected language.
+      const translated=await Promise.all(articles.map(async article=>{
+        const originalTitle=article.headline;
+        const originalDescription=article.description||article.summary||'';
+        const combined=[originalTitle,originalDescription].filter(Boolean).join('\n');
+        const localized=await translateNewsText(combined,language);
+        const parts=localized?localized.split('\n'):[];
+        return {...article,localizedTitle:parts[0]||'',localizedDescription:parts.slice(1).join('\n').trim()};
+      }));
+      translated.forEach(article=>{
         const card=document.createElement('article');card.className='news-card';
-        const category=document.createElement('small');category.textContent=article.section||'Football';
-        const title=document.createElement('h3');title.textContent=article.headline;
-        const desc=document.createElement('p');desc.textContent=article.description||article.summary||'Ouvrir l’article pour consulter les détails.';
-        const meta=document.createElement('div');meta.className='news-meta';meta.textContent=article.published?new Date(article.published).toLocaleString('fr-FR'):'Publication récente';
-        card.append(category,title,desc,meta);
+        const category=document.createElement('small');category.textContent=newsText(NEWS_SECTION_KEYS[article.section]||'news_section');
+        const title=document.createElement('h3');title.textContent=article.localizedTitle||newsText('news_translation_error');
+        const desc=document.createElement('p');desc.textContent=article.localizedDescription||'';
+        const meta=document.createElement('div');meta.className='news-meta';
+        const locale=language==='ar'?'ar':language+'-'+language.toUpperCase();
+        meta.textContent=article.published?new Date(article.published).toLocaleString(locale,{dateStyle:'medium',timeStyle:'short'}):newsText('news_recent');
+        card.append(category,title);
+        if(desc.textContent)card.append(desc);
+        card.append(meta);
         const href=article.links?.web?.href||article.links?.api?.news?.href;
-        if(href){const link=document.createElement('a');link.href=href;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Lire la source ↗';card.append(link);}
+        if(href){const link=document.createElement('a');link.href=href;link.target='_blank';link.rel='noopener noreferrer';link.textContent=newsText('news_source');card.append(link);}
         host.append(card);
       });
-      setText('news-status',articles.length+' actualités récupérées depuis ESPN. Les horaires et la disponibilité dépendent de la source.');
-    } catch(e){setText('news-status','Actualités momentanément indisponibles.');}
+      const translatedCount=translated.filter(a=>a.localizedTitle).length;
+      setText('news-status',translatedCount+' / '+articles.length+' '+newsText('news_count_suffix'));
+    } catch(e){setText('news-status',newsText('news_unavailable'));}
   }
   function enableGoalAlerts() {
     state.goalAlerts=true;
@@ -521,6 +560,7 @@
 
   window.addEventListener('error',e=>{setText('source-status','ERREUR JAVASCRIPT');setText('match-status','Erreur JavaScript : '+(e.message||'inconnue'));});
   window.addEventListener('unhandledrejection',e=>{setText('source-status','ERREUR APPLICATION');setText('match-status','Opération échouée : '+String(e.reason?.message||e.reason||'inconnue'));});
+  document.addEventListener('gold-language-change',()=>{if(document.getElementById('page-news')?.classList.contains('active'))loadFootballNews();});
   loadSettings();
   const thresholdControl=$('probability-threshold'),historyControl=$('minimum-history');
   if(thresholdControl)thresholdControl.addEventListener('change',saveSettings);
