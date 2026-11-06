@@ -49,10 +49,16 @@
     const homeLambda=Math.max(.15,Math.min(3.5,(homeScored+awayConceded)/2));
     const awayLambda=Math.max(.15,Math.min(3.5,(awayScored+homeConceded)/2));
     const probs=buildProbabilities(homeLambda,awayLambda);
+    const markets={
+      home:probs.home,draw:probs.draw,away:probs.away,
+      homeOrDraw:probs.home+probs.draw,awayOrDraw:probs.away+probs.draw,noDraw:probs.home+probs.away,
+      over15:probs.over15,over25:probs.over25,over35:probs.over35,btts:probs.btts
+    };
     const candidates=[
-      ['1 · '+hn,probs.home],['N · Match nul',probs.draw],['2 · '+an,probs.away],
-      ['Plus de 1,5 but',probs.over15],['Plus de 2,5 buts',probs.over25],['Plus de 3,5 buts',probs.over35],
-      ['Les deux équipes marquent',probs.btts]
+      ['1 · Victoire '+hn,markets.home],['N · Match nul',markets.draw],['2 · Victoire '+an,markets.away],
+      ['1X · '+hn+' ou nul',markets.homeOrDraw],['X2 · '+an+' ou nul',markets.awayOrDraw],['12 · Pas de nul',markets.noDraw],
+      ['Plus de 1,5 but',markets.over15],['Plus de 2,5 buts',markets.over25],['Plus de 3,5 buts',markets.over35],
+      ['Les deux équipes marquent',markets.btts]
     ].sort((a,b)=>b[1]-a[1]);
     const sample=homeRows.length+awayRows.length, best=candidates[0];
     const confidence=homeRows.length>=8&&awayRows.length>=8?'Modérée':homeRows.length>=5&&awayRows.length>=5?'Faible à modérée':'Faible';
@@ -60,7 +66,7 @@
       ((normalizeName(teamName(m.homeTeam))===normalizeName(hn)&&normalizeName(teamName(m.awayTeam))===normalizeName(an))||
        (normalizeName(teamName(m.homeTeam))===normalizeName(an)&&normalizeName(teamName(m.awayTeam))===normalizeName(hn))))
       .sort((a,b)=>new Date(b.utcDate)-new Date(a.utcDate)).slice(0,5);
-    return {ready:true,homeRows,awayRows,homeLambda,awayLambda,probs,best,confidence,h2h,sample,homeVenueCount:homeVenue.length,awayVenueCount:awayVenue.length};
+    return {ready:true,homeRows,awayRows,homeLambda,awayLambda,probs,markets,best,confidence,h2h,sample,homeVenueCount:homeVenue.length,awayVenueCount:awayVenue.length};
   }
   function addLine(parent,label,value) { const row=document.createElement('div'); row.className='analysis-stat'; const a=document.createElement('span');a.textContent=label;const b=document.createElement('strong');b.textContent=value;row.append(a,b);parent.append(row); }
   function createAnalysis(match) {
@@ -80,8 +86,22 @@
     addLine(grid,'Buts encaissés moyens (équipe 2)',average(result.awayRows,'ga').toFixed(2));
     panel.append(grid);
     const markets=document.createElement('div');markets.className='probability-grid';
-    [['1',result.probs.home],['N',result.probs.draw],['2',result.probs.away],['+1,5',result.probs.over15],['+2,5',result.probs.over25],['+3,5',result.probs.over35],['BTTS',result.probs.btts]].forEach(([label,value])=>{const cell=document.createElement('div');cell.className='probability-cell';const strong=document.createElement('strong');strong.textContent=pct(value);const small=document.createElement('span');small.textContent=label;cell.append(strong,small);markets.append(cell);});
+    [['1',result.markets.home],['N',result.markets.draw],['2',result.markets.away],['1X',result.markets.homeOrDraw],['X2',result.markets.awayOrDraw],['12',result.markets.noDraw],['+1,5 buts',result.markets.over15],['+2,5 buts',result.markets.over25],['+3,5 buts',result.markets.over35],['BTTS',result.markets.btts]].forEach(([label,value])=>{const cell=document.createElement('div');cell.className='probability-cell';const strong=document.createElement('strong');strong.textContent=pct(value);const small=document.createElement('span');small.textContent=label;cell.append(strong,small);markets.append(cell);});
     panel.append(markets);
+    const picks=document.createElement('div');picks.className='analysis-picks';
+    const picksTitle=document.createElement('h4');picksTitle.textContent='MARCHÉS À ÉTUDIER';picks.append(picksTitle);
+    const pickOptions=[
+      ['1X · '+teamName(match.homeTeam)+' ou nul',result.markets.homeOrDraw],
+      ['X2 · '+teamName(match.awayTeam)+' ou nul',result.markets.awayOrDraw],
+      ['12 · Pas de match nul',result.markets.noDraw],
+      ['Plus de 1,5 but',result.markets.over15],['Plus de 2,5 buts',result.markets.over25],
+      ['Plus de 3,5 buts',result.markets.over35],['Victoire '+teamName(match.homeTeam),result.markets.home],
+      ['Match nul',result.markets.draw],['Victoire '+teamName(match.awayTeam),result.markets.away]
+    ].filter(x=>x[1]>=.65).sort((a,b)=>b[1]-a[1]);
+    if(pickOptions.length)pickOptions.forEach(([label,value])=>addLine(picks,label,pct(value)+' · signal ≥ 65 %'));
+    else {const none=document.createElement('p');none.className='analysis-warning';none.textContent='Aucun marché ne dépasse le seuil indicatif de 65 %.';picks.append(none);}
+    const cornerNote=document.createElement('p');cornerNote.className='analysis-warning';cornerNote.textContent='Corners : données historiques non disponibles dans la source actuelle ; aucun total ne sera inventé.';picks.append(cornerNote);
+    panel.append(picks);
     const form=document.createElement('p');form.className='analysis-intro';form.textContent='Forme sur les '+result.homeRows.length+' derniers matchs : '+teamName(match.homeTeam)+' ('+result.homeRows.slice(0,5).map(r=>r.form).join(' · ')+') ; '+teamName(match.awayTeam)+' ('+result.awayRows.slice(0,5).map(r=>r.form).join(' · ')+').';panel.append(form);
     const recent=document.createElement('div');recent.className='analysis-recent';
     const recentTitle=document.createElement('h4');recentTitle.textContent='DERNIERS RÉSULTATS VÉRIFIÉS';recent.append(recentTitle);
@@ -91,7 +111,7 @@
     });
     panel.append(recent);
     const venue=document.createElement('p');venue.className='analysis-intro';venue.textContent='Échantillons domicile/extérieur utilisés : '+result.homeVenueCount+' match(s) à domicile pour '+teamName(match.homeTeam)+' et '+result.awayVenueCount+' à l’extérieur pour '+teamName(match.awayTeam)+'.';panel.append(venue);
-    const pick=document.createElement('p');pick.className='analysis-pick';pick.textContent=result.best[1]>=.58?'Signal statistique le plus élevé : '+result.best[0]+' ('+pct(result.best[1])+').':'Aucun signal suffisamment fort : le modèle ne dégage pas de sélection nette.';panel.append(pick);
+    const pick=document.createElement('p');pick.className='analysis-pick';pick.textContent=pickOptions.length?'Marchés à examiner classés par probabilité estimée ; aucun pari n’est garanti.':'Aucun signal ne dépasse le seuil retenu pour cette rencontre.';panel.append(pick);
     const caution=document.createElement('p');caution.className='analysis-warning';caution.textContent='Confiance : '+result.confidence+'. Modèle Poisson simplifié fondé sur les scores historiques chargés. Il ne connaît pas automatiquement blessures, compositions, xG ni cotes. Probabilités indicatives, non garanties ; elles ne constituent pas une garantie de gain.';panel.append(caution);
     if(result.h2h.length){const h=document.createElement('p');h.className='analysis-intro';h.textContent='Confrontations directes récentes : '+result.h2h.length+'.';panel.append(h);}
     return panel;
