@@ -162,3 +162,8 @@ html[dir="rtl"] .competition-heading{border-left:0;border-right:3px solid var(--
 .language-quick select{display:block;width:100%;min-height:48px;padding:12px 14px;border:1px solid #80632e;border-radius:9px;background:#09090b;color:var(--white);font-size:16px;font-weight:700}
 .language-quick p{margin:9px 0 0;color:#c5c0b3;font-size:12px;line-height:1.5}
 @media(min-width:700px){.language-quick{max-width:728px;margin:0 auto 22px}}
+
+/* Expected goals and corner-market presentation */
+.analysis-intro{overflow-wrap:anywhere}
+.analysis-picks .analysis-stat{gap:8px}
+.analysis-picks .analysis-stat span{line-height:1.45}
