@@ -226,14 +226,15 @@
     const today=state.matches.filter(m=>{
       const d=new Date(m.utcDate);
       return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth()&&d.getDate()===now.getDate()&&
-        !['FINISHED','CANCELLED','POSTPONED','SUSPENDED'].includes(String(m.status||'').toUpperCase());
+        !['IN_PLAY','LIVE','HALFTIME','PAUSED','EXTRA_TIME','PENALTY_SHOOTOUT','FINISHED','CANCELLED','POSTPONED','SUSPENDED'].includes(String(m.status||'').toUpperCase());
     });
     const picks=[];
     today.forEach(match=>{
       const result=analyze(match);if(!result.ready)return;
       const markets=[
+        ['1 · Victoire domicile',result.markets.home],['N · Match nul',result.markets.draw],['2 · Victoire extérieur',result.markets.away],
         ['1X · Double chance domicile',result.markets.homeOrDraw],
-        ['X2 · Double chance extérieur',result.markets.awayOrDraw],
+        ['X2 · Double chance extérieur',result.markets.awayOrDraw],['12 · Pas de match nul',result.markets.noDraw],
         ['+1,5 buts',result.markets.over15],['+2,5 buts',result.markets.over25],
         ['+3,5 buts',result.markets.over35],['BTTS · Les deux marquent',result.markets.btts]
       ];
