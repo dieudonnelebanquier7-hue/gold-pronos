@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
-  const state = { matches: [], filter: 'all', generatedAt: null, sources: {}, openAnalysis: null };
+  const state = { matches: [], filter: 'all', generatedAt: null, sources: {}, openAnalysis: null, settings: { threshold: 0.65, minimumHistory: 5 } };
   const dateFmt = new Intl.DateTimeFormat('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
   const timeFmt = new Intl.DateTimeFormat('fr-FR', { hour:'2-digit', minute:'2-digit' });
   const setText = (id,value) => { const el=$(id); if(el) el.textContent=value; };
@@ -35,10 +35,30 @@
     return {home,draw,away,btts,over15,over25,over35};
   }
   function pct(v) { return Math.round(v*100)+' %'; }
+  function loadSettings() {
+    try {
+      const saved=JSON.parse(localStorage.getItem('gold-pronos-settings')||'{}');
+      const threshold=Number(saved.threshold), minimumHistory=Number(saved.minimumHistory);
+      if([0.60,0.65,0.70,0.75,0.80].includes(threshold))state.settings.threshold=threshold;
+      if([3,5,8,10].includes(minimumHistory))state.settings.minimumHistory=minimumHistory;
+    } catch(_) {}
+    const t=$('probability-threshold'), h=$('minimum-history');
+    if(t)t.value=String(state.settings.threshold);
+    if(h)h.value=String(state.settings.minimumHistory);
+  }
+  function saveSettings() {
+    const t=$('probability-threshold'), h=$('minimum-history');
+    state.settings.threshold=t?Number(t.value):0.65;
+    state.settings.minimumHistory=h?Number(h.value):5;
+    try{localStorage.setItem('gold-pronos-settings',JSON.stringify(state.settings));}catch(_){}
+    state.openAnalysis=null;
+    renderMatches();
+    setText('settings-message','Réglages enregistrés sur cet appareil. Seuil : '+pct(state.settings.threshold)+' · Historique minimum : '+state.settings.minimumHistory+' matchs par équipe.');
+  }
   function analyze(match) {
     const kickoff=new Date(match.utcDate), hn=teamName(match.homeTeam), an=teamName(match.awayTeam);
     const homeRows=resultRows(hn,kickoff), awayRows=resultRows(an,kickoff);
-    if(homeRows.length<3 || awayRows.length<3) return {ready:false,homeRows,awayRows,reason:'Historique insuffisant : au moins 3 scores terminés vérifiés par équipe sont nécessaires. La collecte historique est en cours ou la compétition n’est pas couverte.'};
+    if(homeRows.length<state.settings.minimumHistory || awayRows.length<state.settings.minimumHistory) return {ready:false,homeRows,awayRows,reason:'Historique insuffisant : au moins '+state.settings.minimumHistory+' scores terminés vérifiés par équipe sont nécessaires. La collecte historique est en cours ou la compétition n’est pas couverte.'};
     const homeVenue=homeRows.filter(r=>r.home), awayVenue=awayRows.filter(r=>!r.home);
     const homeAttack=homeVenue.length>=2?homeVenue:homeRows;
     const homeDefence=homeVenue.length>=2?homeVenue:homeRows;
@@ -97,8 +117,8 @@
       ['Plus de 1,5 but',result.markets.over15],['Plus de 2,5 buts',result.markets.over25],
       ['Plus de 3,5 buts',result.markets.over35],['Victoire '+teamName(match.homeTeam),result.markets.home],
       ['Match nul',result.markets.draw],['Victoire '+teamName(match.awayTeam),result.markets.away]
-    ].filter(x=>x[1]>=.65).sort((a,b)=>b[1]-a[1]);
-    if(pickOptions.length)pickOptions.forEach(([label,value])=>addLine(picks,label,pct(value)+' · probabilité modèle ≥ 65 %'));
+    ].filter(x=>x[1]>=state.settings.threshold).sort((a,b)=>b[1]-a[1]);
+    if(pickOptions.length)pickOptions.forEach(([label,value])=>addLine(picks,label,pct(value)+' · seuil choisi : '+pct(state.settings.threshold)));
     else {const none=document.createElement('p');none.className='analysis-warning';none.textContent='Aucun marché ne dépasse le seuil indicatif de 65 %.';picks.append(none);}
     const cornerNote=document.createElement('p');cornerNote.className='analysis-warning';cornerNote.textContent='Corners : données historiques non disponibles dans la source actuelle ; aucun total ne sera inventé.';picks.append(cornerNote);
     panel.append(picks);
@@ -179,6 +199,12 @@
   }
   window.addEventListener('error',e=>{setText('source-status','ERREUR JAVASCRIPT');setText('match-status','Erreur JavaScript : '+(e.message||'inconnue'));});
   window.addEventListener('unhandledrejection',e=>{setText('source-status','ERREUR APPLICATION');setText('match-status','Opération échouée : '+String(e.reason?.message||e.reason||'inconnue'));});
+  loadSettings();
+  const thresholdControl=$('probability-threshold'),historyControl=$('minimum-history');
+  if(thresholdControl)thresholdControl.addEventListener('change',saveSettings);
+  if(historyControl)historyControl.addEventListener('change',saveSettings);
+  const resetSettings=$('reset-settings');
+  if(resetSettings)resetSettings.addEventListener('click',()=>{state.settings={threshold:0.65,minimumHistory:5};loadSettings();saveSettings();});
   const refresh=$('refresh-btn');if(refresh)refresh.addEventListener('click',loadMatches);
   document.querySelectorAll('.filter').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.filter').forEach(x=>x.classList.toggle('active',x===b));state.filter=b.dataset.filter||'all';state.openAnalysis=null;renderMatches();}));
   document.querySelectorAll('.bottom-nav a').forEach(link=>link.addEventListener('click',()=>document.querySelectorAll('.bottom-nav a').forEach(x=>x.classList.toggle('active',x===link))));
