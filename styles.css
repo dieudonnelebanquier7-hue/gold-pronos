@@ -31,3 +31,9 @@
 .analysis-picks .analysis-stat{padding:5px 0;border-bottom:1px solid rgba(255,255,255,.06)}
 .analysis-picks .analysis-stat:last-of-type{border-bottom:0}
 .analysis-picks .analysis-warning{font-size:11px}
+
+.match-top{display:flex;align-items:center;flex-wrap:wrap;gap:7px}
+.featured-label{margin-left:0}
+.match-top>span:last-child{margin-left:auto}
+.analysis-picks .analysis-stat strong{white-space:nowrap}
+@media(max-width:380px){.featured-label{font-size:7px;padding:3px 5px}.analysis-picks{padding:9px}}
