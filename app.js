@@ -9,6 +9,21 @@
   function validMatch(m) { return m && typeof m==='object' && typeof m.utcDate==='string' && !Number.isNaN(new Date(m.utcDate).getTime()) && m.homeTeam && m.awayTeam; }
   const teamName = t => String(t?.name || '');
   const normalizeName = value => String(value||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+  const teamAliases = {
+    'hamburger sv':'hamburg',
+    'hamburg':'hamburg',
+    'hamburger sport verein':'hamburg',
+    'borussia monchengladbach':'gladbach',
+    'borussia moenchengladbach':'gladbach',
+    'borussia mgladbach':'gladbach',
+    'b monchengladbach':'gladbach',
+    'gladbach':'gladbach'
+  };
+  const canonicalTeam = name => {
+    const normalized=normalizeName(name);
+    return teamAliases[normalized] || normalized;
+  };
+  const sameTeam = (a,b) => canonicalTeam(a)===canonicalTeam(b);
   function hasFinalScore(m) {
     const h=m.score?.fullTime?.home, a=m.score?.fullTime?.away;
     return h!==null && h!==undefined && a!==null && a!==undefined && Number.isFinite(Number(h)) && Number.isFinite(Number(a));
@@ -16,9 +31,9 @@
   function resultRows(name, before) {
     const target=normalizeName(name);
     return state.matches.filter(m => m.status==='FINISHED' && new Date(m.utcDate)<before && hasFinalScore(m) &&
-      (normalizeName(teamName(m.homeTeam))===target || normalizeName(teamName(m.awayTeam))===target))
+      (canonicalTeam(teamName(m.homeTeam))===canonicalTeam(name) || canonicalTeam(teamName(m.awayTeam))===canonicalTeam(name)))
       .sort((a,b)=>new Date(b.utcDate)-new Date(a.utcDate)).slice(0,10).map(m=>{
-        const home=normalizeName(teamName(m.homeTeam))===target;
+        const home=sameTeam(teamName(m.homeTeam),name);
         const gf=Number(m.score.fullTime[home?'home':'away']), ga=Number(m.score.fullTime[home?'away':'home']);
         const cornersFor=readCorners(m,home),cornersAgainst=readCorners(m,!home);
         return {gf,ga,home,date:m.utcDate,opponent:teamName(home?m.awayTeam:m.homeTeam),form:gf>ga?'V':gf===ga?'N':'D',cornersFor,cornersAgainst};
@@ -106,8 +121,8 @@
     const sample=homeRows.length+awayRows.length, best=candidates[0];
     const confidence=homeRows.length>=8&&awayRows.length>=8?'Modérée':homeRows.length>=5&&awayRows.length>=5?'Faible à modérée':'Faible';
     const h2h=state.matches.filter(m=>m.status==='FINISHED'&&new Date(m.utcDate)<kickoff&&hasFinalScore(m)&&
-      ((normalizeName(teamName(m.homeTeam))===normalizeName(hn)&&normalizeName(teamName(m.awayTeam))===normalizeName(an))||
-       (normalizeName(teamName(m.homeTeam))===normalizeName(an)&&normalizeName(teamName(m.awayTeam))===normalizeName(hn))))
+      ((sameTeam(teamName(m.homeTeam),hn)&&sameTeam(teamName(m.awayTeam),an))||
+       (sameTeam(teamName(m.homeTeam),an)&&sameTeam(teamName(m.awayTeam),hn))))
       .sort((a,b)=>new Date(b.utcDate)-new Date(a.utcDate)).slice(0,5);
     return {ready:true,homeRows,awayRows,homeLambda,awayLambda,probs,markets,cornerMarkets,best,confidence,h2h,sample,homeVenueCount:homeVenue.length,awayVenueCount:awayVenue.length};
   }
