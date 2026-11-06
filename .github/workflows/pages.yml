@@ -106,9 +106,9 @@ jobs:
             console.log('Contrôle qualité : '+matches.length+' matchs, JSON valide, collecte '+result.generatedAt);
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE
-      - name: Verify generated fixtures JSON
+      - name: Verify generated fixtures and historical results
         run: |
-          node -e "const d=JSON.parse(require('fs').readFileSync('matches.json','utf8')); if(!Array.isArray(d.matches)||!d.matches.length) process.exit(1); console.log(d.matches.length+' fixtures validated');"
+          node -e "const d=JSON.parse(require('fs').readFileSync('matches.json','utf8')); if(!Array.isArray(d.matches)||!d.matches.length) throw new Error('No fixtures generated'); const h=Number(d.sources?.historyMatches||0); if(h<3) throw new Error('Historical results unavailable: '+h); console.log(d.matches.length+' fixtures and '+h+' completed results validated');"
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload site
