@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
-  const state = { matches: [], filter: 'all', generatedAt: null, sources: {}, openAnalysis: null, settings: { threshold: 0.65, minimumHistory: 5 } };
+  const state = { matches: [], filter: 'upcoming', generatedAt: null, sources: {}, openAnalysis: null, settings: { threshold: 0.65, minimumHistory: 5 } };
   const dateFmt = new Intl.DateTimeFormat('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
   const timeFmt = new Intl.DateTimeFormat('fr-FR', { hour:'2-digit', minute:'2-digit' });
   const setText = (id,value) => { const el=$(id); if(el) el.textContent=value; };
