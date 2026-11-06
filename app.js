@@ -386,12 +386,80 @@
     setText('league-updated',league[1]+' · Dernière vérification : '+timeFmt.format(new Date())+'. Les données absentes ne sont pas estimées.');
   }
 
+
+  const CLUB_COMPETITIONS=[...LEAGUE_LIST,['fifa.world','Coupe du monde'],['uefa.euro','Euro'],['caf.nations','Coupe d’Afrique des nations'],['conmebol.copa','Copa América'],['concacaf.gold','Gold Cup'],['afc.asian.cup','Coupe d’Asie'],['uefa.nations','Ligue des nations']];
+  const NATIONAL_COMPETITIONS=['fifa.world','uefa.euro','caf.nations','conmebol.copa','concacaf.gold','afc.asian.cup','uefa.nations'];
+  const CLUB_ESPN='https://site.api.espn.com/apis/site/v2/sports/soccer/';
+  async function clubFetch(url){const r=await fetch(url,{cache:'no-store',signal:AbortSignal.timeout(14000)});if(!r.ok)throw Error('HTTP '+r.status);return r.json();}
+  function getTeamArray(data){const groups=data?.sports?.[0]?.leagues||data?.leagues||[];for(const group of groups){if(Array.isArray(group.teams))return group.teams.map(x=>x.team||x);}if(Array.isArray(data?.teams))return data.teams.map(x=>x.team||x);return [];}
+  function renderClubProfile(team,competition){
+    const host=$('club-results');host.replaceChildren();
+    const name=team.displayName||team.name||team.shortDisplayName||'Équipe';
+    const country=team.country?.name||team.country?.displayName||team.nationality||team.location||team.address?.city||'Nationalité / pays non communiqué';
+    const coaches=team.coaches||team.coach?[...(team.coaches||[]),...(team.coach?[team.coach]:[])]:[];
+    const logo=team.logos?.[0]?.href||team.logo||team.logos?.[0]?.url||'';
+    const card=document.createElement('article');card.className='club-profile-card';
+    if(logo){const img=document.createElement('img');img.src=logo;img.alt='Emblème '+name;img.loading='lazy';card.append(img);}
+    const title=document.createElement('h3');title.textContent=name;card.append(title);
+    const comp=document.createElement('p');comp.className='club-meta';comp.textContent='Compétition : '+competition;card.append(comp);
+    const countryLine=document.createElement('p');countryLine.textContent='Pays / nationalité : '+country;card.append(countryLine);
+    const nickname=document.createElement('p');nickname.textContent='Surnom : '+(team.nickname||team.alternateNames?.[0]||'Non communiqué');card.append(nickname);
+    const coachTitle=document.createElement('h4');coachTitle.textContent='Entraîneur et nationalité';card.append(coachTitle);
+    if(!coaches.length){const p=document.createElement('p');p.className='small-note';p.textContent='Nom de l’entraîneur et nationalité non publiés par la source pour cette fiche.';card.append(p);}
+    coaches.slice(0,4).forEach(coach=>{const p=document.createElement('p');const nationality=coach.nationality||coach.citizenship||coach.country?.name||coach.birthPlace?.country||'Nationalité non communiquée';p.textContent=(coach.displayName||coach.fullName||coach.name||'Entraîneur')+' · '+nationality;card.append(p);});
+    const details=document.createElement('p');details.className='club-meta';details.textContent='Fondation : '+(team.founded||'Non communiquée')+' · Stade : '+(team.venue?.fullName||team.venue?.name||'Non communiqué');card.append(details);
+    const caveat=document.createElement('p');caveat.className='data-caveat';caveat.textContent='Fiche établie à partir des champs fournis par ESPN. Les champs absents ne sont pas déduits.';card.append(caveat);host.append(card);
+  }
+  async function searchClubTeam(){
+    const select=$('club-competition'),input=$('club-search'),host=$('club-results');if(!select||!input||!host)return;
+    const code=select.value,query=input.value.trim().toLocaleLowerCase();if(!query){setText('club-status','Saisis le nom d’un club ou d’une sélection.');return;}
+    const comp=CLUB_COMPETITIONS.find(x=>x[0]===code)?.[1]||code;setText('club-status','Recherche dans '+comp+'…');host.replaceChildren();
+    try{
+      const data=await clubFetch(CLUB_ESPN+code+'/teams?limit=500');
+      const teams=getTeamArray(data);
+      const found=teams.filter(t=>[t.displayName,t.name,t.shortDisplayName,t.abbreviation].some(v=>String(v||'').toLocaleLowerCase().includes(query)));
+      if(!found.length){setText('club-status','Aucune équipe trouvée dans cette compétition. Essaie une autre compétition ou vérifie l’orthographe.');return;}
+      const profiles=await Promise.all(found.slice(0,8).map(async team=>{
+        try{const id=team.id;if(!id)return team;const detail=await clubFetch(CLUB_ESPN+code+'/teams/'+id);return detail.team||detail;}catch(_){return team;}
+      }));
+      profiles.forEach(team=>renderClubProfile(team,comp));
+      setText('club-status',profiles.length+' fiche(s) trouvée(s) · Source : ESPN · '+timeFmt.format(new Date()));
+    }catch(error){setText('club-status','Impossible de charger cette compétition actuellement ('+error.message+').');}
+  }
+  async function loadNationalCompetitionCards(){
+    const host=$('national-competitions');if(!host)return;host.replaceChildren();
+    for(const code of NATIONAL_COMPETITIONS){
+      const item=CLUB_COMPETITIONS.find(x=>x[0]===code);if(!item)continue;
+      const card=document.createElement('button');card.type='button';card.className='national-competition-card';card.textContent=item[1]+' · Voir les équipes et le classement';
+      card.addEventListener('click',()=>{$('club-competition').value=code;$('club-search').value='';$('club-results').textContent='Sélectionne une nation ou consulte le classement via la compétition.';loadNationalStandings(code,item[1]);});
+      host.append(card);
+    }
+  }
+  async function loadNationalStandings(code,name){
+    const host=$('club-results');host.replaceChildren();setText('club-status','Chargement du classement de '+name+'…');
+    try{const data=await clubFetch('https://site.api.espn.com/apis/v2/sports/soccer/'+code+'/standings');renderLeagueTable(data);setText('club-status','Classement disponible pour '+name+' · '+timeFmt.format(new Date()));}
+    catch(_){host.textContent='Classement ou groupes non disponibles auprès de la source pour cette compétition.';setText('club-status','Données de classement indisponibles.');}
+  }
+  function initClubHub(){
+    const select=$('club-competition');if(!select)return;
+    if(!select.options.length)CLUB_COMPETITIONS.forEach(([code,name])=>{const option=document.createElement('option');option.value=code;option.textContent=name;select.append(option);});
+    loadNationalCompetitionCards();
+  }
+  function renderNewsRendezvous(){
+    const host=$('news-rendezvous');if(!host)return;host.replaceChildren();
+    const now=Date.now(),upcoming=state.matches.filter(m=>new Date(m.utcDate).getTime()>now&&!['CANCELLED','POSTPONED','SUSPENDED'].includes(String(m.status||'').toUpperCase())).sort((a,b)=>competitionOrder(a)-competitionOrder(b)||new Date(a.utcDate)-new Date(b.utcDate)).slice(0,6);
+    if(!upcoming.length){host.textContent='Aucun grand rendez-vous à venir dans le calendrier actuellement chargé.';return;}
+    const title=document.createElement('h3');title.textContent='Les prochains rendez-vous';host.append(title);
+    upcoming.forEach(match=>{const row=document.createElement('div');row.className='rendezvous-row';const meta=document.createElement('small');meta.textContent=competitionName(match)+' · '+new Date(match.utcDate).toLocaleString('fr-FR',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});const teams=document.createElement('strong');teams.textContent=teamName(match.homeTeam)+' – '+teamName(match.awayTeam);row.append(meta,teams);host.append(row);});
+  }
+
   function showPage(id) {
-    const pageId=['page-accueil','page-matches','page-live','page-leagues','page-news','page-analysis','page-settings'].includes(id)?id:'page-accueil';
+    const pageId=['page-accueil','page-matches','page-live','page-leagues','page-clubs','page-news','page-analysis','page-settings'].includes(id)?id:'page-accueil';
     document.querySelectorAll('.app-page').forEach(page=>page.classList.toggle('active',page.id===pageId));
     document.querySelectorAll('.bottom-nav a[data-page]').forEach(link=>link.classList.toggle('active',link.dataset.page===pageId));
     if(pageId==='page-live')fetchLiveScores();
     if(pageId==='page-leagues')loadLeagueHub();
+    if(pageId==='page-clubs')initClubHub();
     if(pageId==='page-news')loadFootballNews();
     if(pageId==='page-analysis')renderAnalysisPicker();
     if(pageId==='page-matches')renderFeaturedPicks();
@@ -532,7 +600,7 @@
   async function loadFootballNews() {
     const host=$('news-list');if(!host)return;
     const language=NEWS_LANGS[window.GoldI18n?.getLanguage?.()||'fr']||'fr';
-    setText('news-status',newsText('news_loading'));
+    setText('news-status',newsText('news_loading'));renderNewsRendezvous();
     const leagues=[['eng.1','Football international'],['esp.1','Espagne'],['fra.1','France'],['ger.1','Allemagne'],['ita.1','Italie'],['uefa.champions','Ligue des champions']];
     try {
       const responses=await Promise.all(leagues.map(async ([code,label])=>{
@@ -543,7 +611,10 @@
           return (data.articles||[]).map(article=>({...article,section:label}));
         } catch(e){return [];}
       }));
-      const articles=responses.flat().filter(a=>a.headline).sort((a,b)=>new Date(b.published||0)-new Date(a.published||0)).slice(0,24);
+      const allArticles=responses.flat().filter(a=>a.headline).sort((a,b)=>new Date(b.published||0)-new Date(a.published||0));
+      const filter=$('news-filter')?.value||'all';
+      const transferPattern=/transfer|transferred|signing|signed|loan|loaned|deal agreed|medical|mercato|transfert|recrut|prêt|pret|contrat|arrivée|arrivee|départ|depart|fichaje|traspaso|transferencia|contratação|transferência|wechsel|verpflichtet/i;
+      const articles=(filter==='transfers'?allArticles.filter(a=>transferPattern.test([a.headline,a.description,a.summary].join(' '))):allArticles).slice(0,24);
       host.replaceChildren();
       if(!articles.length){setText('news-status',newsText('news_empty'));return;}
       // Translate titles and summaries before rendering: English source text is never silently shown in another selected language.
@@ -610,6 +681,10 @@
   const leagueSelect=$('league-select');if(leagueSelect)leagueSelect.addEventListener('change',loadLeagueHub);
   const leagueRefresh=$('refresh-leagues');if(leagueRefresh)leagueRefresh.addEventListener('click',loadLeagueHub);
   const newsRefresh=$('refresh-news');if(newsRefresh)newsRefresh.addEventListener('click',loadFootballNews);
+  const clubSearchButton=$('club-search-button');if(clubSearchButton)clubSearchButton.addEventListener('click',searchClubTeam);
+  const clubSearch=$('club-search');if(clubSearch)clubSearch.addEventListener('keydown',event=>{if(event.key==='Enter')searchClubTeam();});
+  const clubRefresh=$('refresh-clubs');if(clubRefresh)clubRefresh.addEventListener('click',searchClubTeam);
+  const newsFilter=$('news-filter');if(newsFilter)newsFilter.addEventListener('change',()=>{if(newsFilter.value==='big'){renderNewsRendezvous();const list=$('news-list');if(list)list.replaceChildren();setText('news-status','Affichage des grands rendez-vous du calendrier.');}else loadFootballNews();});
   const alertButton=$('enable-goal-alerts');if(alertButton)alertButton.addEventListener('click',toggleGoalAlerts);
   try{state.goalAlerts=localStorage.getItem('gold-goal-alerts')==='on';}catch(e){}
   updateAlertButton();
