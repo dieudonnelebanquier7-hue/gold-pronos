@@ -26,20 +26,31 @@ jobs:
         env:
           FOOTBALL_DATA_TOKEN: ${{ secrets.FOOTBALL_DATA_TOKEN }}
         run: |
-          PAST_FROM=$(date -u -d '-60 days' +%F)
+          PAST_FROM=$(date -u -d '-365 days' +%F)
           TODAY=$(date -u +%F)
           FUTURE_TO=$(date -u -d '+6 days' +%F)
           mkdir -p data-fetch
           if [ -n "$FOOTBALL_DATA_TOKEN" ]; then
-            PAST_CODE=$(curl --silent --show-error --output data-fetch/football-data-past.json --write-out "%{http_code}" --get "https://api.football-data.org/v4/matches" --data-urlencode "dateFrom=$PAST_FROM" --data-urlencode "dateTo=$TODAY" --header "X-Auth-Token: $FOOTBALL_DATA_TOKEN" || true)
+            # football-data.org rejects oversized date ranges: split history into 10-day windows.
+            CURSOR="$PAST_FROM"
+            INDEX=0
+            while [[ "$CURSOR" < "$TODAY" ]]; do
+              CHUNK_TO=$(date -u -d "$CURSOR +9 days" +%F)
+              if [[ "$CHUNK_TO" > "$TODAY" ]]; then CHUNK_TO="$TODAY"; fi
+              FILE=$(printf 'data-fetch/football-data-past-%02d.json' "$INDEX")
+              CODE=$(curl --silent --show-error --output "$FILE" --write-out "%{http_code}" --get "https://api.football-data.org/v4/matches" --data-urlencode "dateFrom=$CURSOR" --data-urlencode "dateTo=$CHUNK_TO" --header "X-Auth-Token: $FOOTBALL_DATA_TOKEN" || true)
+              if [ "$CODE" != "200" ]; then echo "football-data.org historique $CURSOR à $CHUNK_TO indisponible (HTTP $CODE)."; fi
+              CURSOR=$(date -u -d "$CHUNK_TO +1 day" +%F)
+              INDEX=$((INDEX+1))
+              sleep 6
+            done
             FUTURE_CODE=$(curl --silent --show-error --output data-fetch/football-data-future.json --write-out "%{http_code}" --get "https://api.football-data.org/v4/matches" --data-urlencode "dateFrom=$TODAY" --data-urlencode "dateTo=$FUTURE_TO" --header "X-Auth-Token: $FOOTBALL_DATA_TOKEN" || true)
-            if [ "$PAST_CODE" != "200" ]; then echo "football-data.org période passée indisponible (HTTP $PAST_CODE)."; fi
             if [ "$FUTURE_CODE" != "200" ]; then echo "football-data.org période future indisponible (HTTP $FUTURE_CODE)."; fi
           fi
           node <<'NODE'
           const fs = require('fs');
           const today = new Date(); today.setUTCHours(0,0,0,0);
-          const pastFrom = new Date(today); pastFrom.setUTCDate(pastFrom.getUTCDate()-60);
+          const pastFrom = new Date(today); pastFrom.setUTCDate(pastFrom.getUTCDate()-365);
           const futureTo = new Date(today); futureTo.setUTCDate(futureTo.getUTCDate()+6);
           const ymd = d => d.toISOString().slice(0,10).replace(/-/g,'');
           const analysisRange = ymd(pastFrom)+'-'+ymd(futureTo);
@@ -89,7 +100,7 @@ jobs:
           }
           (async()=>{
             let official=[];
-            for (const file of ['data-fetch/football-data-past.json','data-fetch/football-data-future.json']) {
+            for (const file of fs.readdirSync('data-fetch').filter(name=>name.startsWith('football-data-past-')).map(name=>'data-fetch/'+name).concat(['data-fetch/football-data-future.json'])) {
               if(fs.existsSync(file)) {
                 try { const d=JSON.parse(fs.readFileSync(file,'utf8')); official.push(...(d.matches||[])); }
                 catch(e) { console.log('Réponse football-data.org illisible dans '+file); }
