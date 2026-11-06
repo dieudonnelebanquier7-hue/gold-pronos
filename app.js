@@ -20,19 +20,31 @@
       .sort((a,b)=>new Date(b.utcDate)-new Date(a.utcDate)).slice(0,10).map(m=>{
         const home=normalizeName(teamName(m.homeTeam))===target;
         const gf=Number(m.score.fullTime[home?'home':'away']), ga=Number(m.score.fullTime[home?'away':'home']);
-        return {gf,ga,home,date:m.utcDate,opponent:teamName(home?m.awayTeam:m.homeTeam),form:gf>ga?'V':gf===ga?'N':'D'};
+        const cornersFor=readCorners(m,home),cornersAgainst=readCorners(m,!home);
+        return {gf,ga,home,date:m.utcDate,opponent:teamName(home?m.awayTeam:m.homeTeam),form:gf>ga?'V':gf===ga?'N':'D',cornersFor,cornersAgainst};
       });
   }
   function average(rows,key) { return rows.reduce((s,r)=>s+r[key],0)/rows.length; }
   function poisson(lambda,k) { let p=Math.exp(-lambda); for(let i=1;i<=k;i++) p*=lambda/i; return p; }
+  function poissonAtLeast(lambda,minimum) {
+    let term=Math.exp(-lambda), cumulative=term;
+    for(let k=1;k<minimum;k++){term*=lambda/k;cumulative+=term;}
+    return Math.max(0,Math.min(1,1-cumulative));
+  }
   function buildProbabilities(homeLambda,awayLambda) {
-    const h=Array.from({length:13},(_,i)=>poisson(homeLambda,i)), a=Array.from({length:13},(_,i)=>poisson(awayLambda,i));
-    let home=0,draw=0,away=0,btts=0,over15=0,over25=0,over35=0;
-    for(let i=0;i<9;i++) for(let j=0;j<9;j++) {
+    const h=Array.from({length:21},(_,i)=>poisson(homeLambda,i)), a=Array.from({length:21},(_,i)=>poisson(awayLambda,i));
+    let home=0,draw=0,away=0,btts=0;
+    for(let i=0;i<21;i++) for(let j=0;j<21;j++) {
       const p=h[i]*a[j]; if(i>j)home+=p; else if(i===j)draw+=p; else away+=p;
-      if(i>0&&j>0)btts+=p; if(i+j>=2)over15+=p; if(i+j>=3)over25+=p; if(i+j>=4)over35+=p;
+      if(i>0&&j>0)btts+=p;
     }
-    return {home,draw,away,btts,over15,over25,over35};
+    const totalLambda=homeLambda+awayLambda;
+    return {home,draw,away,btts,over15:poissonAtLeast(totalLambda,2),over25:poissonAtLeast(totalLambda,3),over35:poissonAtLeast(totalLambda,4),expectedGoals:totalLambda};
+  }
+  function readCorners(match,homeSide) {
+    const direct=match.statistics?.[homeSide?'homeCorners':'awayCorners'];
+    if(direct!==null&&direct!==undefined&&Number.isFinite(Number(direct)))return Number(direct);
+    return null;
   }
   function pct(v) { return Math.round(v*100)+' %'; }
   function loadSettings() {
@@ -69,6 +81,16 @@
     const homeLambda=Math.max(.15,Math.min(3.5,(homeScored+awayConceded)/2));
     const awayLambda=Math.max(.15,Math.min(3.5,(awayScored+homeConceded)/2));
     const probs=buildProbabilities(homeLambda,awayLambda);
+    const homeCornerRows=homeRows.filter(r=>Number.isFinite(r.cornersFor)&&Number.isFinite(r.cornersAgainst));
+    const awayCornerRows=awayRows.filter(r=>Number.isFinite(r.cornersFor)&&Number.isFinite(r.cornersAgainst));
+    let cornerMarkets=null;
+    if(homeCornerRows.length>=5&&awayCornerRows.length>=5) {
+      const hFor=average(homeCornerRows,'cornersFor'), hAgainst=average(homeCornerRows,'cornersAgainst');
+      const aFor=average(awayCornerRows,'cornersFor'), aAgainst=average(awayCornerRows,'cornersAgainst');
+      const expectedHomeCorners=(hFor+aAgainst)/2, expectedAwayCorners=(aFor+hAgainst)/2;
+      const expectedTotalCorners=expectedHomeCorners+expectedAwayCorners;
+      cornerMarkets={expectedHomeCorners,expectedAwayCorners,expectedTotalCorners,over75:poissonAtLeast(expectedTotalCorners,8),over85:poissonAtLeast(expectedTotalCorners,9),over95:poissonAtLeast(expectedTotalCorners,10),over105:poissonAtLeast(expectedTotalCorners,11),sample:homeCornerRows.length+awayCornerRows.length};
+    }
     const markets={
       home:probs.home,draw:probs.draw,away:probs.away,
       homeOrDraw:probs.home+probs.draw,awayOrDraw:probs.away+probs.draw,noDraw:probs.home+probs.away,
@@ -86,7 +108,7 @@
       ((normalizeName(teamName(m.homeTeam))===normalizeName(hn)&&normalizeName(teamName(m.awayTeam))===normalizeName(an))||
        (normalizeName(teamName(m.homeTeam))===normalizeName(an)&&normalizeName(teamName(m.awayTeam))===normalizeName(hn))))
       .sort((a,b)=>new Date(b.utcDate)-new Date(a.utcDate)).slice(0,5);
-    return {ready:true,homeRows,awayRows,homeLambda,awayLambda,probs,markets,best,confidence,h2h,sample,homeVenueCount:homeVenue.length,awayVenueCount:awayVenue.length};
+    return {ready:true,homeRows,awayRows,homeLambda,awayLambda,probs,markets,cornerMarkets,best,confidence,h2h,sample,homeVenueCount:homeVenue.length,awayVenueCount:awayVenue.length};
   }
   function addLine(parent,label,value) { const row=document.createElement('div'); row.className='analysis-stat'; const a=document.createElement('span');a.textContent=label;const b=document.createElement('strong');b.textContent=value;row.append(a,b);parent.append(row); }
   function createAnalysis(match) {
@@ -105,6 +127,7 @@
     addLine(grid,'Buts moyens (équipe 2)',average(result.awayRows,'gf').toFixed(2));
     addLine(grid,'Buts encaissés moyens (équipe 2)',average(result.awayRows,'ga').toFixed(2));
     panel.append(grid);
+    const expected=document.createElement('p');expected.className='analysis-intro';expected.textContent='Buts attendus par le modèle : '+result.homeLambda.toFixed(2)+' – '+result.awayLambda.toFixed(2)+' (total '+result.probs.expectedGoals.toFixed(2)+'). Le +2,5 est calculé sur le total attendu, pas sur une cote bookmaker.';panel.append(expected);
     const markets=document.createElement('div');markets.className='probability-grid';
     [['1',result.markets.home],['N',result.markets.draw],['2',result.markets.away],['1X',result.markets.homeOrDraw],['X2',result.markets.awayOrDraw],['12',result.markets.noDraw],['+1,5 buts',result.markets.over15],['+2,5 buts',result.markets.over25],['+3,5 buts',result.markets.over35],['BTTS',result.markets.btts]].forEach(([label,value])=>{const cell=document.createElement('div');cell.className='probability-cell';const strong=document.createElement('strong');strong.textContent=pct(value);const small=document.createElement('span');small.textContent=label;cell.append(strong,small);markets.append(cell);});
     panel.append(markets);
@@ -120,7 +143,13 @@
     ].filter(x=>x[1]>=state.settings.threshold).sort((a,b)=>b[1]-a[1]);
     if(pickOptions.length)pickOptions.forEach(([label,value])=>addLine(picks,label,pct(value)+' · seuil choisi : '+pct(state.settings.threshold)));
     else {const none=document.createElement('p');none.className='analysis-warning';none.textContent='Aucun marché ne dépasse le seuil indicatif de 65 %.';picks.append(none);}
-    const cornerNote=document.createElement('p');cornerNote.className='analysis-warning';cornerNote.textContent='Corners : données historiques non disponibles dans la source actuelle ; aucun total ne sera inventé.';picks.append(cornerNote);
+    if(result.cornerMarkets) {
+      const c=result.cornerMarkets;
+      [['Corners attendus (domicile)',c.expectedHomeCorners],['Corners attendus (extérieur)',c.expectedAwayCorners],['Total corners attendu',c.expectedTotalCorners],['+7,5 corners',c.over75],['+8,5 corners',c.over85],['+9,5 corners',c.over95],['+10,5 corners',c.over105]].forEach(([label,value])=>addLine(picks,label,typeof value==='number'&&value<=1?pct(value):Number(value).toFixed(2)));
+      const note=document.createElement('p');note.className='analysis-warning';note.textContent='Estimation corners issue de '+c.sample+' observations récentes avec statistiques disponibles. À interpréter avec prudence.';picks.append(note);
+    } else {
+      const cornerNote=document.createElement('p');cornerNote.className='analysis-warning';cornerNote.textContent='Corners : la source ne fournit pas encore au moins 5 matchs avec statistiques complètes pour chaque équipe. Aucun pourcentage corners ne sera inventé.';picks.append(cornerNote);
+    }
     panel.append(picks);
     const form=document.createElement('p');form.className='analysis-intro';form.textContent='Forme sur les '+result.homeRows.length+' derniers matchs : '+teamName(match.homeTeam)+' ('+result.homeRows.slice(0,5).map(r=>r.form).join(' · ')+') ; '+teamName(match.awayTeam)+' ('+result.awayRows.slice(0,5).map(r=>r.form).join(' · ')+').';panel.append(form);
     const recent=document.createElement('div');recent.className='analysis-recent';
