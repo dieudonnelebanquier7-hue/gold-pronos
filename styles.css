@@ -185,3 +185,16 @@ html[dir="rtl"] .competition-heading{border-left:0;border-right:3px solid var(--
 .featured-picks-empty,.featured-picks-note{font-size:11px;line-height:1.65;color:#c2bbad;margin:10px 0 0}
 .featured-picks-note{padding-top:10px;border-top:1px solid rgba(255,255,255,.08);color:#a9a39a}
 @media(max-width:380px){.featured-picks{padding:12px}.featured-pick-card{grid-template-columns:24px minmax(0,1fr) auto;gap:7px}.featured-pick-info>strong{font-size:12px}.featured-pick-probability{font-size:15px}}
+
+
+/* Analyse compacte : résumé visible, détails à la demande */
+.analysis-quick-summary{display:grid;gap:6px;margin:12px 0;padding:12px 14px;border:1px solid rgba(211,170,75,.32);border-radius:12px;background:rgba(211,170,75,.07)}
+.analysis-quick-summary .quick-label{font-size:.68rem;letter-spacing:.12em;font-weight:800;color:var(--gold,#d5ad55)}
+.analysis-quick-summary .quick-pick{font-size:1rem;line-height:1.35;color:var(--text,#f5f1e8)}
+.analysis-quick-summary .quick-meta{font-size:.78rem;color:var(--muted,#aaa)}
+.analysis-details{margin-top:8px;border-top:1px solid rgba(255,255,255,.1);padding-top:8px}
+.analysis-details>summary{cursor:pointer;list-style:none;font-weight:700;font-size:.85rem;color:var(--gold,#d5ad55);padding:8px 0}
+.analysis-details>summary::-webkit-details-marker{display:none}
+.analysis-details>summary:after{content:'＋';float:right}
+.analysis-details[open]>summary:after{content:'－'}
+.analysis-details>*:not(summary){margin-top:10px}
