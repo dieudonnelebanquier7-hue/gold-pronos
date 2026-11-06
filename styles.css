@@ -324,3 +324,20 @@ html[dir="rtl"] .competition-heading{border-left:0;border-right:3px solid var(--
 .staff-profile-row img{width:46px;height:50px;flex:0 0 46px;object-fit:cover;object-position:top center;border-radius:8px;background:#202024}
 .staff-profile-row img.photo-unavailable{background:linear-gradient(145deg,#25252b,#111);border:1px dashed #68605a}
 .live-officials{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:6px;margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.08)}
+
+/* Club VIP — grille des formules et transparence de paiement */
+.vip-section{padding-bottom:30px}
+.vip-crown{align-self:center;padding:7px 10px;border:1px solid #947238;border-radius:30px;color:#e6c875;font-size:10px;font-weight:900;letter-spacing:1px}
+.vip-intro{margin:12px 0 18px;padding:14px;border-left:3px solid var(--gold);background:#1c190f;border-radius:8px;color:#e2dccd;font-size:13px;line-height:1.7}
+.vip-plans{display:grid;gap:12px}
+.vip-plan{padding:17px;border:1px solid #5d4b2d;border-radius:13px;background:linear-gradient(145deg,#211b11,#121214 75%);display:flex;flex-direction:column;gap:8px}
+.vip-plan-featured{border-color:#b28c3e;box-shadow:inset 0 0 0 1px #b28c3e44}
+.vip-plan-label{color:#c5a65c;font-size:9px;font-weight:900;letter-spacing:1.2px}
+.vip-plan h3{margin:0;font:500 23px Georgia,serif;color:#fff}
+.vip-price{font-size:20px;color:#f0d58d}
+.vip-plan p{margin:0;color:#c5c0b5;font-size:12px;line-height:1.6;min-height:38px}
+.vip-coming{display:block;margin-top:6px;padding:11px;border:1px dashed #806638;border-radius:8px;text-align:center;color:#d7bd83;font-size:11px;font-weight:800}
+.vip-security{margin-top:18px;padding:16px;border:1px solid #315b44;border-radius:12px;background:#101d15}
+.vip-security h3{margin:0 0 10px;color:#8ee0b6;font-size:16px}
+.vip-security p{font-size:12px;line-height:1.7;color:#e0e7e1}
+@media(min-width:620px){.vip-plans{grid-template-columns:1fr 1fr}}
