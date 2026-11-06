@@ -26,7 +26,7 @@
   function average(rows,key) { return rows.reduce((s,r)=>s+r[key],0)/rows.length; }
   function poisson(lambda,k) { let p=Math.exp(-lambda); for(let i=1;i<=k;i++) p*=lambda/i; return p; }
   function buildProbabilities(homeLambda,awayLambda) {
-    const h=Array.from({length:9},(_,i)=>poisson(homeLambda,i)), a=Array.from({length:9},(_,i)=>poisson(awayLambda,i));
+    const h=Array.from({length:13},(_,i)=>poisson(homeLambda,i)), a=Array.from({length:13},(_,i)=>poisson(awayLambda,i));
     let home=0,draw=0,away=0,btts=0,over15=0,over25=0,over35=0;
     for(let i=0;i<9;i++) for(let j=0;j<9;j++) {
       const p=h[i]*a[j]; if(i>j)home+=p; else if(i===j)draw+=p; else away+=p;
@@ -116,13 +116,13 @@
     filtered.forEach(m=>list.append(createMatchCard(m)));
   }
   function updateSourceDetails() {
-    const count=state.matches.length,fd=Number(state.sources.footballData||0),espn=Number(state.sources.espn||0);
-    setText('source-status',count?'DONNÉES CHARGÉES':'AUCUN MATCH');setText('source-detail',fd+' football-data.org · '+espn+' ESPN');
+    const count=state.matches.length,fd=Number(state.sources.footballData||0),espn=Number(state.sources.espn||0),history=Number(state.sources.historyMatches||0);
+    setText('source-status',count?'DONNÉES CHARGÉES':'AUCUN MATCH');setText('source-detail',fd+' football-data.org · '+espn+' ESPN · '+history+' résultats historiques');
     const generated=state.generatedAt?new Date(state.generatedAt):null;
     const label=generated&&!Number.isNaN(generated.getTime())?'Dernière collecte : '+dateFmt.format(generated)+' à '+timeFmt.format(generated)+'. ':'';
     setText('report-title',count+' rencontre(s) disponibles');
-    setText('report-copy',label+'Ouvre une rencontre pour consulter les statistiques disponibles. Les cotes bookmakers ne sont pas intégrées.');
-    setText('settings-message','Données préparées par GitHub Actions. Les analyses utilisent uniquement les résultats terminés présents dans ce calendrier ; si l’échantillon est trop faible, aucun pronostic ne sera affiché.');
+    setText('report-copy',label+'Ouvre une rencontre pour consulter les statistiques disponibles. '+history+' résultats terminés avec score sont chargés. Les cotes bookmakers ne sont pas intégrées.');
+    setText('settings-message','Données préparées par GitHub Actions. Les analyses utilisent les résultats terminés vérifiés des 60 derniers jours présents dans le calendrier ; si l’échantillon est trop faible, aucun pronostic ne sera affiché.');
   }
   async function loadMatches() {
     const button=$('refresh-btn');if(button){button.disabled=true;button.textContent='Chargement…';}setText('match-status','Chargement du calendrier…');
