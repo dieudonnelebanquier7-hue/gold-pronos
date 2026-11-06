@@ -127,7 +127,7 @@ jobs:
       - name: Prepare Capacitor Android project
         run: |
           mkdir -p www
-          cp index.html app.js styles.css manifest.webmanifest icon.svg matches.json www/
+          cp index.html app.js styles.css i18n.js sw.js manifest.webmanifest icon.svg matches.json www/
           cat > package.json <<'EOF'
           {
             "name": "gold-pronos-android",
