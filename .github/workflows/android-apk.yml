@@ -27,19 +27,23 @@ jobs:
         env:
           FOOTBALL_DATA_TOKEN: ${{ secrets.FOOTBALL_DATA_TOKEN }}
         run: |
-          FROM_DATE=$(date -u -d '-7 days' +%F)
-          TO_DATE=$(date -u -d '+7 days' +%F)
+          PAST_FROM=$(date -u -d '-6 days' +%F)
+          TODAY=$(date -u +%F)
+          FUTURE_TO=$(date -u -d '+6 days' +%F)
           mkdir -p data-fetch
           if [ -n "$FOOTBALL_DATA_TOKEN" ]; then
-            CODE=$(curl --silent --show-error --output data-fetch/football-data.json --write-out "%{http_code}" --get "https://api.football-data.org/v4/matches" --data-urlencode "dateFrom=$FROM_DATE" --data-urlencode "dateTo=$TO_DATE" --header "X-Auth-Token: $FOOTBALL_DATA_TOKEN" || true)
-            if [ "$CODE" != "200" ]; then echo "football-data.org indisponible (HTTP $CODE), ESPN prendra le relais."; fi
+            PAST_CODE=$(curl --silent --show-error --output data-fetch/football-data-past.json --write-out "%{http_code}" --get "https://api.football-data.org/v4/matches" --data-urlencode "dateFrom=$PAST_FROM" --data-urlencode "dateTo=$TODAY" --header "X-Auth-Token: $FOOTBALL_DATA_TOKEN" || true)
+            FUTURE_CODE=$(curl --silent --show-error --output data-fetch/football-data-future.json --write-out "%{http_code}" --get "https://api.football-data.org/v4/matches" --data-urlencode "dateFrom=$TODAY" --data-urlencode "dateTo=$FUTURE_TO" --header "X-Auth-Token: $FOOTBALL_DATA_TOKEN" || true)
+            if [ "$PAST_CODE" != "200" ]; then echo "football-data.org période passée indisponible (HTTP $PAST_CODE)."; fi
+            if [ "$FUTURE_CODE" != "200" ]; then echo "football-data.org période future indisponible (HTTP $FUTURE_CODE)."; fi
           fi
           node <<'NODE'
           const fs = require('fs');
-          const from = new Date(); from.setUTCHours(0,0,0,0); from.setUTCDate(from.getUTCDate()-7);
-          const to = new Date(from); to.setUTCDate(to.getUTCDate()+7);
+          const today = new Date(); today.setUTCHours(0,0,0,0);
+          const pastFrom = new Date(today); pastFrom.setUTCDate(pastFrom.getUTCDate()-6);
+          const futureTo = new Date(today); futureTo.setUTCDate(futureTo.getUTCDate()+6);
           const ymd = d => d.toISOString().slice(0,10).replace(/-/g,'');
-          const dateRange = ymd(from)+'-'+ymd(to);
+          const dateRanges = [ymd(pastFrom)+'-'+ymd(today), ymd(today)+'-'+ymd(futureTo)];
           const leagues = [
             ['eng.1','Premier League'],['eng.2','Championship'],['esp.1','La Liga'],['esp.2','Segunda División'],
             ['ger.1','Bundesliga'],['ita.1','Serie A'],['fra.1','Ligue 1'],['ned.1','Eredivisie'],['por.1','Primeira Liga'],
@@ -51,7 +55,7 @@ jobs:
             ['fifa.world','Compétitions FIFA']
           ];
           const sleep = ms => new Promise(r=>setTimeout(r,ms));
-          async function fetchLeague([code,label]) {
+          async function fetchLeague([code,label], dateRange) {
             try {
               const url='https://site.api.espn.com/apis/site/v2/sports/soccer/'+code+'/scoreboard?dates='+dateRange;
               const response=await fetch(url,{signal:AbortSignal.timeout(12000),headers:{'User-Agent':'GOLD-PRONOS/0.3'}});
@@ -75,14 +79,19 @@ jobs:
           }
           (async()=>{
             let official=[];
-            if(fs.existsSync('data-fetch/football-data.json')) {
-              try { const d=JSON.parse(fs.readFileSync('data-fetch/football-data.json','utf8')); official=d.matches||[]; } catch(e) { console.log('Réponse football-data.org illisible'); }
+            for (const file of ['data-fetch/football-data-past.json','data-fetch/football-data-future.json']) {
+              if(fs.existsSync(file)) {
+                try { const d=JSON.parse(fs.readFileSync(file,'utf8')); official.push(...(d.matches||[])); }
+                catch(e) { console.log('Réponse football-data.org illisible dans '+file); }
+              }
             }
             const supplemental=[];
-            for(let i=0;i<leagues.length;i+=5) {
-              const batch=await Promise.all(leagues.slice(i,i+5).map(fetchLeague));
-              supplemental.push(...batch.flat());
-              await sleep(150);
+            for (const dateRange of dateRanges) {
+              for(let i=0;i<leagues.length;i+=5) {
+                const batch=await Promise.all(leagues.slice(i,i+5).map(league=>fetchLeague(league,dateRange)));
+                supplemental.push(...batch.flat());
+                await sleep(150);
+              }
             }
             const key=m=>[m.utcDate?.slice(0,16),m.homeTeam?.name?.toLowerCase(),m.awayTeam?.name?.toLowerCase()].join('|');
             const merged=new Map();
