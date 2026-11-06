@@ -22,3 +22,6 @@
 .analysis-recent .analysis-stat{flex-direction:row;justify-content:space-between;align-items:center;margin-top:4px;gap:8px}
 .analysis-recent .analysis-stat span{font-size:9px}
 .analysis-recent .analysis-stat strong{font-size:10px;white-space:nowrap}
+
+.featured-label{display:inline-flex;align-items:center;margin-left:auto;padding:4px 7px;border:1px solid #80632e;border-radius:20px;color:var(--gold2);font-size:8px;font-weight:800;letter-spacing:.55px;white-space:nowrap}
+.match-card:has(.featured-label){border-color:#65502d;background:linear-gradient(145deg,#1c1913,var(--panel) 55%)}
