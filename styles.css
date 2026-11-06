@@ -170,3 +170,18 @@ html[dir="rtl"] .competition-heading{border-left:0;border-right:3px solid var(--
 
 /* Navigation par rubriques distinctes */
 .app-page{display:none;min-height:55vh}.app-page.active{display:block}.bottom-nav a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-decoration:none;color:var(--muted);min-height:58px}.bottom-nav a.active{color:var(--gold2)}.analysis-workspace{margin:12px 0;padding:16px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}.analysis-workspace>label{display:block;color:var(--gold2);font-size:12px;font-weight:700;margin:12px 0 7px}.analysis-workspace select{width:100%;padding:13px;border:1px solid #66532f;border-radius:8px;background:#09090b;color:var(--white);font-size:13px}.daily-analysis-result{margin-top:14px}
+
+/* Sélections du jour — présentation éditoriale GOLD PRONOS */
+.featured-picks{margin:18px 0 22px;padding:16px;border:1px solid #6d552c;border-radius:14px;background:linear-gradient(145deg,#211a0e,#121214 72%)}
+.featured-picks-heading h3{margin:0;color:var(--gold2);font-size:14px;letter-spacing:.8px;line-height:1.4}
+.featured-picks-heading p{margin:6px 0 13px;color:#c4bdad;font-size:12px;line-height:1.55}
+.featured-pick-card{display:grid;grid-template-columns:30px minmax(0,1fr) auto;align-items:center;gap:10px;padding:12px 0;border-top:1px solid rgba(255,255,255,.09)}
+.featured-pick-rank{font:18px Georgia,serif;color:var(--gold)}
+.featured-pick-info{display:flex;flex-direction:column;gap:4px;min-width:0}
+.featured-pick-info small{font-size:10px;color:#b5aa92;line-height:1.4}
+.featured-pick-info>strong{font-size:13px;line-height:1.4;color:#f4f0e8;overflow-wrap:anywhere}
+.featured-pick-market{font-size:11px;font-weight:800;color:var(--gold2)}
+.featured-pick-probability{font-size:17px;color:var(--gold2);white-space:nowrap}
+.featured-picks-empty,.featured-picks-note{font-size:11px;line-height:1.65;color:#c2bbad;margin:10px 0 0}
+.featured-picks-note{padding-top:10px;border-top:1px solid rgba(255,255,255,.08);color:#a9a39a}
+@media(max-width:380px){.featured-picks{padding:12px}.featured-pick-card{grid-template-columns:24px minmax(0,1fr) auto;gap:7px}.featured-pick-info>strong{font-size:12px}.featured-pick-probability{font-size:15px}}
