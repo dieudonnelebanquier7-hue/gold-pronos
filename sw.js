@@ -1,5 +1,5 @@
-const CACHE='gold-pronos-v25';
-const ASSETS=['./','./index.html','./styles.css?v=22','./app.js?v=32','./i18n.js?v=5','./manifest.webmanifest','./icon.svg'];
+const CACHE='gold-pronos-v26';
+const ASSETS=['./','./index.html','./styles.css?v=23','./app.js?v=33','./i18n.js?v=6','./manifest.webmanifest','./icon.svg'];
 self.addEventListener('install',event=>event.waitUntil((async()=>{const cache=await caches.open(CACHE);await cache.addAll(ASSETS);await self.skipWaiting();})()));
 self.addEventListener('activate',event=>event.waitUntil((async()=>{const keys=await caches.keys();await Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)));await self.clients.claim();})()));
 self.addEventListener('fetch',event=>{
