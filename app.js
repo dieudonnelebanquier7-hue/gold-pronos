@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
-  const state = { matches: [], filter: 'upcoming', generatedAt: null, sources: {}, openAnalysis: null, pickFilter: 'all', settings: { threshold: 0.65, minimumHistory: 5 } };
+  const state = { matches: [], filter: 'upcoming', generatedAt: null, sources: {}, openAnalysis: null, pickFilter: 'all', liveMatches: [], liveReady: false, goalAlerts: false, knownScores: {}, settings: { threshold: 0.65, minimumHistory: 5 } };
   const dateFmt = new Intl.DateTimeFormat('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
   const timeFmt = new Intl.DateTimeFormat('fr-FR', { hour:'2-digit', minute:'2-digit' });
   const setText = (id,value) => { const el=$(id); if(el) el.textContent=value; };
@@ -354,9 +354,11 @@
     if(selected)output.append(createAnalysis(selected));else{const empty=document.createElement('div');empty.className='status-panel';empty.textContent='Aucune rencontre à analyser dans le calendrier chargé.';output.append(empty);}
   }
   function showPage(id) {
-    const pageId=['page-accueil','page-matches','page-analysis','page-settings'].includes(id)?id:'page-accueil';
+    const pageId=['page-accueil','page-matches','page-live','page-news','page-analysis','page-settings'].includes(id)?id:'page-accueil';
     document.querySelectorAll('.app-page').forEach(page=>page.classList.toggle('active',page.id===pageId));
     document.querySelectorAll('.bottom-nav a[data-page]').forEach(link=>link.classList.toggle('active',link.dataset.page===pageId));
+    if(pageId==='page-live')fetchLiveScores();
+    if(pageId==='page-news')loadFootballNews();
     if(pageId==='page-analysis')renderAnalysisPicker();
     if(pageId==='page-matches')renderFeaturedPicks();
     window.scrollTo({top:0,behavior:'instant'});
@@ -368,7 +370,7 @@
     const label=generated&&!Number.isNaN(generated.getTime())?'Dernière collecte : '+dateFmt.format(generated)+' à '+timeFmt.format(generated)+'. ':'';
     setText('report-title',count+' rencontre(s) disponibles');
     setText('report-copy',label+'Ouvre une rencontre pour consulter les statistiques disponibles. '+history+' résultats terminés avec score sont chargés. Les cotes bookmakers ne sont pas intégrées.');
-    setText('settings-message','Données préparées par GitHub Actions. Les analyses utilisent les résultats terminés vérifiés des 60 derniers jours présents dans le calendrier ; si l’échantillon est trop faible, aucun pronostic ne sera affiché.');
+    setText('settings-message','Données préparées par GitHub Actions sur une fenêtre historique pouvant atteindre 365 jours. La profondeur réelle varie selon les compétitions et les sources.');
   }
   async function loadMatches() {
     const button=$('refresh-btn');if(button){button.disabled=true;button.textContent='Chargement…';}setText('match-status','Chargement du calendrier…');
@@ -385,6 +387,138 @@
       const list=$('match-list');if(list)list.replaceChildren();setText('report-title','Données indisponibles');setText('report-copy','Aucune analyse sans calendrier valide.');setText('settings-message','Vérifie le déploiement GitHub Pages puis réessaie.');
     } finally {if(button){button.disabled=false;button.textContent='Actualiser ↻';}}
   }
+
+  // Centre live : flux ESPN public, actualisé périodiquement. Cette source peut être retardée ou indisponible.
+  const LIVE_LEAGUES = [
+    ['eng.1','Premier League'],['eng.2','Championship'],['esp.1','La Liga'],['esp.2','Segunda División'],
+    ['ger.1','Bundesliga'],['ita.1','Serie A'],['fra.1','Ligue 1'],['ned.1','Eredivisie'],['por.1','Primeira Liga'],
+    ['tur.1','Süper Lig'],['nor.1','Eliteserien'],['swe.1','Allsvenskan'],['sui.1','Swiss Super League'],
+    ['ksa.1','Saudi Pro League'],['cze.1','Czech First League'],['usa.1','MLS'],['rou.1','Liga I'],
+    ['rus.1','Russian Premier League'],['chn.1','Chinese Super League'],['jpn.1','J1 League'],['bra.1','Brasileirão'],
+    ['arg.1','Liga Profesional Argentina'],['mex.1','Liga MX'],['uefa.champions','Ligue des champions'],
+    ['uefa.europa','Ligue Europa'],['uefa.europa.conf','Ligue Conférence'],['afc.champions','Ligue des champions AFC'],
+    ['fifa.world','Compétitions FIFA']
+  ];
+  const ESPN_BASE='https://site.api.espn.com/apis/site/v2/sports/soccer/';
+  const isLiveStatus=status=>['IN_PLAY','LIVE','HALFTIME','PAUSED','EXTRA_TIME','PENALTY_SHOOTOUT'].includes(String(status||'').toUpperCase());
+  function soundGoal() {
+    if(!state.goalAlerts)return;
+    try {
+      const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return;
+      const ctx=new Audio();const now=ctx.currentTime;
+      [660,880,1046].forEach((freq,i)=>{const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type='sine';osc.frequency.value=freq;gain.gain.setValueAtTime(.0001,now+i*.16);gain.gain.exponentialRampToValueAtTime(.16,now+i*.16+.025);gain.gain.exponentialRampToValueAtTime(.0001,now+i*.16+.14);osc.connect(gain);gain.connect(ctx.destination);osc.start(now+i*.16);osc.stop(now+i*.16+.15);});
+      setTimeout(()=>ctx.close().catch(()=>{}),900);
+    } catch(e) { console.warn('Sonnerie indisponible',e); }
+  }
+  function notifyGoal(match,home,away) {
+    soundGoal();
+    if('Notification'in window && Notification.permission==='granted' && document.visibilityState==='visible') {
+      try { new Notification('⚽ BUT ! '+teamName(match.homeTeam)+' – '+teamName(match.awayTeam),{body:home+' - '+away,tag:'goal-'+match.id,icon:'./icon.svg'}); } catch(e) {}
+    }
+  }
+  function renderLiveMatches() {
+    const host=$('live-list');if(!host)return;host.replaceChildren();
+    const live=state.liveMatches.filter(m=>isLiveStatus(m.status));
+    if(!live.length){const empty=document.createElement('div');empty.className='status-panel';empty.textContent=state.liveReady?'Aucun match en direct détecté dans les compétitions suivies.':'Connexion à la source des scores en direct…';host.append(empty);return;}
+    live.sort((a,b)=>competitionOrder(a)-competitionOrder(b)||new Date(a.utcDate)-new Date(b.utcDate));
+    live.forEach(m=>{
+      const card=document.createElement('article');card.className='live-score-card';
+      const top=document.createElement('div');top.className='live-score-meta';
+      const comp=document.createElement('span');comp.textContent=m.competition?.name||'Football';
+      const minute=document.createElement('b');minute.textContent=m.statusDetail||'EN DIRECT';
+      top.append(comp,minute);
+      const teams=document.createElement('div');teams.className='live-score-teams';
+      const home=document.createElement('strong');home.textContent=teamName(m.homeTeam);
+      const score=document.createElement('b');score.className='live-score-value';score.textContent=(m.score?.fullTime?.home??0)+' – '+(m.score?.fullTime?.away??0);
+      const away=document.createElement('strong');away.textContent=teamName(m.awayTeam);
+      teams.append(home,score,away);card.append(top,teams);host.append(card);
+    });
+  }
+  async function fetchLiveScores() {
+    if(document.visibilityState==='hidden')return;
+    const today=new Date().toISOString().slice(0,10).replace(/-/g,'');
+    const collected=[];
+    for(let i=0;i<LIVE_LEAGUES.length;i+=7) {
+      const batch=await Promise.all(LIVE_LEAGUES.slice(i,i+7).map(async ([code,label])=>{
+        try {
+          const response=await fetch(ESPN_BASE+code+'/scoreboard?dates='+today,{cache:'no-store',signal:AbortSignal.timeout(10000)});
+          if(!response.ok)return [];
+          const data=await response.json();
+          return (data.events||[]).map(event=>{
+            const comp=event.competitions?.[0],teams=comp?.competitors||[];
+            const h=teams.find(t=>t.homeAway==='home')||teams[0],a=teams.find(t=>t.homeAway==='away')||teams[1];
+            if(!h||!a)return null;
+            const statusType=comp.status?.type||event.status?.type||{};
+            const status=statusType.completed?'FINISHED':statusType.state==='in'?'IN_PLAY':statusType.state==='post'?'FINISHED':'SCHEDULED';
+            return {id:String(event.id),utcDate:event.date,status,statusDetail:comp.status?.displayClock||statusType.detail||statusType.description||'EN DIRECT',competition:{name:event.league?.name||data.leagues?.[0]?.name||label},homeTeam:{name:h.team?.displayName||h.team?.name||'Domicile'},awayTeam:{name:a.team?.displayName||a.team?.name||'Extérieur'},score:{fullTime:{home:h.score==null?0:Number(h.score),away:a.score==null?0:Number(a.score)}}};
+          }).filter(Boolean);
+        } catch(e){return [];}
+      }));
+      collected.push(...batch.flat());
+    }
+    const current={};
+    collected.forEach(m=>{
+      const h=Number(m.score.fullTime.home)||0,a=Number(m.score.fullTime.away)||0;
+      current[m.id]={home:h,away:a,match:m};
+      const previous=state.knownScores[m.id];
+      if(previous && (h>previous.home||a>previous.away))notifyGoal(m,h,a);
+    });
+    // Ne pas sonner au premier chargement : il sert de référence initiale.
+    state.knownScores=current;
+    state.liveMatches=collected;state.liveReady=true;
+    renderLiveMatches();
+    setText('live-updated','Dernière vérification : '+timeFmt.format(new Date())+' · actualisation automatique environ toutes les 90 secondes');
+    const liveCount=collected.filter(m=>isLiveStatus(m.status)).length;
+    setText('live-count',String(liveCount));
+  }
+  async function loadFootballNews() {
+    const host=$('news-list');if(!host)return;
+    setText('news-status','Récupération des dernières actualités football…');
+    const leagues=[['eng.1','Football international'],['esp.1','Espagne'],['fra.1','France'],['ger.1','Allemagne'],['ita.1','Italie'],['uefa.champions','Ligue des champions']];
+    try {
+      const responses=await Promise.all(leagues.map(async ([code,label])=>{
+        try {
+          const r=await fetch(ESPN_BASE+code+'/news',{cache:'no-store',signal:AbortSignal.timeout(10000)});
+          if(!r.ok)return [];
+          const data=await r.json();
+          return (data.articles||[]).map(article=>({...article,section:label}));
+        } catch(e){return [];}
+      }));
+      const articles=responses.flat().filter(a=>a.headline).sort((a,b)=>new Date(b.published||0)-new Date(a.published||0)).slice(0,30);
+      host.replaceChildren();
+      if(!articles.length){setText('news-status','La source d’actualités ne répond pas pour le moment. Réessaie plus tard.');return;}
+      articles.forEach(article=>{
+        const card=document.createElement('article');card.className='news-card';
+        const category=document.createElement('small');category.textContent=article.section||'Football';
+        const title=document.createElement('h3');title.textContent=article.headline;
+        const desc=document.createElement('p');desc.textContent=article.description||article.summary||'Ouvrir l’article pour consulter les détails.';
+        const meta=document.createElement('div');meta.className='news-meta';meta.textContent=article.published?new Date(article.published).toLocaleString('fr-FR'):'Publication récente';
+        card.append(category,title,desc,meta);
+        const href=article.links?.web?.href||article.links?.api?.news?.href;
+        if(href){const link=document.createElement('a');link.href=href;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Lire la source ↗';card.append(link);}
+        host.append(card);
+      });
+      setText('news-status',articles.length+' actualités récupérées depuis ESPN. Les horaires et la disponibilité dépendent de la source.');
+    } catch(e){setText('news-status','Actualités momentanément indisponibles.');}
+  }
+  function enableGoalAlerts() {
+    state.goalAlerts=true;
+    try{localStorage.setItem('gold-goal-alerts','on');}catch(e){}
+    if('Notification'in window && Notification.permission==='default')Notification.requestPermission().then(()=>updateAlertButton());
+    updateAlertButton();soundGoal();
+  }
+  function updateAlertButton() {
+    const button=$('enable-goal-alerts'),status=$('goal-alert-status');
+    if(button)button.textContent=state.goalAlerts?'Désactiver la sonnerie':'Activer la sonnerie des buts';
+    if(status)status.textContent=state.goalAlerts?'Sonnerie activée sur cet appareil. Les alertes fonctionnent lorsque l’application est ouverte et connectée.':'Alertes désactivées.';
+  }
+  function toggleGoalAlerts() {
+    state.goalAlerts=!state.goalAlerts;
+    try{localStorage.setItem('gold-goal-alerts',state.goalAlerts?'on':'off');}catch(e){}
+    if(state.goalAlerts && 'Notification'in window && Notification.permission==='default')Notification.requestPermission().then(()=>updateAlertButton());
+    updateAlertButton();if(state.goalAlerts)soundGoal();
+  }
+
   window.addEventListener('error',e=>{setText('source-status','ERREUR JAVASCRIPT');setText('match-status','Erreur JavaScript : '+(e.message||'inconnue'));});
   window.addEventListener('unhandledrejection',e=>{setText('source-status','ERREUR APPLICATION');setText('match-status','Opération échouée : '+String(e.reason?.message||e.reason||'inconnue'));});
   loadSettings();
@@ -394,11 +528,19 @@
   const resetSettings=$('reset-settings');
   if(resetSettings)resetSettings.addEventListener('click',()=>{state.settings={threshold:0.65,minimumHistory:5};loadSettings();saveSettings();});
   const refresh=$('refresh-btn');if(refresh)refresh.addEventListener('click',loadMatches);
+  const liveRefresh=$('refresh-live');if(liveRefresh)liveRefresh.addEventListener('click',fetchLiveScores);
+  const newsRefresh=$('refresh-news');if(newsRefresh)newsRefresh.addEventListener('click',loadFootballNews);
+  const alertButton=$('enable-goal-alerts');if(alertButton)alertButton.addEventListener('click',toggleGoalAlerts);
+  try{state.goalAlerts=localStorage.getItem('gold-goal-alerts')==='on';}catch(e){}
+  updateAlertButton();
   document.querySelectorAll('.filter').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.filter').forEach(x=>x.classList.toggle('active',x===b));state.filter=b.dataset.filter||'all';state.openAnalysis=null;renderMatches();}));
   document.querySelectorAll('.bottom-nav a[data-page]').forEach(link=>link.addEventListener('click',event=>{event.preventDefault();const id=link.dataset.page;history.pushState({page:id},'', '#'+id);showPage(id);}));
   window.addEventListener('popstate',()=>showPage(location.hash.slice(1)));
   const analysisSelect=$('analysis-match-select');if(analysisSelect)analysisSelect.addEventListener('change',renderAnalysisPicker);
   showPage(location.hash.slice(1)||'page-accueil');
-  setText('today',dateFmt.format(new Date()));loadMatches();
+  setText('today',dateFmt.format(new Date()));loadMatches();fetchLiveScores();loadFootballNews();
+  setInterval(fetchLiveScores,90000);
+  setInterval(loadFootballNews,900000);
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){fetchLiveScores();}});
   if('serviceWorker'in navigator)navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});
 })();
