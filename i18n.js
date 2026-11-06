@@ -21,6 +21,7 @@
   const langs=Object.keys(dictionaries);
   const storageKey='gold-pronos-language';
   let current='fr';
+  const originalText=new WeakMap();
   function translateText(value) {
     const dict=dictionaries[current]||{};
     if(!value.trim())return value;
@@ -32,13 +33,18 @@
     document.documentElement.lang=current;
     document.documentElement.dir=current==='ar'?'rtl':'ltr';
     const dict=dictionaries[current]||{};
-    document.querySelectorAll('[data-i18n]').forEach(el=>{const key=el.getAttribute('data-i18n');if(dict[key])el.textContent=dict[key];});
+    document.querySelectorAll('[data-i18n]').forEach(el=>{const key=el.getAttribute('data-i18n');if(!el.dataset.originalI18n)el.dataset.originalI18n=el.textContent;el.textContent=dict[key]||el.dataset.originalI18n;});
     const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
     const nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);
-    nodes.forEach(node=>{node.nodeValue=translateText(node.nodeValue);});
+    nodes.forEach(node=>translateNode(node));
     document.querySelectorAll('input,select,button').forEach(el=>{if(el.dataset.originalPlaceholder)el.placeholder=dict[el.dataset.originalPlaceholder]||el.dataset.originalPlaceholder;});
     const a=document.getElementById('language-select'),b=document.getElementById('language-select-settings');
     if(a)a.value=current;if(b)b.value=current;
+  }
+  function translateNode(node) {
+    if(!originalText.has(node))originalText.set(node,node.nodeValue);
+    const next=translateText(originalText.get(node));
+    if(node.nodeValue!==next)node.nodeValue=next;
   }
   function setLanguage(value) {
     current=langs.includes(value)?value:'fr';
@@ -50,7 +56,7 @@
     try{const saved=localStorage.getItem(storageKey);if(saved&&langs.includes(saved))current=saved;}catch(_){}
     ['language-select','language-select-settings'].forEach(id=>{const el=document.getElementById(id);if(el){el.value=current;el.addEventListener('change',()=>setLanguage(el.value));}});
     translatePage();
-    const observer=new MutationObserver(records=>{if(current==='fr')return;for(const record of records){if(record.type==='characterData')record.target.nodeValue=translateText(record.target.nodeValue);record.addedNodes?.forEach(node=>{if(node.nodeType===Node.TEXT_NODE)node.nodeValue=translateText(node.nodeValue);else if(node.nodeType===Node.ELEMENT_NODE){const walker=document.createTreeWalker(node,NodeFilter.SHOW_TEXT);while(walker.nextNode())walker.currentNode.nodeValue=translateText(walker.currentNode.nodeValue);}});}});
+    const observer=new MutationObserver(records=>{if(current==='fr')return;for(const record of records){if(record.type==='characterData')translateNode(record.target);record.addedNodes?.forEach(node=>{if(node.nodeType===Node.TEXT_NODE)translateNode(node);else if(node.nodeType===Node.ELEMENT_NODE){const walker=document.createTreeWalker(node,NodeFilter.SHOW_TEXT);while(walker.nextNode())translateNode(walker.currentNode);}});}});
     observer.observe(document.body,{subtree:true,childList:true,characterData:true});
   }
   window.GoldI18n={setLanguage,getLanguage:()=>current,t:key=>(dictionaries[current]||{})[key]||key};
