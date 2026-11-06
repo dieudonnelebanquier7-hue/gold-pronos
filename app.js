@@ -98,7 +98,7 @@
       ['Plus de 3,5 buts',result.markets.over35],['Victoire '+teamName(match.homeTeam),result.markets.home],
       ['Match nul',result.markets.draw],['Victoire '+teamName(match.awayTeam),result.markets.away]
     ].filter(x=>x[1]>=.65).sort((a,b)=>b[1]-a[1]);
-    if(pickOptions.length)pickOptions.forEach(([label,value])=>addLine(picks,label,pct(value)+' · signal ≥ 65 %'));
+    if(pickOptions.length)pickOptions.forEach(([label,value])=>addLine(picks,label,pct(value)+' · probabilité modèle ≥ 65 %'));
     else {const none=document.createElement('p');none.className='analysis-warning';none.textContent='Aucun marché ne dépasse le seuil indicatif de 65 %.';picks.append(none);}
     const cornerNote=document.createElement('p');cornerNote.className='analysis-warning';cornerNote.textContent='Corners : données historiques non disponibles dans la source actuelle ; aucun total ne sera inventé.';picks.append(cornerNote);
     panel.append(picks);
@@ -137,19 +137,13 @@
   }
   function competitionPriority(match) {
     const name=normalizeName(match.competition?.name||'');
-    const elite=[
-      /uefa champions league|champions league|copa libertadores|afc champions league|caf champions league|concacaf champions cup|fifa world cup|world cup|coupe du monde|uefa euro|european championship|africa cup of nations|afcon|coupe d afrique des nations|copa america|asian cup|gold cup|olympic football/
-    ];
-    const continental=[
-      /uefa europa league|europa league|uefa conference league|conference league|caf confederation cup|copa sudamericana|afc cup|concacaf central american cup| nations league|uefa nations league/
-    ];
-    const majorLeagues=[
-      /premier league|la liga|laliga|serie a|bundesliga|ligue 1|eredivisie|primeira liga|liga portugal|brasileirao|brasileiro serie a|argentina liga profesional|mls|major league soccer|saudi pro league/
-    ];
-    if(elite.some(re=>re.test(name))) return 0;
-    if(continental.some(re=>re.test(name))) return 1;
-    if(majorLeagues.some(re=>re.test(name))) return 2;
-    if(/cup|copa|coupe|championship|super league|division 1|first division/.test(name)) return 3;
+    const elite=/champions league|ligue des champions|copa libertadores|afc champions|caf champions|concacaf champions|fifa world cup|world cup|coupe du monde|uefa euro|european championship|euro 20|africa cup of nations|afcon|coupe d afrique des nations|copa america|asian cup|gold cup|olympic football|jeux olympiques|club world cup|coupe du monde des clubs/;
+    const continental=/europa league|ligue europa|conference league|ligue conference|caf confederation cup|coupe de la confederation|copa sudamericana|afc cup|concacaf central american cup|nations league|ligue des nations/;
+    const majorLeagues=/premier league|championship|la liga|laliga|segunda division|serie a|bundesliga|ligue 1|ligue 2|eredivisie|primeira liga|liga portugal|brasileirao|brasileiro serie a|brazilian serie a|argentina liga profesional|liga profesional argentina|mls|major league soccer|saudi pro league|turkish super lig|super lig|superliga|eliteserien|allsvenskan|swiss super league|czech first league|liga i|russian premier league|chinese super league|j1 league|liga mx/;
+    if(elite.test(name)) return 0;
+    if(continental.test(name)) return 1;
+    if(majorLeagues.test(name)) return 2;
+    if(/cup|copa|coupe|championship|division 1|first division|national league|fa cup|copa del rey|coppa italia/.test(name)) return 3;
     return 4;
   }
   function renderMatches() {
