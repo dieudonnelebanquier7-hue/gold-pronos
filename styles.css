@@ -155,3 +155,10 @@ html[dir="rtl"] body{text-align:right}
 html[dir="rtl"] .match-top,html[dir="rtl"] .match-bottom{direction:rtl}
 html[dir="rtl"] .team-away{text-align:left}
 html[dir="rtl"] .competition-heading{border-left:0;border-right:3px solid var(--gold);border-radius:7px 0 0 7px}
+
+/* Sélecteur de langue immédiatement visible sur mobile et ordinateur */
+.language-quick{margin:0 16px 22px;padding:16px;border:1px solid #80632e;border-radius:12px;background:linear-gradient(135deg,#211b11,#151518)}
+.language-quick label{display:block;margin:0 0 9px;color:var(--gold2);font-size:13px;font-weight:800;letter-spacing:.6px}
+.language-quick select{display:block;width:100%;min-height:48px;padding:12px 14px;border:1px solid #80632e;border-radius:9px;background:#09090b;color:var(--white);font-size:16px;font-weight:700}
+.language-quick p{margin:9px 0 0;color:#c5c0b3;font-size:12px;line-height:1.5}
+@media(min-width:700px){.language-quick{max-width:728px;margin:0 auto 22px}}
