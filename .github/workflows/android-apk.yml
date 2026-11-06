@@ -36,7 +36,7 @@ jobs:
           fi
           node <<'NODE'
           const fs = require('fs');
-          const from = new Date(); from.setUTCHours(0,0,0,0);
+          const from = new Date(); from.setUTCHours(0,0,0,0); from.setUTCDate(from.getUTCDate()-7);
           const to = new Date(from); to.setUTCDate(to.getUTCDate()+7);
           const ymd = d => d.toISOString().slice(0,10).replace(/-/g,'');
           const dateRange = ymd(from)+'-'+ymd(to);
@@ -96,6 +96,8 @@ jobs:
             console.log('Contrôle qualité : '+matches.length+' matchs, JSON valide, collecte '+result.generatedAt);
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE
+      - name: Verify generated fixtures JSON
+        run: node -e "const d=JSON.parse(require('fs').readFileSync('matches.json','utf8')); if(!Array.isArray(d.matches)||!d.matches.length) process.exit(1); console.log('JSON valide : '+d.matches.length+' matchs');"
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
