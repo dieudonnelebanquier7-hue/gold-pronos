@@ -99,8 +99,8 @@
   function createMatchCard(match) {
     const card=document.createElement('article');card.className='match-card';
     const top=document.createElement('div');top.className='match-top';
-    const competition=document.createElement('span');competition.className='competition';competition.textContent=match.competition?.name||'Compétition non précisée';
-    const status=document.createElement('span');const labels={FINISHED:'TERMINÉ',IN_PLAY:'EN COURS',PAUSED:'PAUSE',POSTPONED:'REPORTÉ',CANCELLED:'ANNULÉ',SCHEDULED:'À VENIR'};status.textContent=labels[match.status]||'PROGRAMMÉ';top.append(competition,status);
+    const competition=document.createElement('span');competition.className='competition';competition.textContent=match.competition?.name||'Compétition non précisée';if(competitionPriority(match)<=2){const featured=document.createElement('span');featured.className='featured-label';featured.textContent='GRAND RENDEZ-VOUS';top.append(competition,featured);}else top.append(competition);
+    const status=document.createElement('span');const labels={FINISHED:'TERMINÉ',IN_PLAY:'EN COURS',PAUSED:'PAUSE',POSTPONED:'REPORTÉ',CANCELLED:'ANNULÉ',SCHEDULED:'À VENIR'};status.textContent=labels[match.status]||'PROGRAMMÉ';top.append(status);
     const teams=document.createElement('div');teams.className='match-teams';
     const home=document.createElement('span');home.textContent=teamName(match.homeTeam)||'Équipe domicile';
     const score=document.createElement('span');score.className='versus';const hs=match.score?.fullTime?.home??match.score?.halfTime?.home,as=match.score?.fullTime?.away??match.score?.halfTime?.away;
@@ -115,9 +115,26 @@
     button.addEventListener('click',()=>{state.openAnalysis=state.openAnalysis===String(match.id)?null:String(match.id);renderMatches();});
     return card;
   }
+  function competitionPriority(match) {
+    const name=normalizeName(match.competition?.name||'');
+    const elite=[
+      /uefa champions league|champions league|copa libertadores|afc champions league|caf champions league|concacaf champions cup|fifa world cup|world cup|coupe du monde|uefa euro|european championship|africa cup of nations|afcon|coupe d afrique des nations|copa america|asian cup|gold cup|olympic football/
+    ];
+    const continental=[
+      /uefa europa league|europa league|uefa conference league|conference league|caf confederation cup|copa sudamericana|afc cup|concacaf central american cup| nations league|uefa nations league/
+    ];
+    const majorLeagues=[
+      /premier league|la liga|laliga|serie a|bundesliga|ligue 1|eredivisie|primeira liga|liga portugal|brasileirao|brasileiro serie a|argentina liga profesional|mls|major league soccer|saudi pro league/
+    ];
+    if(elite.some(re=>re.test(name))) return 0;
+    if(continental.some(re=>re.test(name))) return 1;
+    if(majorLeagues.some(re=>re.test(name))) return 2;
+    if(/cup|copa|coupe|championship|super league|division 1|first division/.test(name)) return 3;
+    return 4;
+  }
   function renderMatches() {
     const list=$('match-list');if(!list)return;list.replaceChildren();const now=new Date();
-    const filtered=state.matches.filter(m=>{const d=new Date(m.utcDate);if(state.filter==='finished')return m.status==='FINISHED';if(state.filter==='today')return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth()&&d.getDate()===now.getDate();return !['FINISHED','CANCELLED'].includes(m.status);}).sort((a,b)=>new Date(a.utcDate)-new Date(b.utcDate));
+    const filtered=state.matches.filter(m=>{const d=new Date(m.utcDate);if(state.filter==='finished')return m.status==='FINISHED';if(state.filter==='today')return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth()&&d.getDate()===now.getDate();return !['FINISHED','CANCELLED'].includes(m.status);}).sort((a,b)=>competitionPriority(a)-competitionPriority(b)||new Date(a.utcDate)-new Date(b.utcDate));
     setText('match-count',String(filtered.length));setText('match-period',state.filter==='today'?'Rencontres du jour':state.filter==='finished'?'Résultats terminés':'Rencontres à venir');
     if(!filtered.length){const e=document.createElement('div');e.className='status-panel';e.textContent=state.filter==='finished'?'Aucun résultat terminé dans la période fournie par la source.':state.matches.length?'Aucun match dans ce filtre pour la période chargée.':'Aucune rencontre disponible pour le moment.';list.append(e);return;}
     filtered.forEach(m=>list.append(createMatchCard(m)));
