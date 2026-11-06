@@ -169,11 +169,11 @@
     const card=document.createElement('article');card.className='match-card';
     const top=document.createElement('div');top.className='match-top';
     const competition=document.createElement('span');competition.className='competition';competition.textContent=match.competition?.name||'Compétition non précisée';if(competitionOrder(match)<=5 || /champions league|ligue des champions|europa league|conference league|world cup|coupe du monde|africa cup of nations|afcon|copa libertadores/.test(normalizeName(match.competition?.name||''))){const featured=document.createElement('span');featured.className='featured-label';featured.textContent='GRAND RENDEZ-VOUS';top.append(competition,featured);}else top.append(competition);
-    const status=document.createElement('span');const labels={FINISHED:'TERMINÉ',IN_PLAY:'EN COURS',PAUSED:'PAUSE',POSTPONED:'REPORTÉ',CANCELLED:'ANNULÉ',SCHEDULED:'À VENIR'};status.textContent=labels[match.status]||'PROGRAMMÉ';top.append(status);
+    const status=document.createElement('span');const labels={FINISHED:'TERMINÉ',IN_PLAY:'EN COURS',LIVE:'EN DIRECT',HALFTIME:'MI-TEMPS',PAUSED:'MI-TEMPS',EXTRA_TIME:'PROLONGATION',PENALTY_SHOOTOUT:'TIRS AU BUT',POSTPONED:'REPORTÉ',CANCELLED:'ANNULÉ',SUSPENDED:'SUSPENDU',SCHEDULED:'À VENIR'};status.textContent=labels[match.status]||'PROGRAMMÉ';top.append(status);
     const teams=document.createElement('div');teams.className='match-teams';
     const home=document.createElement('span');home.textContent=teamName(match.homeTeam)||'Équipe domicile';
     const score=document.createElement('span');score.className='versus';const hs=match.score?.fullTime?.home??match.score?.halfTime?.home,as=match.score?.fullTime?.away??match.score?.halfTime?.away;
-    score.textContent=['FINISHED','IN_PLAY','PAUSED'].includes(match.status)&&hs!=null&&as!=null?hs+' - '+as:'VS';
+    score.textContent=['FINISHED','IN_PLAY','LIVE','HALFTIME','PAUSED','EXTRA_TIME','PENALTY_SHOOTOUT'].includes(String(match.status||'').toUpperCase())&&hs!=null&&as!=null?hs+' - '+as:'VS';
     const away=document.createElement('span');away.className='team-away';away.textContent=teamName(match.awayTeam)||'Équipe extérieure';teams.append(home,score,away);
     const bottom=document.createElement('div');bottom.className='match-bottom';const d=new Date(match.utcDate);
     const dateLabel=document.createElement('span');dateLabel.textContent=formatDate(match.utcDate)+' · '+(Number.isNaN(d.getTime())?'--:--':timeFmt.format(d));
@@ -186,15 +186,35 @@
   }
   function competitionOrder(match) {
     const name=normalizeName(match.competition?.name||'');
-    const order=[
-      /premier league(?!.*championship)/, /la liga|laliga|primera division/, /serie a/, /bundesliga/, /ligue 1/, /ligue 2/,
-      /championship/, /segunda division|la liga 2/, /eredivisie/, /primeira liga|liga portugal/, /pro league|jupiler/,
-      /super lig|super lig/, /saudi pro league/, /scottish premiership/, /mls|major league soccer/, /brasileirao|brasileiro serie a|brazilian serie a/,
-      /argentina liga profesional|liga profesional argentina/, /eliteserien/, /allsvenskan/, /swiss super league/, /czech first league/, /russian premier league/, /chinese super league/, /j1 league/, /liga mx/,
-      /champions league|ligue des champions/, /europa league|ligue europa/, /conference league|ligue conference/, /world cup|coupe du monde|uefa euro|european championship|africa cup of nations|afcon|coupe d afrique des nations|copa america|asian cup|gold cup|olympic football|jeux olympiques|club world cup|copa libertadores|afc champions|caf champions|concacaf champions/
+    // Priorité éditoriale : grands championnats, grandes compétitions, puis autres ligues.
+    const eliteLeagues=[
+      /premier league/, /la liga|laliga|primera division/, /serie a/, /bundesliga/, /ligue 1/
     ];
-    const index=order.findIndex(pattern=>pattern.test(name));
-    return index<0?100:index;
+    const continental=[
+      /champions league|ligue des champions/, /europa league|ligue europa/,
+      /conference league|ligue conference/, /world cup|coupe du monde|uefa euro|european championship/,
+      /africa cup of nations|afcon|coupe d afrique des nations|copa america|asian cup|gold cup/,
+      /copa libertadores|afc champions|caf champions|concacaf champions|club world cup|olympic football|jeux olympiques/
+    ];
+    const otherStrong=[
+      /eredivisie/, /primeira liga|liga portugal/, /pro league|jupiler/, /saudi pro league/,
+      /scottish premiership/, /mls|major league soccer/, /brasileirao|brasileiro serie a|brazilian serie a/,
+      /argentina liga profesional|liga profesional argentina/, /super lig/, /eliteserien/,
+      /allsvenskan/, /swiss super league/, /czech first league/, /russian premier league/,
+      /chinese super league/, /j1 league/, /liga mx/
+    ];
+    const secondTiers=[
+      /ligue 2/, /championship/, /segunda division|la liga 2/
+    ];
+    let index=eliteLeagues.findIndex(pattern=>pattern.test(name));
+    if(index>=0)return index;
+    index=continental.findIndex(pattern=>pattern.test(name));
+    if(index>=0)return 5+index;
+    index=otherStrong.findIndex(pattern=>pattern.test(name));
+    if(index>=0)return 20+index;
+    index=secondTiers.findIndex(pattern=>pattern.test(name));
+    if(index>=0)return 60+index;
+    return 100;
   }
   function competitionName(match) {
     return (match.competition?.name||'Autres compétitions').trim();
@@ -221,7 +241,7 @@
   function renderAnalysisPicker() {
     const select=$('analysis-match-select'), output=$('daily-analysis-result');
     if(!select||!output)return;
-    const upcoming=state.matches.filter(m=>!['FINISHED','CANCELLED'].includes(m.status))
+    const upcoming=state.matches.filter(m=>!['FINISHED','CANCELLED','POSTPONED','SUSPENDED'].includes(m.status))
       .sort((a,b)=>competitionOrder(a)-competitionOrder(b)||new Date(a.utcDate)-new Date(b.utcDate));
     const previous=select.value;select.replaceChildren();
     const first=document.createElement('option');first.value='';first.textContent='— Choisir une rencontre —';select.append(first);
