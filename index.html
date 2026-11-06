@@ -7,7 +7,7 @@
   <meta name="description" content="Gold Pronos — calendrier football, statistiques vérifiées et analyses prudentes.">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=16">
+  <link rel="stylesheet" href="./styles.css?v=17">
   <title>GOLD PRONOS — Le football analysé</title>
 </head>
 <body>
@@ -74,11 +74,12 @@
     </div>
     <div class="app-page" id="page-matches">
     <section class="section" id="matches">
-      <div class="section-heading"><div><p class="eyebrow">CALENDRIER FOOTBALL</p><h2>Les rencontres</h2></div><button class="text-button" id="refresh-btn" type="button">Actualiser ↻</button></div>
+      <div class="section-heading"><div><p class="eyebrow">CALENDRIER · DIRECT · RÉSULTATS</p><h2>Matchs par compétition</h2></div><button class="text-button" id="refresh-btn" type="button">Actualiser ↻</button></div>
       <div class="filters" role="group" aria-label="Filtrer les matchs">
-        <button class="filter active" data-filter="all" type="button">À venir</button>
-        <button class="filter" data-filter="today" type="button">Aujourd'hui</button>
-        <button class="filter" data-filter="finished" type="button">Terminés</button>
+        <button class="filter active" data-filter="upcoming" type="button">À venir</button>
+        <button class="filter" data-filter="live" type="button">En direct</button>
+        <button class="filter" data-filter="finished" type="button">Résultats</button>
+        <button class="filter" data-filter="today" type="button">Aujourd’hui</button>
       </div>
       <div class="status-panel" id="match-status" role="status">Initialisation du calendrier football…</div>
       <div class="match-list" id="match-list" aria-live="polite"></div>
@@ -135,6 +136,6 @@
   </nav>
   <script>window.addEventListener("error",function(e){var s=document.getElementById("source-status"),m=document.getElementById("match-status");if(s)s.textContent="ERREUR JAVASCRIPT";if(m)m.textContent="Le moteur JavaScript a rencontré une erreur : "+(e.message||"erreur inconnue");});</script>
   <script src="./i18n.js?v=4"></script>
-  <script src="./app.js?v=23" onerror="document.getElementById('source-status').textContent='ERREUR SCRIPT';document.getElementById('match-status').textContent='Le moteur de l’application ne se charge pas. Recharge la page.';"></script>
+  <script src="./app.js?v=24" onerror="document.getElementById('source-status').textContent='ERREUR SCRIPT';document.getElementById('match-status').textContent='Le moteur de l’application ne se charge pas. Recharge la page.';"></script>
 </body>
 </html>
