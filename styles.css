@@ -284,3 +284,28 @@ html[dir="rtl"] .competition-heading{border-left:0;border-right:3px solid var(--
 .fan-vote-section{border-top:1px solid #b94f58;margin-top:25px;padding-top:22px}
 .fan-vote-section h2,.fan-vote-section .eyebrow{color:#ef858b}
 @media(min-width:700px){.league-leaders-grid{grid-template-columns:1fr 1fr}.league-standings-table{font-size:13px}}
+
+/* Fiches clubs et sélections nationales */
+.club-intro{margin:12px 0;padding:14px;border-left:4px solid #75c69a;border-radius:9px;background:#10271d;color:#f2fff7;font-size:13px;line-height:1.6}
+.club-select,.club-search{width:100%;min-height:46px;margin:7px 0 13px;padding:12px;border:1px solid #75c69a;border-radius:9px;background:#101b16;color:#fff;font-size:14px}
+.club-search-button{width:100%;padding:13px;border:1px solid #75c69a;border-radius:9px;background:#17452f;color:#fff;font-weight:800}
+.club-results{display:grid;gap:12px;margin-top:14px}
+.club-profile-card{padding:17px;border:1px solid #386c50;border-radius:13px;background:linear-gradient(145deg,#14251b,#111316);line-height:1.6}
+.club-profile-card img{width:64px;height:64px;object-fit:contain;float:right;margin:0 0 8px 12px}
+.club-profile-card h3{font:600 23px Georgia,serif;color:#fff;margin:0 0 8px}
+.club-profile-card h4{color:#8ee0b6;margin:16px 0 6px}
+.club-profile-card p{font-size:12px;color:#e4eae5;margin:7px 0}
+.club-profile-card .club-meta{color:#a8c7b4}
+.international-block{margin-top:28px;padding-top:22px;border-top:1px solid #3c7253}
+.international-block h3{font:500 21px Georgia,serif}
+.national-competitions{display:grid;gap:8px}
+.national-competition-card{padding:13px;text-align:left;border:1px solid #39724f;border-radius:9px;background:#14251b;color:#eafff0;font-size:12px;font-weight:800}
+.news-tools{display:grid;gap:7px;margin:14px 0}
+.news-rendezvous{display:grid;gap:8px;margin:12px 0}
+.news-rendezvous h3{color:var(--gold2);font:500 21px Georgia,serif}
+.rendezvous-row{display:grid;gap:5px;padding:12px;border:1px solid #725c31;border-left:3px solid var(--gold);border-radius:9px;background:#19160f}
+.rendezvous-row small{color:#d7bd83;font-size:10px}
+.rendezvous-row strong{font-size:13px}
+.bottom-nav{grid-template-columns:repeat(8,minmax(58px,1fr));overflow-x:auto;overscroll-behavior-x:contain}
+.bottom-nav a{min-width:58px}
+@media(min-width:700px){.national-competitions{grid-template-columns:repeat(2,minmax(0,1fr))}}
