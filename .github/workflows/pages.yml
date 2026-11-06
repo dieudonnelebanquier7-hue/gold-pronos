@@ -1,21 +1,39 @@
-name: Deploy Gold Pronos to GitHub Pages
+name: Deploy Gold Pronos with football data
 on:
   push:
     branches: [main]
   workflow_dispatch:
+  schedule:
+    - cron: '0 */6 * * *'
 permissions:
   contents: read
   pages: write
   id-token: write
-concurrency:
-  group: pages
-  cancel-in-progress: true
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Fetch football fixtures securely
+        env:
+          FOOTBALL_DATA_TOKEN: ${{ secrets.FOOTBALL_DATA_TOKEN }}
+        run: |
+          if [ -z "$FOOTBALL_DATA_TOKEN" ]; then
+            printf '{"error":true,"message":"La clé API FOOTBALL_DATA_TOKEN doit être ajoutée dans les secrets du dépôt GitHub.","matches":[]}' > matches.json
+            echo "Secret FOOTBALL_DATA_TOKEN absent : publication de la page en mode configuration."
+          else
+            FROM_DATE=$(date -u +%F)
+            TO_DATE=$(date -u -d '+7 days' +%F)
+            HTTP_CODE=$(curl --silent --show-error --output matches.json --write-out "%{http_code}" --get "https://api.football-data.org/v4/matches" --data-urlencode "dateFrom=$FROM_DATE" --data-urlencode "dateTo=$TO_DATE" --header "X-Auth-Token: $FOOTBALL_DATA_TOKEN")
+            if [ "$HTTP_CODE" != "200" ]; then
+              printf '{"error":true,"message":"football-data.org a répondu avec le code %s. Vérifie le jeton et les limites de ton offre.","matches":[]}' "$HTTP_CODE" > matches.json
+              echo "La récupération des matchs a échoué (HTTP $HTTP_CODE)."
+            else
+              node -e "const fs=require('fs');const p='matches.json';const d=JSON.parse(fs.readFileSync(p,'utf8'));d.generatedAt=new Date().toISOString();fs.writeFileSync(p,JSON.stringify(d));"
+              echo "Calendrier football récupéré."
+            fi
+          fi
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload site
