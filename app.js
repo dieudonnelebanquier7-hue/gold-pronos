@@ -772,7 +772,7 @@
   const alertButton=$('enable-goal-alerts');if(alertButton)alertButton.addEventListener('click',toggleGoalAlerts);
   try{state.goalAlerts=localStorage.getItem('gold-goal-alerts')==='on';}catch(e){}
   updateAlertButton();
-  document.querySelectorAll('.filter').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.filter').forEach(x=>x.classList.toggle('active',x===b));state.filter=b.dataset.filter||'all';state.openAnalysis=null;renderMatches();}));
+  document.querySelectorAll('.scoreboard-filter').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.scoreboard-filter').forEach(x=>x.classList.toggle('active',x===b));state.filter=b.dataset.filter||'all';state.openAnalysis=null;renderMatches();}));
   document.querySelectorAll('.bottom-nav a[data-page]').forEach(link=>link.addEventListener('click',event=>{event.preventDefault();const id=link.dataset.page;history.pushState({page:id},'', '#'+id);showPage(id);}));
   window.addEventListener('popstate',()=>showPage(location.hash.slice(1)));
   const analysisSelect=$('analysis-match-select');if(analysisSelect)analysisSelect.addEventListener('change',renderAnalysisPicker);
