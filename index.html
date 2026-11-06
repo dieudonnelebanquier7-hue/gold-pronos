@@ -78,8 +78,26 @@
     </section>
 
     <section class="section settings" id="settings">
-      <div class="section-heading"><div><p class="eyebrow">CONFIGURATION</p><h2>Source des matchs</h2></div></div>
-      <p class="settings-copy">La source des matchs est gérée automatiquement. Tu n’as rien à configurer sur ton téléphone.</p>
+      <div class="section-heading"><div><p class="eyebrow">CONFIGURATION</p><h2>Réglages des analyses</h2></div></div>
+      <p class="settings-copy">Personnalise le seuil minimum des marchés proposés et la quantité minimale d'historique exigée. Ces réglages modifient les filtres, pas la qualité réelle du modèle.</p>
+      <div class="settings-controls">
+        <label for="probability-threshold">Seuil minimum de probabilité</label>
+        <select id="probability-threshold">
+          <option value="0.60">60 % · Plus de marchés, plus de prudence nécessaire</option>
+          <option value="0.65" selected>65 % · Équilibré</option>
+          <option value="0.70">70 % · Sélectif</option>
+          <option value="0.75">75 % · Très sélectif</option>
+          <option value="0.80">80 % · Strict</option>
+        </select>
+        <label for="minimum-history">Historique minimum par équipe</label>
+        <select id="minimum-history">
+          <option value="3">3 matchs · Échantillon très limité</option>
+          <option value="5" selected>5 matchs · Minimum conseillé</option>
+          <option value="8">8 matchs · Plus strict</option>
+          <option value="10">10 matchs · Très strict</option>
+        </select>
+        <button class="settings-reset" id="reset-settings" type="button">Rétablir les réglages par défaut</button>
+      </div>
       <p class="small-note" id="settings-message">Vérification automatique de la connexion…</p>
     </section>
 
