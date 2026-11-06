@@ -74,24 +74,27 @@
     </div>
     <div class="app-page" id="page-matches">
     <section class="section" id="matches">
-      <div class="section-heading"><div><p class="eyebrow">CALENDRIER · DIRECT · RÉSULTATS</p><h2>Matchs par compétition</h2></div><button class="text-button" id="refresh-btn" type="button">Actualiser ↻</button></div>
-      <section class="featured-picks" id="featured-picks" aria-live="polite" aria-label="Pronostics football du jour">
-        <div class="featured-picks-heading"><h3>PRONOSTICS FOOTBALL DU JOUR</h3><p>Chargement des analyses vérifiées…</p></div>
-      </section>
-      <div class="filters" role="group" aria-label="Filtrer les matchs">
-        <button class="filter active" data-filter="upcoming" type="button">À venir</button>
-        <button class="filter" data-filter="live" type="button">En direct</button>
-        <button class="filter" data-filter="finished" type="button">Résultats</button>
-        <button class="filter" data-filter="today" type="button">Aujourd’hui</button>
+      <div class="section-heading"><div><p class="eyebrow">SCORES EN DIRECT · CALENDRIER · RÉSULTATS</p><h2>Centre des matchs</h2></div><button class="text-button" id="refresh-btn" type="button">Actualiser ↻</button></div>
+      <div class="scoreboard-datebar">
+        <button class="date-arrow" id="match-date-prev" type="button" aria-label="Jour précédent">‹</button>
+        <div class="scoreboard-date"><span id="match-date-label">Aujourd’hui</span><input id="match-date" type="date" aria-label="Choisir une date"></div>
+        <button class="date-arrow" id="match-date-next" type="button" aria-label="Jour suivant">›</button>
+        <button class="date-today" id="match-date-today" type="button">Aujourd’hui</button>
       </div>
-      <div class="match-competition-filter"><label for="match-competition-select">CHOISIR UN CHAMPIONNAT / UNE COMPÉTITION</label><select id="match-competition-select" class="league-select"><option value="all">Tous les championnats</option></select><p class="small-note">Les matchs sont regroupés par compétition. Les compétitions africaines sont regroupées en tête de la liste.</p></div>
-      <div class="status-panel" id="match-status" role="status">Initialisation du calendrier football…</div>
+      <div class="scoreboard-filters" role="group" aria-label="Filtrer les rencontres">
+        <button class="scoreboard-filter active" data-filter="all" type="button">Tous <b id="match-count">0</b></button>
+        <button class="scoreboard-filter" data-filter="live" type="button">🔴 Direct <b id="match-live-count">0</b></button>
+        <button class="scoreboard-filter" data-filter="upcoming" type="button">À venir <b id="match-upcoming-count">0</b></button>
+        <button class="scoreboard-filter" data-filter="finished" type="button">Terminés <b id="match-finished-count">0</b></button>
+      </div>
+      <div class="match-competition-filter"><label for="match-competition-select">COMPÉTITIONS ET CHAMPIONNATS</label><select id="match-competition-select" class="league-select"><option value="all">Toutes les compétitions</option></select></div>
+      <div class="status-panel" id="match-status" role="status">Connexion aux calendriers et aux scores…</div>
       <div class="match-list" id="match-list" aria-live="polite"></div>
+      <p class="small-note">Les scores et événements dépendent des flux disponibles. Les rencontres absentes des sources ne sont pas inventées.</p>
     </section>
+  </div>
 
-    </div>
-
-    <div class="app-page" id="page-live">
+  <div class="app-page" id="page-live">
       <section class="section">
         <div class="section-heading"><div><p class="eyebrow">FOOTBALL · SCORES</p><h2>Centre du direct</h2></div><button class="text-button" id="refresh-live" type="button">Actualiser ↻</button></div>
         <div class="live-summary"><strong id="live-count">—</strong><span>match(s) en direct détecté(s)</span></div>
