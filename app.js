@@ -83,6 +83,13 @@
     [['1',result.probs.home],['N',result.probs.draw],['2',result.probs.away],['+1,5',result.probs.over15],['+2,5',result.probs.over25],['+3,5',result.probs.over35],['BTTS',result.probs.btts]].forEach(([label,value])=>{const cell=document.createElement('div');cell.className='probability-cell';const strong=document.createElement('strong');strong.textContent=pct(value);const small=document.createElement('span');small.textContent=label;cell.append(strong,small);markets.append(cell);});
     panel.append(markets);
     const form=document.createElement('p');form.className='analysis-intro';form.textContent='Forme sur les '+result.homeRows.length+' derniers matchs : '+teamName(match.homeTeam)+' ('+result.homeRows.slice(0,5).map(r=>r.form).join(' · ')+') ; '+teamName(match.awayTeam)+' ('+result.awayRows.slice(0,5).map(r=>r.form).join(' · ')+').';panel.append(form);
+    const recent=document.createElement('div');recent.className='analysis-recent';
+    const recentTitle=document.createElement('h4');recentTitle.textContent='DERNIERS RÉSULTATS VÉRIFIÉS';recent.append(recentTitle);
+    [[teamName(match.homeTeam),result.homeRows],[teamName(match.awayTeam),result.awayRows]].forEach(([name,rows])=>{
+      const teamTitle=document.createElement('p');teamTitle.className='analysis-team-title';teamTitle.textContent=name;recent.append(teamTitle);
+      rows.slice(0,5).forEach(r=>addLine(recent,formatDate(r.date)+' · '+(r.home?'Domicile':'Extérieur')+' vs '+r.opponent,r.gf+' – '+r.ga+' ('+r.form+')'));
+    });
+    panel.append(recent);
     const venue=document.createElement('p');venue.className='analysis-intro';venue.textContent='Échantillons domicile/extérieur utilisés : '+result.homeVenueCount+' match(s) à domicile pour '+teamName(match.homeTeam)+' et '+result.awayVenueCount+' à l’extérieur pour '+teamName(match.awayTeam)+'.';panel.append(venue);
     const pick=document.createElement('p');pick.className='analysis-pick';pick.textContent=result.best[1]>=.58?'Signal statistique le plus élevé : '+result.best[0]+' ('+pct(result.best[1])+').':'Aucun signal suffisamment fort : le modèle ne dégage pas de sélection nette.';panel.append(pick);
     const caution=document.createElement('p');caution.className='analysis-warning';caution.textContent='Confiance : '+result.confidence+'. Modèle Poisson simplifié fondé sur les scores historiques chargés. Il ne connaît pas automatiquement blessures, compositions, xG ni cotes. Probabilités indicatives, non garanties ; elles ne constituent pas une garantie de gain.';panel.append(caution);
