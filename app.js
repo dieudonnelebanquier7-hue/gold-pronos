@@ -392,7 +392,7 @@
   const CLUB_ESPN='https://site.api.espn.com/apis/site/v2/sports/soccer/';
   async function clubFetch(url){const r=await fetch(url,{cache:'no-store',signal:AbortSignal.timeout(14000)});if(!r.ok)throw Error('HTTP '+r.status);return r.json();}
   function getTeamArray(data){const groups=data?.sports?.[0]?.leagues||data?.leagues||[];for(const group of groups){if(Array.isArray(group.teams))return group.teams.map(x=>x.team||x);}if(Array.isArray(data?.teams))return data.teams.map(x=>x.team||x);return [];}
-  function renderClubProfile(team,competition){
+  function renderClubProfile(team,competition,rosterData){
     const host=$('club-results');
     const name=team.displayName||team.name||team.shortDisplayName||'Équipe';
     const country=team.country?.name||team.country?.displayName||team.nationality||team.location||team.address?.city||'Nationalité / pays non communiqué';
@@ -408,7 +408,27 @@
     if(!coaches.length){const p=document.createElement('p');p.className='small-note';p.textContent='Nom de l’entraîneur et nationalité non publiés par la source pour cette fiche.';card.append(p);}
     coaches.slice(0,4).forEach(coach=>{const p=document.createElement('p');const nationality=coach.nationality||coach.citizenship||coach.country?.name||coach.birthPlace?.country||'Nationalité non communiquée';p.textContent=(coach.displayName||coach.fullName||coach.name||'Entraîneur')+' · '+nationality;card.append(p);});
     const details=document.createElement('p');details.className='club-meta';details.textContent='Fondation : '+(team.founded||'Non communiquée')+' · Stade : '+(team.venue?.fullName||team.venue?.name||'Non communiqué');card.append(details);
-    const caveat=document.createElement('p');caveat.className='data-caveat';caveat.textContent='Fiche établie à partir des champs fournis par ESPN. Les champs absents ne sont pas déduits.';card.append(caveat);host.append(card);
+    const caveat=document.createElement('p');caveat.className='data-caveat';caveat.textContent='Fiche établie à partir des champs fournis par ESPN. Les champs absents ne sont pas déduits.';card.append(caveat);
+    const rosterTitle=document.createElement('h4');rosterTitle.className='player-roster-title';rosterTitle.textContent='Effectif et photos des joueurs';card.append(rosterTitle);
+    const rosterHost=document.createElement('div');rosterHost.className='player-roster-grid';
+    const athletes=[];
+    const collect=list=>{if(Array.isArray(list))list.forEach(item=>{if(item&&typeof item==='object'&&(item.fullName||item.displayName||item.name))athletes.push(item);if(item?.athletes)collect(item.athletes);if(item?.items)collect(item.items);});};
+    collect(rosterData?.athletes);collect(rosterData?.items);(rosterData?.groups||[]).forEach(group=>collect(group.athletes));
+    const unique=athletes.filter((player,index)=>athletes.findIndex(x=>String(x.id||x.fullName||x.name)===String(player.id||player.fullName||player.name))===index);
+    if(unique.length){
+      unique.slice(0,60).forEach(player=>{
+        const item=document.createElement('div');item.className='player-roster-item';
+        const image=document.createElement('img');image.loading='lazy';image.alt='Photo de '+(player.fullName||player.displayName||player.name);
+        const headshot=player.headshot?.href||player.headshot?.url||player.photo||'';
+        if(headshot){image.src=headshot;image.onerror=()=>{image.removeAttribute('src');image.classList.add('photo-unavailable');};}
+        else image.className='photo-unavailable';
+        const info=document.createElement('div');info.className='player-roster-info';
+        const playerName=document.createElement('strong');playerName.textContent=player.fullName||player.displayName||player.name;info.append(playerName);
+        const meta=document.createElement('small');meta.textContent=[player.position?.abbreviation||player.position?.name,player.jersey?('#'+player.jersey):'',player.citizenship||player.nationality||''].filter(Boolean).join(' · ')||'Informations non communiquées';info.append(meta);
+        item.append(image,info);rosterHost.append(item);
+      });
+    } else {const empty=document.createElement('p');empty.className='small-note';empty.textContent='Effectif ou photos indisponibles pour cette équipe dans la source consultée.';rosterHost.append(empty);}
+    card.append(rosterHost);host.append(card);
   }
   async function searchClubTeam(){
     const select=$('club-competition'),input=$('club-search'),host=$('club-results');if(!select||!input||!host)return;
@@ -420,10 +440,17 @@
       const found=teams.filter(t=>[t.displayName,t.name,t.shortDisplayName,t.abbreviation].some(v=>String(v||'').toLocaleLowerCase().includes(query)));
       if(!found.length){setText('club-status','Aucune équipe trouvée dans cette compétition. Essaie une autre compétition ou vérifie l’orthographe.');return;}
       const profiles=await Promise.all(found.slice(0,8).map(async team=>{
-        try{const id=team.id;if(!id)return team;const detail=await clubFetch(CLUB_ESPN+code+'/teams/'+id);return detail.team||detail;}catch(_){return team;}
+        const id=team.id;if(!id)return {team,roster:null};
+        try{
+          const detail=await clubFetch(CLUB_ESPN+code+'/teams/'+id);
+          const profile=detail.team||detail;
+          let roster=null;
+          try{roster=await clubFetch(CLUB_ESPN+code+'/teams/'+id+'/roster');}catch(_){}
+          return {team:profile,roster};
+        }catch(_){return {team,roster:null};}
       }));
-      profiles.forEach(team=>renderClubProfile(team,comp));
-      setText('club-status',profiles.length+' fiche(s) trouvée(s) · Source : ESPN · '+timeFmt.format(new Date()));
+      profiles.forEach(profile=>renderClubProfile(profile.team,comp,profile.roster));
+      setText('club-status',profiles.length+' fiche(s) trouvée(s) · Effectifs et photos selon disponibilité ESPN · '+timeFmt.format(new Date()));
     }catch(error){setText('club-status','Impossible de charger cette compétition actuellement ('+error.message+').');}
   }
   async function loadNationalCompetitionCards(){
