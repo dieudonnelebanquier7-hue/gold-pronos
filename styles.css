@@ -362,3 +362,6 @@ html[dir="rtl"] .competition-heading{border-left:0;border-right:3px solid var(--
 #page-matches .match-card{border-radius:8px}
 #page-matches .match-card+.match-card{margin-top:-6px}
 @media(max-width:370px){.scoreboard-filter{font-size:10px;gap:3px}.scoreboard-filter b{font-size:9px;padding:2px 4px}.date-today{font-size:9px;padding-inline:7px}}
+
+.region-heading{margin:20px 0 5px;padding:9px 11px;border:1px solid #4b402a;border-radius:8px;background:#17140f;color:var(--gold);font-size:11px;font-weight:900;letter-spacing:1.2px;text-transform:uppercase}
+#page-matches .competition-heading{font-size:11px;margin-top:8px}
