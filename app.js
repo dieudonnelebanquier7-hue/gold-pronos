@@ -32,7 +32,7 @@ function renderMatches(){
     return !['FINISHED','CANCELLED'].includes(m.status);
   }).sort((a,b)=>new Date(a.utcDate)-new Date(b.utcDate));
   $('match-count').textContent=String(filtered.length);
-  $('match-period').textContent=state.filter==='today'?'Rencontres du jour':state.filter==='finished?'Résultats terminés':'Rencontres à venir';
+  $('match-period').textContent=state.filter==='today'?'Rencontres du jour':state.filter==='finished'?'Résultats terminés':'Rencontres à venir';
   if(!filtered.length){const empty=document.createElement('div');empty.className='status-panel';empty.textContent=state.matches.length?'Aucun match dans ce filtre pour la période chargée.':'Aucune rencontre disponible pour le moment.';list.append(empty);return;}
   filtered.forEach(m=>list.append(createMatchCard(m)));
 }
