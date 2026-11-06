@@ -38,8 +38,8 @@
     const nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);
     nodes.forEach(node=>translateNode(node));
     document.querySelectorAll('input,select,button').forEach(el=>{if(el.dataset.originalPlaceholder)el.placeholder=dict[el.dataset.originalPlaceholder]||el.dataset.originalPlaceholder;});
-    const a=document.getElementById('language-select'),b=document.getElementById('language-select-settings');
-    if(a)a.value=current;if(b)b.value=current;
+    const selectors=['language-select','language-select-main','language-select-settings'];
+    selectors.forEach(id=>{const el=document.getElementById(id);if(el)el.value=current;});
   }
   function translateNode(node) {
     if(!originalText.has(node))originalText.set(node,node.nodeValue);
@@ -54,7 +54,7 @@
   }
   function init() {
     try{const saved=localStorage.getItem(storageKey);if(saved&&langs.includes(saved))current=saved;}catch(_){}
-    ['language-select','language-select-settings'].forEach(id=>{const el=document.getElementById(id);if(el){el.value=current;el.addEventListener('change',()=>setLanguage(el.value));}});
+    ['language-select','language-select-main','language-select-settings'].forEach(id=>{const el=document.getElementById(id);if(el){el.value=current;el.addEventListener('change',()=>setLanguage(el.value));}});
     translatePage();
     const observer=new MutationObserver(records=>{if(current==='fr')return;for(const record of records){if(record.type==='characterData')translateNode(record.target);record.addedNodes?.forEach(node=>{if(node.nodeType===Node.TEXT_NODE)translateNode(node);else if(node.nodeType===Node.ELEMENT_NODE){const walker=document.createTreeWalker(node,NodeFilter.SHOW_TEXT);while(walker.nextNode())translateNode(walker.currentNode);}});}});
     observer.observe(document.body,{subtree:true,childList:true,characterData:true});
