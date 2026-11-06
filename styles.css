@@ -142,3 +142,16 @@ body{font-size:16px;-webkit-text-size-adjust:100%;text-size-adjust:100%}.brand{f
 
 /* Groupement des rencontres par championnat */
 .competition-heading{margin:18px 2px 2px;padding:10px 12px;border-left:3px solid var(--gold);background:#211b10;color:var(--gold2);font-size:12px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;border-radius:0 7px 7px 0}
+
+/* Language selectors */
+.topbar-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.language-label{font-size:8px;color:var(--muted);letter-spacing:.7px}
+.topbar-tools select,.language-settings select{background:#17171a;color:var(--white);border:1px solid #66532f;border-radius:8px;padding:8px 10px;font-size:11px;max-width:120px}
+.language-settings{padding:14px;margin:0 0 16px;background:#17171a;border:1px solid var(--line);border-radius:10px}
+.language-settings label{display:block;color:var(--gold);font-size:11px;margin-bottom:8px}
+.language-settings select{width:100%;max-width:none;padding:12px}
+.language-settings .small-note{margin:8px 0 0}
+html[dir="rtl"] body{text-align:right}
+html[dir="rtl"] .match-top,html[dir="rtl"] .match-bottom{direction:rtl}
+html[dir="rtl"] .team-away{text-align:left}
+html[dir="rtl"] .competition-heading{border-left:0;border-right:3px solid var(--gold);border-radius:7px 0 0 7px}
