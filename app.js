@@ -531,7 +531,7 @@
   }
 
   function showPage(id) {
-    const pageId=['page-accueil','page-matches','page-live','page-leagues','page-clubs','page-news','page-analysis','page-vip','page-settings'].includes(id)?id:'page-accueil';
+    const pageId=['page-accueil','page-matches','page-live','page-tv','page-leagues','page-clubs','page-news','page-analysis','page-vip','page-settings'].includes(id)?id:'page-accueil';
     document.querySelectorAll('.app-page').forEach(page=>page.classList.toggle('active',page.id===pageId));
     document.querySelectorAll('.bottom-nav a[data-page]').forEach(link=>link.classList.toggle('active',link.dataset.page===pageId));
     if(pageId==='page-live')fetchLiveScores();
