@@ -117,10 +117,9 @@
     const title=document.createElement('h3');title.textContent='ANALYSE · '+teamName(match.homeTeam)+' – '+teamName(match.awayTeam);panel.append(title);
     const result=analyze(match);
     if(!result.ready) {
-      const msg=document.createElement('p');msg.className='analysis-warning';msg.textContent=result.reason+' Aucun pronostic ne sera inventé. La collecte actuelle ne fournit pas encore un historique assez long.';details.append(msg);
+      const msg=document.createElement('p');msg.className='analysis-warning';msg.textContent=result.reason+' Aucun pronostic ne sera inventé. La collecte actuelle ne fournit pas encore un historique assez long.';panel.append(msg);
       addLine(panel,'Résultats récents disponibles',result.homeRows.length+' · '+result.awayRows.length);
-      panel.append(details);
-    return panel;
+      return panel;
     }
     const quick=document.createElement('div');quick.className='analysis-quick-summary';
     const quickLabel=document.createElement('span');quickLabel.className='quick-label';quickLabel.textContent='RÉSUMÉ RAPIDE';quick.append(quickLabel);
