@@ -406,7 +406,16 @@
     const nickname=document.createElement('p');nickname.textContent='Surnom : '+(team.nickname||team.alternateNames?.[0]||'Non communiqué');card.append(nickname);
     const coachTitle=document.createElement('h4');coachTitle.textContent='Entraîneur et nationalité';card.append(coachTitle);
     if(!coaches.length){const p=document.createElement('p');p.className='small-note';p.textContent='Nom de l’entraîneur et nationalité non publiés par la source pour cette fiche.';card.append(p);}
-    coaches.slice(0,4).forEach(coach=>{const p=document.createElement('p');const nationality=coach.nationality||coach.citizenship||coach.country?.name||coach.birthPlace?.country||'Nationalité non communiquée';p.textContent=(coach.displayName||coach.fullName||coach.name||'Entraîneur')+' · '+nationality;card.append(p);});
+    coaches.slice(0,4).forEach(coach=>{
+      const row=document.createElement('div');row.className='staff-profile-row';
+      const portrait=document.createElement('img');portrait.loading='lazy';portrait.alt='Photo de '+(coach.displayName||coach.fullName||coach.name||'l’entraîneur');
+      const photo=coach.headshot?.href||coach.headshot?.url||coach.photo||coach.image?.href||'';
+      if(photo){portrait.src=photo;portrait.onerror=()=>{portrait.removeAttribute('src');portrait.classList.add('photo-unavailable');};}else portrait.className='photo-unavailable';
+      const info=document.createElement('div');info.className='player-roster-info';
+      const p=document.createElement('strong');p.textContent=coach.displayName||coach.fullName||coach.name||'Entraîneur';
+      const nationality=document.createElement('small');nationality.textContent=coach.nationality||coach.citizenship||coach.country?.name||coach.birthPlace?.country||'Nationalité non communiquée';
+      info.append(p,nationality);row.append(portrait,info);card.append(row);
+    });
     const details=document.createElement('p');details.className='club-meta';details.textContent='Fondation : '+(team.founded||'Non communiquée')+' · Stade : '+(team.venue?.fullName||team.venue?.name||'Non communiqué');card.append(details);
     const caveat=document.createElement('p');caveat.className='data-caveat';caveat.textContent='Fiche établie à partir des champs fournis par ESPN. Les champs absents ne sont pas déduits.';card.append(caveat);
     const rosterTitle=document.createElement('h4');rosterTitle.className='player-roster-title';rosterTitle.textContent='Effectif et photos des joueurs';card.append(rosterTitle);
@@ -560,7 +569,22 @@
       const home=document.createElement('strong');home.textContent=teamName(m.homeTeam);
       const score=document.createElement('b');score.className='live-score-value';score.textContent=(m.score?.fullTime?.home??0)+' – '+(m.score?.fullTime?.away??0);
       const away=document.createElement('strong');away.textContent=teamName(m.awayTeam);
-      teams.append(home,score,away);card.append(top,teams);host.append(card);
+      teams.append(home,score,away);card.append(top,teams);
+      const officials=(m.officials||[]).filter(o=>o.name);
+      if(officials.length){
+        const officialBox=document.createElement('div');officialBox.className='live-officials';
+        officials.slice(0,4).forEach(o=>{
+          const line=document.createElement('div');line.className='staff-profile-row';
+          const portrait=document.createElement('img');portrait.loading='lazy';portrait.alt='Photo de '+o.name;
+          if(o.headshot){portrait.src=o.headshot;portrait.onerror=()=>{portrait.removeAttribute('src');portrait.classList.add('photo-unavailable');};}else portrait.className='photo-unavailable';
+          const info=document.createElement('div');info.className='player-roster-info';
+          const n=document.createElement('strong');n.textContent=o.name;
+          const meta=document.createElement('small');meta.textContent=[o.role,o.nationality].filter(Boolean).join(' · ');
+          info.append(n,meta);line.append(portrait,info);officialBox.append(line);
+        });
+        card.append(officialBox);
+      }
+      host.append(card);
     });
   }
   async function fetchLiveScores() {
@@ -579,7 +603,7 @@
             if(!h||!a)return null;
             const statusType=comp.status?.type||event.status?.type||{};
             const status=statusType.completed?'FINISHED':statusType.state==='in'?'IN_PLAY':statusType.state==='post'?'FINISHED':'SCHEDULED';
-            return {id:String(event.id),utcDate:event.date,status,statusDetail:comp.status?.displayClock||statusType.detail||statusType.description||'EN DIRECT',competition:{name:event.league?.name||data.leagues?.[0]?.name||label},homeTeam:{name:h.team?.displayName||h.team?.name||'Domicile'},awayTeam:{name:a.team?.displayName||a.team?.name||'Extérieur'},score:{fullTime:{home:h.score==null?0:Number(h.score),away:a.score==null?0:Number(a.score)}}};
+            return {id:String(event.id),utcDate:event.date,status,statusDetail:comp.status?.displayClock||statusType.detail||statusType.description||'EN DIRECT',competition:{name:event.league?.name||data.leagues?.[0]?.name||label},officials:(comp.officials||[]).map(o=>({name:o.fullName||o.displayName||o.name||'Arbitre',role:o.position?.name||o.position||o.displayName||'Officiel',nationality:o.nationality||o.country?.name||'',headshot:o.headshot?.href||o.headshot?.url||''})),homeTeam:{name:h.team?.displayName||h.team?.name||'Domicile'},awayTeam:{name:a.team?.displayName||a.team?.name||'Extérieur'},score:{fullTime:{home:h.score==null?0:Number(h.score),away:a.score==null?0:Number(a.score)}}};
           }).filter(Boolean);
         } catch(e){return [];}
       }));
