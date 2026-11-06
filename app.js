@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
-  const state = { matches: [], filter: 'upcoming', generatedAt: null, sources: {}, openAnalysis: null, settings: { threshold: 0.65, minimumHistory: 5 } };
+  const state = { matches: [], filter: 'upcoming', generatedAt: null, sources: {}, openAnalysis: null, pickFilter: 'all', settings: { threshold: 0.65, minimumHistory: 5 } };
   const dateFmt = new Intl.DateTimeFormat('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
   const timeFmt = new Intl.DateTimeFormat('fr-FR', { hour:'2-digit', minute:'2-digit' });
   const setText = (id,value) => { const el=$(id); if(el) el.textContent=value; };
@@ -240,45 +240,69 @@
       return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth()&&d.getDate()===now.getDate()&&
         !['IN_PLAY','LIVE','HALFTIME','PAUSED','EXTRA_TIME','PENALTY_SHOOTOUT','FINISHED','CANCELLED','POSTPONED','SUSPENDED'].includes(String(m.status||'').toUpperCase());
     });
+    const groups={
+      all:['1N2','double','goals','btts','corners'],
+      result:['1N2'],double:['double'],goals:['goals'],btts:['btts'],corners:['corners']
+    };
     const picks=[];
     today.forEach(match=>{
       const result=analyze(match);if(!result.ready)return;
       const markets=[
-        ['1 · Victoire domicile',result.markets.home],['N · Match nul',result.markets.draw],['2 · Victoire extérieur',result.markets.away],
-        ['1X · Double chance domicile',result.markets.homeOrDraw],
-        ['X2 · Double chance extérieur',result.markets.awayOrDraw],['12 · Pas de match nul',result.markets.noDraw],
-        ['+1,5 buts',result.markets.over15],['+2,5 buts',result.markets.over25],
-        ['+3,5 buts',result.markets.over35],['BTTS · Les deux marquent',result.markets.btts]
+        {label:'1 · Victoire domicile',p:result.markets.home,type:'1N2'},
+        {label:'N · Match nul',p:result.markets.draw,type:'1N2'},
+        {label:'2 · Victoire extérieur',p:result.markets.away,type:'1N2'},
+        {label:'1X · Double chance domicile',p:result.markets.homeOrDraw,type:'double'},
+        {label:'X2 · Double chance extérieur',p:result.markets.awayOrDraw,type:'double'},
+        {label:'12 · Pas de match nul',p:result.markets.noDraw,type:'double'},
+        {label:'Plus de 1,5 buts',p:result.markets.over15,type:'goals'},
+        {label:'Plus de 2,5 buts',p:result.markets.over25,type:'goals'},
+        {label:'Plus de 3,5 buts',p:result.markets.over35,type:'goals'},
+        {label:'Les deux équipes marquent',p:result.markets.btts,type:'btts'}
       ];
-      if(result.cornerMarkets){
-        markets.push(['+7,5 corners',result.cornerMarkets.over75],['+8,5 corners',result.cornerMarkets.over85],
-          ['+9,5 corners',result.cornerMarkets.over95],['+10,5 corners',result.cornerMarkets.over105]);
-      }
-      const best=markets.filter(x=>Number.isFinite(x[1])&&x[1]>=state.settings.threshold).sort((a,b)=>b[1]-a[1])[0];
-      if(best)picks.push({match,label:best[0],probability:best[1],confidence:result.confidence});
+      if(result.cornerMarkets)markets.push(
+        {label:'Plus de 7,5 corners',p:result.cornerMarkets.over75,type:'corners'},
+        {label:'Plus de 8,5 corners',p:result.cornerMarkets.over85,type:'corners'},
+        {label:'Plus de 9,5 corners',p:result.cornerMarkets.over95,type:'corners'},
+        {label:'Plus de 10,5 corners',p:result.cornerMarkets.over105,type:'corners'}
+      );
+      const allowed=groups[state.pickFilter]||groups.all;
+      const best=markets.filter(x=>allowed.includes(x.type)&&Number.isFinite(x.p)&&x.p>=state.settings.threshold).sort((a,b)=>b.p-a.p)[0];
+      if(best)picks.push({match,label:best.label,probability:best.p,confidence:result.confidence,type:best.type});
     });
-    picks.sort((a,b)=>b.probability-a.probability);
-    const heading=document.createElement('div');heading.className='featured-picks-heading';
-    const title=document.createElement('h3');title.textContent='LES SÉLECTIONS STATISTIQUES DU JOUR';
-    const sub=document.createElement('p');sub.textContent='Marchés dépassant ton seuil de '+pct(state.settings.threshold)+' · classement par probabilité estimée';
-    heading.append(title,sub);host.append(heading);
+    picks.sort((a,b)=>b.probability-a.probability||new Date(a.match.utcDate)-new Date(b.match.utcDate));
+    const title=document.createElement('h3');title.textContent='PRONOSTICS FOOTBALL DU JOUR';host.append(title);
+    const sub=document.createElement('p');sub.className='featured-picks-subtitle';sub.textContent=today.length+' rencontre(s) programmée(s) · Sélections calculées sur les historiques disponibles';host.append(sub);
+    const filters=document.createElement('div');filters.className='pick-market-filters';
+    [['all','Tous'],['result','1N2'],['double','Double chance'],['goals','Moins / Plus'],['btts','Les 2 marquent'],['corners','Corners']].forEach(([key,label])=>{
+      const b=document.createElement('button');b.type='button';b.className='pick-filter'+(state.pickFilter===key?' active':'');b.dataset.market=key;b.textContent=label;
+      b.addEventListener('click',()=>{state.pickFilter=key;renderFeaturedPicks();});filters.append(b);
+    });
+    host.append(filters);
     if(!picks.length){
       const empty=document.createElement('p');empty.className='featured-picks-empty';
-      empty.textContent=today.length?'Aucune sélection ne franchit le seuil avec un historique suffisant. Les matchs restent consultables dans le calendrier.':'Aucune rencontre programmée aujourd’hui dans les données chargées.';
+      empty.textContent=today.length?'Aucun pronostic ne passe le seuil de '+pct(state.settings.threshold)+' avec les données historiques disponibles pour ce type de pari.':'Aucune rencontre programmée aujourd’hui dans les données chargées.';
       host.append(empty);return;
     }
-    picks.slice(0,5).forEach((pick,index)=>{
-      const card=document.createElement('article');card.className='featured-pick-card';
-      const rank=document.createElement('span');rank.className='featured-pick-rank';rank.textContent=String(index+1).padStart(2,'0');
-      const info=document.createElement('div');info.className='featured-pick-info';
-      const comp=document.createElement('small');comp.textContent=competitionName(pick.match)+' · '+timeFmt.format(new Date(pick.match.utcDate));
-      const fixture=document.createElement('strong');fixture.textContent=teamName(pick.match.homeTeam)+' – '+teamName(pick.match.awayTeam);
-      const market=document.createElement('span');market.className='featured-pick-market';market.textContent=pick.label;
-      info.append(comp,fixture,market);
-      const probability=document.createElement('strong');probability.className='featured-pick-probability';probability.textContent=pct(pick.probability);
-      card.append(rank,info,probability);host.append(card);
+    const conviction=document.createElement('article');conviction.className='daily-conviction';
+    const kicker=document.createElement('span');kicker.textContent='CONVICTION DU JOUR';
+    const best=picks[0];const fixture=document.createElement('strong');fixture.textContent=teamName(best.match.homeTeam)+' – '+teamName(best.match.awayTeam);
+    const choice=document.createElement('b');choice.textContent=best.label+' · '+pct(best.probability);
+    const detail=document.createElement('small');detail.textContent=competitionName(best.match)+' · '+timeFmt.format(new Date(best.match.utcDate))+' · Confiance '+best.confidence;
+    conviction.append(kicker,fixture,choice,detail);host.append(conviction);
+    const list=document.createElement('div');list.className='daily-picks-list';
+    picks.slice(0,20).forEach((pick,index)=>{
+      const card=document.createElement('article');card.className='daily-pick-card';
+      const meta=document.createElement('small');meta.textContent=timeFmt.format(new Date(pick.match.utcDate))+' · '+competitionName(pick.match);
+      const teams=document.createElement('strong');teams.textContent=teamName(pick.match.homeTeam)+' – '+teamName(pick.match.awayTeam);
+      const market=document.createElement('span');market.className='daily-pick-market';market.textContent=pick.label;
+      const probability=document.createElement('b');probability.className='daily-pick-probability';probability.textContent=pct(pick.probability);
+      const button=document.createElement('button');button.type='button';button.className='daily-pick-detail';button.textContent='Voir l’analyse';
+      button.addEventListener('click',()=>{showPage('page-analysis');const select=$('analysis-match-select');if(select){select.value=String(pick.match.id);renderAnalysisPicker();}window.scrollTo({top:0,behavior:'smooth'});});
+      card.append(meta,teams,market,probability,button);list.append(card);
     });
-    const note=document.createElement('p');note.className='featured-picks-note';note.textContent='Estimations du modèle statistique, pas des cotes bookmaker ni des garanties de résultat. Les rencontres sans historique suffisant sont écartées.';host.append(note);
+    host.append(list);
+    const note=document.createElement('p');note.className='featured-picks-note';note.textContent='Probabilités indicatives du modèle, et non des cotes bookmaker. Les matchs sans historique suffisant et les statistiques corners absentes sont exclus. Aucun pari n’est garanti.';
+    host.append(note);
   }
   function renderMatches() {
     const list=$('match-list');if(!list)return;list.replaceChildren();const now=new Date();
