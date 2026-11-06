@@ -7,7 +7,7 @@
   <meta name="description" content="Gold Pronos — calendrier football, statistiques vérifiées et analyses prudentes.">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=21">
+  <link rel="stylesheet" href="./styles.css?v=22">
   <title>GOLD PRONOS — Le football analysé</title>
 </head>
 <body>
@@ -101,11 +101,11 @@
     </div>
     <div class="app-page" id="page-news">
       <section class="section">
-        <div class="section-heading"><div><p class="eyebrow">FOOTBALL · ACTUALITÉS</p><h2>Le fil football</h2></div><button class="text-button" id="refresh-news" type="button">Actualiser ↻</button></div>
-        <p class="settings-copy">Titres et résumés d’actualité avec liens vers les articles sources.</p>
+        <div class="section-heading"><div><p class="eyebrow">FOOTBALL · ACTUALITÉS</p><h2 data-i18n="news_title">Actualités football</h2></div><button class="text-button" id="refresh-news" type="button">Actualiser ↻</button></div>
+        <p class="settings-copy" data-i18n="news_subtitle">Titres et résumés traduits dans la langue choisie, avec un lien vers chaque article source.</p>
         <div class="status-panel" id="news-status">Chargement des actualités…</div>
         <div class="news-list" id="news-list"></div>
-        <p class="data-caveat">Les articles restent la propriété de leurs éditeurs. GOLD PRONOS affiche les titres, de courts résumés et les liens vers les sources.</p>
+        <p class="data-caveat" data-i18n="news_source_note">Les articles restent la propriété de leurs éditeurs. Les titres et résumés sont traduits automatiquement ; consulte la source pour le texte intégral.</p>
       </section>
     </div>
 
@@ -161,7 +161,7 @@
     <a href="#page-settings" data-page="page-settings">⚙<span>Réglages</span></a>
   </nav>
   <script>window.addEventListener("error",function(e){var s=document.getElementById("source-status"),m=document.getElementById("match-status");if(s)s.textContent="ERREUR JAVASCRIPT";if(m)m.textContent="Le moteur JavaScript a rencontré une erreur : "+(e.message||"erreur inconnue");});</script>
-  <script src="./i18n.js?v=4"></script>
-  <script src="./app.js?v=30" onerror="document.getElementById('source-status').textContent='ERREUR SCRIPT';document.getElementById('match-status').textContent='Le moteur de l’application ne se charge pas. Recharge la page.';"></script>
+  <script src="./i18n.js?v=5"></script>
+  <script src="./app.js?v=31" onerror="document.getElementById('source-status').textContent='ERREUR SCRIPT';document.getElementById('match-status').textContent='Le moteur de l’application ne se charge pas. Recharge la page.';"></script>
 </body>
 </html>
