@@ -255,8 +255,11 @@
         {label:'X2 · Double chance extérieur',p:result.markets.awayOrDraw,type:'double'},
         {label:'12 · Pas de match nul',p:result.markets.noDraw,type:'double'},
         {label:'Plus de 1,5 buts',p:result.markets.over15,type:'goals'},
+        {label:'Moins de 1,5 buts',p:1-result.markets.over15,type:'goals'},
         {label:'Plus de 2,5 buts',p:result.markets.over25,type:'goals'},
+        {label:'Moins de 2,5 buts',p:1-result.markets.over25,type:'goals'},
         {label:'Plus de 3,5 buts',p:result.markets.over35,type:'goals'},
+        {label:'Moins de 3,5 buts',p:1-result.markets.over35,type:'goals'},
         {label:'Les deux équipes marquent',p:result.markets.btts,type:'btts'}
       ];
       if(result.cornerMarkets)markets.push(
