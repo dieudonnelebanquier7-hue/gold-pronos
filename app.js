@@ -345,6 +345,16 @@
     const input=$('match-date');const base=new Date((state.selectedDate||localDateKey(new Date()))+'T12:00:00');base.setDate(base.getDate()+days);
     state.selectedDate=localDateKey(base);if(input)input.value=state.selectedDate;renderMatches();
   }
+  function competitionRegion(match){
+    const raw=String(match.competition?.code||'').replace(/^ESPN-/,'').toLowerCase();
+    const prefix=raw.split('.')[0];
+    const regions={eng:'Angleterre',esp:'Espagne',ger:'Allemagne',ita:'Italie',fra:'France',ned:'Pays-Bas',por:'Portugal',tur:'Turquie',nor:'Norvège',swe:'Suède',sui:'Suisse',ksa:'Arabie saoudite',cze:'Tchéquie',usa:'États-Unis',rou:'Roumanie',rus:'Russie',chn:'Chine',jpn:'Japon',bra:'Brésil',arg:'Argentine',mex:'Mexique',rsa:'Afrique du Sud',nga:'Nigeria',gha:'Ghana',egy:'Égypte',mar:'Maroc',tun:'Tunisie',sen:'Sénégal',caf:'Afrique · CAF',uefa:'Europe · UEFA',conmebol:'Amérique du Sud',concacaf:'Amérique du Nord',afc:'Asie · AFC',fifa:'International'};
+    if(regions[prefix])return regions[prefix];
+    const name=competitionName(match);
+    if(/caf|africa|afcon|afrique/i.test(name))return 'Afrique · CAF';
+    if(/uefa|champions league|europa league|conference league/i.test(name))return 'Europe · UEFA';
+    return 'Autres compétitions';
+  }
   function renderMatches() {
     const list=$('match-list');if(!list)return;list.replaceChildren();
     const isLive=m=>['IN_PLAY','PAUSED','LIVE','HALFTIME','EXTRA_TIME','PENALTY_SHOOTOUT'].includes(String(m.status||'').toUpperCase());
@@ -363,10 +373,13 @@
     setText('match-live-count',String(liveCount));setText('match-upcoming-count',String(upcomingCount));setText('match-finished-count',String(finishedCount));
     const dateLabel=$('match-date-label');if(dateLabel){const d=new Date(day+'T12:00:00');dateLabel.textContent=d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});}
     if(!filtered.length){const e=document.createElement('div');e.className='status-panel';e.textContent=state.filter==='live'?'Aucun match en direct détecté pour cette date dans les données reçues.':state.filter==='finished'?'Aucun résultat terminé disponible pour cette date.':state.matches.length?'Aucun match disponible pour cette date ou cette compétition.':'Le calendrier est en cours de chargement.';list.append(e);return;}
-    const groups=new Map();filtered.forEach(m=>{const key=competitionName(m);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(m);});
-    groups.forEach((matches,name)=>{
-      const heading=document.createElement('h3');heading.className='competition-heading';heading.textContent=name+' · '+matches.length;list.append(heading);
-      matches.forEach(m=>list.append(createMatchCard(m)));
+    const regions=new Map();filtered.forEach(m=>{const region=competitionRegion(m);if(!regions.has(region))regions.set(region,new Map());const leagues=regions.get(region),name=competitionName(m);if(!leagues.has(name))leagues.set(name,[]);leagues.get(name).push(m);});
+    regions.forEach((leagues,region)=>{
+      if(regions.size>1){const country=document.createElement('h3');country.className='region-heading';country.textContent=region;list.append(country);}
+      leagues.forEach((matches,name)=>{
+        const heading=document.createElement('h4');heading.className='competition-heading';heading.textContent=name+' · '+matches.length;list.append(heading);
+        matches.forEach(m=>list.append(createMatchCard(m)));
+      });
     });
   }
   function renderAnalysisPicker() {
