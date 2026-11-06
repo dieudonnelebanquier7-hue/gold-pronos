@@ -358,8 +358,8 @@
   async function leagueJson(url){const r=await fetch(url,{cache:'no-store',signal:AbortSignal.timeout(14000)});if(!r.ok)throw Error('HTTP '+r.status);return r.json();}
   function leagueEntries(x,out=[]){if(!x||typeof x!=='object')return out;if(Array.isArray(x.entries))out.push(...x.entries);if(Array.isArray(x.children))x.children.forEach(v=>leagueEntries(v,out));if(x.standings)leagueEntries(x.standings,out);return out;}
   function leagueStat(entry,keys){for(const s of entry.stats||[]){const n=String(s.name||s.abbreviation||s.displayName||'').toLowerCase();if(keys.some(k=>n.includes(k)))return s.displayValue??s.value??'—';}return '—';}
-  function renderLeagueTable(data){
-    const host=$('league-standings');host.replaceChildren();const entries=leagueEntries(data.standings||data);
+  function renderLeagueTable(data,hostId='league-standings'){
+    const host=$(hostId);if(!host)return;host.replaceChildren();const entries=leagueEntries(data.standings||data);
     if(!entries.length){host.textContent='Classement indisponible pour cette compétition.';return;}
     const table=document.createElement('table');table.className='league-standings-table';table.innerHTML='<thead><tr><th>#</th><th>Équipe</th><th>MJ</th><th>V</th><th>N</th><th>D</th><th>BP</th><th>BC</th><th>Diff.</th><th>Pts</th></tr></thead>';
     const body=document.createElement('tbody');entries.forEach((e,i)=>{const tr=document.createElement('tr');if(i===0)tr.className='league-first';const team=e.team||{};const vals=[i+1,team.displayName||team.name||e.name||'Équipe',leagueStat(e,['gamesplayed','played','gp']),leagueStat(e,['wins','win']),leagueStat(e,['ties','draw']),leagueStat(e,['losses','loss']),leagueStat(e,['pointsfor','goalsfor','gf']),leagueStat(e,['pointsagainst','goalsagainst','ga']),leagueStat(e,['pointdifferential','goaldifference','gd']),leagueStat(e,['points','pts'])];vals.forEach((v,j)=>{const td=document.createElement('td');td.textContent=v;if(j===1)td.className='team-cell';tr.append(td);});body.append(tr);});table.append(body);host.append(table);
@@ -393,7 +393,7 @@
   async function clubFetch(url){const r=await fetch(url,{cache:'no-store',signal:AbortSignal.timeout(14000)});if(!r.ok)throw Error('HTTP '+r.status);return r.json();}
   function getTeamArray(data){const groups=data?.sports?.[0]?.leagues||data?.leagues||[];for(const group of groups){if(Array.isArray(group.teams))return group.teams.map(x=>x.team||x);}if(Array.isArray(data?.teams))return data.teams.map(x=>x.team||x);return [];}
   function renderClubProfile(team,competition){
-    const host=$('club-results');host.replaceChildren();
+    const host=$('club-results');
     const name=team.displayName||team.name||team.shortDisplayName||'Équipe';
     const country=team.country?.name||team.country?.displayName||team.nationality||team.location||team.address?.city||'Nationalité / pays non communiqué';
     const coaches=team.coaches||team.coach?[...(team.coaches||[]),...(team.coach?[team.coach]:[])]:[];
@@ -437,7 +437,7 @@
   }
   async function loadNationalStandings(code,name){
     const host=$('club-results');host.replaceChildren();setText('club-status','Chargement du classement de '+name+'…');
-    try{const data=await clubFetch('https://site.api.espn.com/apis/v2/sports/soccer/'+code+'/standings');renderLeagueTable(data);setText('club-status','Classement disponible pour '+name+' · '+timeFmt.format(new Date()));}
+    try{const data=await clubFetch('https://site.api.espn.com/apis/v2/sports/soccer/'+code+'/standings');renderLeagueTable(data,'club-results');setText('club-status','Classement disponible pour '+name+' · '+timeFmt.format(new Date()));}
     catch(_){host.textContent='Classement ou groupes non disponibles auprès de la source pour cette compétition.';setText('club-status','Données de classement indisponibles.');}
   }
   function initClubHub(){
@@ -600,7 +600,7 @@
   async function loadFootballNews() {
     const host=$('news-list');if(!host)return;
     const language=NEWS_LANGS[window.GoldI18n?.getLanguage?.()||'fr']||'fr';
-    setText('news-status',newsText('news_loading'));renderNewsRendezvous();
+    setText('news-status',newsText('news_loading'));renderNewsRendezvous();if(($('news-filter')?.value||'all')==='big'){setText('news-status','Sélection des grands rendez-vous affichée ci-dessous.');host.replaceChildren();return;}
     const leagues=[['eng.1','Football international'],['esp.1','Espagne'],['fra.1','France'],['ger.1','Allemagne'],['ita.1','Italie'],['uefa.champions','Ligue des champions']];
     try {
       const responses=await Promise.all(leagues.map(async ([code,label])=>{
@@ -614,9 +614,9 @@
       const allArticles=responses.flat().filter(a=>a.headline).sort((a,b)=>new Date(b.published||0)-new Date(a.published||0));
       const filter=$('news-filter')?.value||'all';
       const transferPattern=/transfer|transferred|signing|signed|loan|loaned|deal agreed|medical|mercato|transfert|recrut|prêt|pret|contrat|arrivée|arrivee|départ|depart|fichaje|traspaso|transferencia|contratação|transferência|wechsel|verpflichtet/i;
-      const articles=(filter==='transfers'?allArticles.filter(a=>transferPattern.test([a.headline,a.description,a.summary].join(' '))):allArticles).slice(0,24);
+      const articles=(filter==='big'?[]:filter==='transfers'?allArticles.filter(a=>transferPattern.test([a.headline,a.description,a.summary].join(' '))):allArticles).slice(0,24);
       host.replaceChildren();
-      if(!articles.length){setText('news-status',newsText('news_empty'));return;}
+      if(!articles.length){setText('news-status',filter==='transfers'?'Aucune actualité de transfert détectée dans les articles récents de la source.':newsText('news_empty'));return;}
       // Translate titles and summaries before rendering: English source text is never silently shown in another selected language.
       const translated=[];
       for(let i=0;i<articles.length;i+=4) {
