@@ -134,3 +134,8 @@ body{font-size:16px;-webkit-text-size-adjust:100%;text-size-adjust:100%}.brand{f
 .install-card small{display:block;font-size:10px;line-height:1.6;color:var(--muted)}
 .install-footnote{font-size:10px;margin:12px 0 0;color:#aaa39a}
 @media(min-width:650px){.install-section{max-width:728px;margin:20px auto 8px;padding:22px}.install-grid{grid-template-columns:1fr 1fr}}
+
+.settings-controls{display:grid;gap:9px;margin:16px 0;padding:15px;border:1px solid var(--line);border-radius:12px;background:#121214}
+.settings-controls label{font-size:12px;font-weight:700;color:var(--gold2);margin-top:4px}
+.settings-controls select{width:100%;padding:13px 12px;border-radius:8px;border:1px solid #494348;background:#1c1a1e;color:#f4f0e8;font:inherit;font-size:13px}
+.settings-reset{margin-top:7px;padding:12px;border:1px solid #66512f;border-radius:8px;background:#211b11;color:#e0bd70;font-weight:700}
