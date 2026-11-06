@@ -37,7 +37,7 @@ function renderMatches(){
 async function loadMatches(){
   const button=$('refresh-btn');button.disabled=true;button.textContent='Chargement…';setStatus('Chargement du calendrier officiel…');
   try{
-    const response=await fetch('./matches.json?v='+Date.now(),{cache:'no-store'});
+    const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),15000);let response;try{response=await fetch('./matches.json?v='+Date.now(),{cache:'no-store',signal:controller.signal});}finally{clearTimeout(timeout);}
     if(!response.ok)throw new Error('Le fichier des matchs est introuvable (HTTP '+response.status+').');
     const data=await response.json();
     if(data.error)throw new Error(data.message||'La source des matchs a signalé une erreur.');
@@ -50,7 +50,7 @@ async function loadMatches(){
     renderMatches();
   }catch(error){
     state.matches=[];$('match-count').textContent='0';$('source-status').textContent='INDISPONIBLE';$('source-detail').textContent='Données à vérifier';
-    setStatus(error.message);$('match-list').replaceChildren();
+    setStatus(error.name==='AbortError'?'La source met trop de temps à répondre. Appuie sur Actualiser dans quelques instants.':error.message);$('match-list').replaceChildren();$('settings-message').textContent='Source indisponible pour le moment. Réessaie avec Actualiser.';
   }finally{button.disabled=false;button.textContent='Actualiser ↻';}
 }
 $('refresh-btn').addEventListener('click',loadMatches);
