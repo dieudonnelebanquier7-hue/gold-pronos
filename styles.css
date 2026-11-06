@@ -246,3 +246,22 @@ html[dir="rtl"] .competition-heading{border-left:0;border-right:3px solid var(--
 .bottom-nav a span{font-size:8px}
 @media(min-width:620px){.live-list,.news-list{grid-template-columns:1fr 1fr}.news-card h3{font-size:16px}}
 @media(max-width:360px){.bottom-nav a span{font-size:7px}.bottom-nav a{font-size:13px;padding:7px 1px}}
+
+/* Accents de statut : vert pour le direct et les signaux positifs, rouge pour les matchs terminés et alertes. */
+:root{--green:#35c982;--green-soft:#10271d;--red:#ef626b;--red-soft:#2b171a}
+#page-live .section-heading h2{color:var(--green)}
+#page-live .live-summary strong,.live-score-card .live-score-value{color:var(--green)}
+.live-score-card{border-left:3px solid var(--green)}
+.live-score-meta b{color:var(--green)}
+.news-card{border-left:3px solid var(--green)}
+.news-card a{color:var(--green)}
+.news-card small{color:var(--green)}
+.match-card .match-status-live,.match-card.status-live .match-top>span:last-child{color:var(--green)}
+.match-card.status-finished .match-top>span:last-child{color:var(--red)}
+.match-card.status-finished .versus{color:var(--red)}
+#page-matches .featured-picks{border-top:2px solid var(--red)}
+#page-news .section-heading h2{color:var(--green)}
+#page-settings .goal-alert-settings{border-left:3px solid var(--red)}
+#page-settings .goal-alert-settings .eyebrow{color:var(--red)}
+.analysis-warning{border-left:3px solid var(--red)}
+.analysis-pick{border-left:3px solid var(--green)}
