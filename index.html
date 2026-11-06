@@ -4,41 +4,71 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#0b0b0d">
-  <meta name="description" content="Gold Pronos — analyses football prudentes, statistiques et rapports quotidiens.">
+  <meta name="description" content="Gold Pronos — calendrier football, statistiques vérifiées et analyses prudentes.">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./styles.css">
-  <title>GOLD PRONOS</title>
+  <title>GOLD PRONOS — Le football analysé</title>
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="./"><span class="brand-mark">G</span><span>GOLD <b>PRONOS</b><small>ANALYSE FOOTBALL</small></span></a>
-    <span class="live-dot">VERSION 0.1</span>
+    <a class="brand" href="#accueil"><span class="brand-mark">G</span><span>GOLD <b>PRONOS</b><small>LE BANQUIER · ANALYSE FOOTBALL</small></span></a>
+    <span class="live-dot"><i></i> CENTRE D'ANALYSE</span>
   </header>
-  <main>
+  <main id="accueil">
     <section class="hero">
-      <p class="eyebrow">LE FOOTBALL, ANALYSÉ AVEC MÉTHODE</p>
-      <h1>Décider avec<br><em>les bonnes données.</em></h1>
-      <p class="hero-copy">Analyses statistiques, contexte des équipes et lecture prudente des risques.</p>
-      <div class="date-line" id="today"></div>
+      <p class="eyebrow">LA DONNÉE AVANT LE PRONOSTIC</p>
+      <h1>Le football,<br><em>lu intelligemment.</em></h1>
+      <p class="hero-copy">Calendrier, forme des équipes et analyses argumentées. Pas de promesse de gain, uniquement des informations à vérifier.</p>
+      <div class="hero-meta"><span id="today"></span><span class="pill">VERSION 0.2</span></div>
     </section>
-    <section class="summary-grid">
-      <article class="summary-card"><span class="muted">MATCHS ANALYSÉS</span><strong id="match-count">—</strong><small>Après vérification des données</small></article>
-      <article class="summary-card"><span class="muted">RAPPORT DU JOUR</span><strong class="gold-text">EN PRÉPARATION</strong><small>Aucune donnée inventée</small></article>
+
+    <section class="summary-grid" aria-label="Résumé">
+      <article class="summary-card"><span class="muted">MATCHS TROUVÉS</span><strong id="match-count">—</strong><small id="match-period">Calendrier à charger</small></article>
+      <article class="summary-card"><span class="muted">SOURCE DES DONNÉES</span><strong class="gold-text" id="source-status">NON CONNECTÉE</strong><small id="source-detail">Configuration nécessaire</small></article>
     </section>
-    <section class="section">
-      <div class="section-heading"><div><p class="eyebrow">SÉLECTION DU JOUR</p><h2>Les rencontres</h2></div><span class="tag">DONNÉES À VÉRIFIER</span></div>
-      <div class="empty-state"><div class="ball">⚽</div><h3>Les matchs vérifiés apparaîtront ici</h3><p>Les affiches, horaires, statistiques et cotes seront affichés uniquement lorsqu’une source fiable sera disponible.</p></div>
+
+    <section class="section" id="matches">
+      <div class="section-heading"><div><p class="eyebrow">CALENDRIER FOOTBALL</p><h2>Les rencontres</h2></div><button class="text-button" id="refresh-btn" type="button">Actualiser ↻</button></div>
+      <div class="filters" role="group" aria-label="Filtrer les matchs">
+        <button class="filter active" data-filter="all" type="button">À venir</button>
+        <button class="filter" data-filter="today" type="button">Aujourd'hui</button>
+        <button class="filter" data-filter="finished" type="button">Terminés</button>
+      </div>
+      <div class="status-panel" id="match-status" role="status">Connecte une source de données pour charger les rencontres réelles.</div>
+      <div class="match-list" id="match-list" aria-live="polite"></div>
     </section>
-    <section class="section report">
-      <p class="eyebrow">RAPPORT QUOTIDIEN</p><h2>Une analyse, pas une promesse.</h2>
-      <div class="report-row"><span>01</span><div><b>Contexte</b><p>Forme récente, calendrier, domicile/extérieur et effectifs confirmés.</p></div></div>
-      <div class="report-row"><span>02</span><div><b>Statistiques</b><p>Indicateurs vérifiables, avec distinction entre faits et estimations.</p></div></div>
-      <div class="report-row"><span>03</span><div><b>Risques</b><p>Marché étudié, arguments, incertitudes et niveau de confiance prudent.</p></div></div>
+
+    <section class="section" id="analysis">
+      <div class="section-heading"><div><p class="eyebrow">MÉTHODE DU BANQUIER</p><h2>Le rapport d'analyse</h2></div></div>
+      <div class="analysis-grid">
+        <article class="analysis-card"><span>01</span><h3>Forme récente</h3><p>Comparer les derniers résultats et la dynamique domicile / extérieur.</p></article>
+        <article class="analysis-card"><span>02</span><h3>Contexte</h3><p>Prendre en compte calendrier, absences confirmées et enjeu du match.</p></article>
+        <article class="analysis-card"><span>03</span><h3>Risque</h3><p>Présenter les incertitudes et éviter les sélections sans argument solide.</p></article>
+      </div>
+      <div class="report-box"><div><p class="eyebrow">RAPPORT QUOTIDIEN</p><h3 id="report-title">En attente des données</h3><p id="report-copy">Une analyse sera proposée lorsque les informations des rencontres seront disponibles.</p></div><span class="report-symbol">✦</span></div>
     </section>
-    <section class="notice"><b>JEU RESPONSABLE</b><p>Aucun pronostic n’est sûr et aucun gain n’est garanti. Une combinaison augmente le risque de perte. Ne mise jamais l’argent nécessaire à tes dépenses.</p></section>
+
+    <section class="section settings" id="settings">
+      <div class="section-heading"><div><p class="eyebrow">CONFIGURATION</p><h2>Connecter les matchs</h2></div></div>
+      <p class="settings-copy">Gold-Pronos utilise football-data.org pour récupérer le calendrier. Crée une clé API gratuite auprès de ce fournisseur, puis colle-la ici. La clé reste enregistrée sur cet appareil et n'est pas ajoutée au dépôt GitHub.</p>
+      <form id="api-form">
+        <label for="api-key">Clé API football-data.org</label>
+        <input id="api-key" name="api-key" type="password" autocomplete="off" placeholder="Colle ta clé API ici">
+        <div class="form-actions"><button class="primary-button" type="submit">Enregistrer et charger</button><button class="text-button" id="clear-key" type="button">Effacer</button></div>
+      </form>
+      <p class="api-help">Obtenir une clé : <a href="https://www.football-data.org/client/register" target="_blank" rel="noopener noreferrer">football-data.org</a>. Les cotes de bookmakers ne sont pas fournies par cette source et seront ajoutées séparément.</p>
+      <p class="small-note" id="settings-message">Aucune clé API n'est enregistrée.</p>
+    </section>
+
+    <section class="notice"><b>JEU RESPONSABLE</b><p>Aucun pronostic n'est sûr et aucun gain n'est garanti. Les statistiques ne prédisent pas le résultat avec certitude. Ne mise jamais l'argent nécessaire à tes dépenses et respecte les limites légales applicables.</p></section>
   </main>
-  <nav class="bottom-nav"><a class="active" href="#today">⌂<span>Accueil</span></a><a href="#matches">⚽<span>Matchs</span></a><a href="#report">▤<span>Rapport</span></a></nav>
+  <nav class="bottom-nav" aria-label="Navigation principale">
+    <a class="active" href="#accueil">⌂<span>Accueil</span></a>
+    <a href="#matches">⚽<span>Matchs</span></a>
+    <a href="#analysis">▤<span>Analyses</span></a>
+    <a href="#settings">⚙<span>Réglages</span></a>
+  </nav>
   <script src="./app.js"></script>
 </body>
 </html>
