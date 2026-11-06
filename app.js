@@ -8,13 +8,19 @@
   function formatDate(value) { const d=new Date(value); return Number.isNaN(d.getTime())?'Date non disponible':dateFmt.format(d); }
   function validMatch(m) { return m && typeof m==='object' && typeof m.utcDate==='string' && !Number.isNaN(new Date(m.utcDate).getTime()) && m.homeTeam && m.awayTeam; }
   const teamName = t => String(t?.name || '');
+  const normalizeName = value => String(value||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+  function hasFinalScore(m) {
+    const h=m.score?.fullTime?.home, a=m.score?.fullTime?.away;
+    return h!==null && h!==undefined && a!==null && a!==undefined && Number.isFinite(Number(h)) && Number.isFinite(Number(a));
+  }
   function resultRows(name, before) {
-    return state.matches.filter(m => m.status==='FINISHED' && new Date(m.utcDate)<before &&
-      (teamName(m.homeTeam)===name || teamName(m.awayTeam)===name) &&
-      Number.isFinite(Number(m.score?.fullTime?.home)) && Number.isFinite(Number(m.score?.fullTime?.away)))
+    const target=normalizeName(name);
+    return state.matches.filter(m => m.status==='FINISHED' && new Date(m.utcDate)<before && hasFinalScore(m) &&
+      (normalizeName(teamName(m.homeTeam))===target || normalizeName(teamName(m.awayTeam))===target))
       .sort((a,b)=>new Date(b.utcDate)-new Date(a.utcDate)).slice(0,10).map(m=>{
-        const home=teamName(m.homeTeam)===name, gf=Number(m.score.fullTime[home?'home':'away']), ga=Number(m.score.fullTime[home?'away':'home']);
-        return {gf,ga,home,date:m.utcDate,opponent:teamName(home?m.awayTeam:m.homeTeam)};
+        const home=normalizeName(teamName(m.homeTeam))===target;
+        const gf=Number(m.score.fullTime[home?'home':'away']), ga=Number(m.score.fullTime[home?'away':'home']);
+        return {gf,ga,home,date:m.utcDate,opponent:teamName(home?m.awayTeam:m.homeTeam),form:gf>ga?'V':gf===ga?'N':'D'};
       });
   }
   function average(rows,key) { return rows.reduce((s,r)=>s+r[key],0)/rows.length; }
@@ -32,9 +38,14 @@
   function analyze(match) {
     const kickoff=new Date(match.utcDate), hn=teamName(match.homeTeam), an=teamName(match.awayTeam);
     const homeRows=resultRows(hn,kickoff), awayRows=resultRows(an,kickoff);
-    if(homeRows.length<3 || awayRows.length<3) return {ready:false,homeRows,awayRows,reason:'Échantillon insuffisant : il faut au moins 3 résultats terminés vérifiables pour chaque équipe dans les données actuellement disponibles.'};
-    const homeScored=average(homeRows,'gf'), homeConceded=average(homeRows,'ga');
-    const awayScored=average(awayRows,'gf'), awayConceded=average(awayRows,'ga');
+    if(homeRows.length<3 || awayRows.length<3) return {ready:false,homeRows,awayRows,reason:'Historique insuffisant : au moins 3 scores terminés vérifiés par équipe sont nécessaires. La collecte historique est en cours ou la compétition n’est pas couverte.'};
+    const homeVenue=homeRows.filter(r=>r.home), awayVenue=awayRows.filter(r=>!r.home);
+    const homeAttack=homeVenue.length>=2?homeVenue:homeRows;
+    const homeDefence=homeVenue.length>=2?homeVenue:homeRows;
+    const awayAttack=awayVenue.length>=2?awayVenue:awayRows;
+    const awayDefence=awayVenue.length>=2?awayVenue:awayRows;
+    const homeScored=average(homeAttack,'gf'), homeConceded=average(homeDefence,'ga');
+    const awayScored=average(awayAttack,'gf'), awayConceded=average(awayDefence,'ga');
     const homeLambda=Math.max(.15,Math.min(3.5,(homeScored+awayConceded)/2));
     const awayLambda=Math.max(.15,Math.min(3.5,(awayScored+homeConceded)/2));
     const probs=buildProbabilities(homeLambda,awayLambda);
@@ -43,13 +54,13 @@
       ['Plus de 1,5 but',probs.over15],['Plus de 2,5 buts',probs.over25],['Plus de 3,5 buts',probs.over35],
       ['Les deux équipes marquent',probs.btts]
     ].sort((a,b)=>b[1]-a[1]);
-    const sample=homeRows.length+awayRows.length;
-    const best=candidates[0];
-    const confidence=sample>=14?'Modérée': 'Prudence élevée';
-    const h2h=state.matches.filter(m=>m.status==='FINISHED'&&new Date(m.utcDate)<kickoff&&
-      ((teamName(m.homeTeam)===hn&&teamName(m.awayTeam)===an)||(teamName(m.homeTeam)===an&&teamName(m.awayTeam)===hn))&&
-      Number.isFinite(Number(m.score?.fullTime?.home))&&Number.isFinite(Number(m.score?.fullTime?.away))).slice(-5);
-    return {ready:true,homeRows,awayRows,homeLambda,awayLambda,probs,best,confidence,h2h,sample};
+    const sample=homeRows.length+awayRows.length, best=candidates[0];
+    const confidence=homeRows.length>=8&&awayRows.length>=8?'Modérée':homeRows.length>=5&&awayRows.length>=5?'Faible à modérée':'Faible';
+    const h2h=state.matches.filter(m=>m.status==='FINISHED'&&new Date(m.utcDate)<kickoff&&hasFinalScore(m)&&
+      ((normalizeName(teamName(m.homeTeam))===normalizeName(hn)&&normalizeName(teamName(m.awayTeam))===normalizeName(an))||
+       (normalizeName(teamName(m.homeTeam))===normalizeName(an)&&normalizeName(teamName(m.awayTeam))===normalizeName(hn))))
+      .sort((a,b)=>new Date(b.utcDate)-new Date(a.utcDate)).slice(0,5);
+    return {ready:true,homeRows,awayRows,homeLambda,awayLambda,probs,best,confidence,h2h,sample,homeVenueCount:homeVenue.length,awayVenueCount:awayVenue.length};
   }
   function addLine(parent,label,value) { const row=document.createElement('div'); row.className='analysis-stat'; const a=document.createElement('span');a.textContent=label;const b=document.createElement('strong');b.textContent=value;row.append(a,b);parent.append(row); }
   function createAnalysis(match) {
@@ -71,9 +82,11 @@
     const markets=document.createElement('div');markets.className='probability-grid';
     [['1',result.probs.home],['N',result.probs.draw],['2',result.probs.away],['+1,5',result.probs.over15],['+2,5',result.probs.over25],['+3,5',result.probs.over35],['BTTS',result.probs.btts]].forEach(([label,value])=>{const cell=document.createElement('div');cell.className='probability-cell';const strong=document.createElement('strong');strong.textContent=pct(value);const small=document.createElement('span');small.textContent=label;cell.append(strong,small);markets.append(cell);});
     panel.append(markets);
-    const pick=document.createElement('p');pick.className='analysis-pick';pick.textContent='Signal statistique le plus élevé : '+result.best[0]+' ('+pct(result.best[1])+').';panel.append(pick);
-    const caution=document.createElement('p');caution.className='analysis-warning';caution.textContent='Confiance : '+result.confidence+'. Modèle Poisson simplifié sur les résultats disponibles, sans blessures, compositions, xG ni cotes. Probabilités indicatives, non garanties ; pas de pari conseillé si le contexte est incomplet.';panel.append(caution);
-    if(result.h2h.length){const h=document.createElement('p');h.className='analysis-intro';h.textContent='Confrontations directes disponibles : '+result.h2h.length+'.';panel.append(h);}
+    const form=document.createElement('p');form.className='analysis-intro';form.textContent='Forme sur les '+result.homeRows.length+' derniers matchs : '+teamName(match.homeTeam)+' ('+result.homeRows.slice(0,5).map(r=>r.form).join(' · ')+') ; '+teamName(match.awayTeam)+' ('+result.awayRows.slice(0,5).map(r=>r.form).join(' · ')+').';panel.append(form);
+    const venue=document.createElement('p');venue.className='analysis-intro';venue.textContent='Échantillons domicile/extérieur utilisés : '+result.homeVenueCount+' match(s) à domicile pour '+teamName(match.homeTeam)+' et '+result.awayVenueCount+' à l’extérieur pour '+teamName(match.awayTeam)+'.';panel.append(venue);
+    const pick=document.createElement('p');pick.className='analysis-pick';pick.textContent=result.best[1]>=.58?'Signal statistique le plus élevé : '+result.best[0]+' ('+pct(result.best[1])+').':'Aucun signal suffisamment fort : le modèle ne dégage pas de sélection nette.';panel.append(pick);
+    const caution=document.createElement('p');caution.className='analysis-warning';caution.textContent='Confiance : '+result.confidence+'. Modèle Poisson simplifié fondé sur les scores historiques chargés. Il ne connaît pas automatiquement blessures, compositions, xG ni cotes. Probabilités indicatives, non garanties ; elles ne constituent pas une garantie de gain.';panel.append(caution);
+    if(result.h2h.length){const h=document.createElement('p');h.className='analysis-intro';h.textContent='Confrontations directes récentes : '+result.h2h.length+'.';panel.append(h);}
     return panel;
   }
   function createMatchCard(match) {
