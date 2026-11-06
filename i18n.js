@@ -23,10 +23,10 @@
   let current='fr';
   function translateText(value) {
     const dict=dictionaries[current]||{};
-    const trimmed=value.trim();
-    if(!trimmed)return value;
-    if(dict[trimmed])return value.replace(trimmed,dict[trimmed]);
-    return value;
+    if(!value.trim())return value;
+    let result=value;
+    Object.keys(dict).sort((a,b)=>b.length-a.length).forEach(source=>{result=result.split(source).join(dict[source]);});
+    return result;
   }
   function translatePage() {
     document.documentElement.lang=current;
