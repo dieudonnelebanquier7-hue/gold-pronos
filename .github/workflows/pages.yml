@@ -24,7 +24,7 @@ jobs:
         env:
           FOOTBALL_DATA_TOKEN: ${{ secrets.FOOTBALL_DATA_TOKEN }}
         run: |
-          PAST_FROM=$(date -u -d '-6 days' +%F)
+          PAST_FROM=$(date -u -d '-60 days' +%F)
           TODAY=$(date -u +%F)
           FUTURE_TO=$(date -u -d '+6 days' +%F)
           mkdir -p data-fetch
@@ -37,10 +37,10 @@ jobs:
           node <<'NODE'
           const fs = require('fs');
           const today = new Date(); today.setUTCHours(0,0,0,0);
-          const pastFrom = new Date(today); pastFrom.setUTCDate(pastFrom.getUTCDate()-6);
+          const pastFrom = new Date(today); pastFrom.setUTCDate(pastFrom.getUTCDate()-60);
           const futureTo = new Date(today); futureTo.setUTCDate(futureTo.getUTCDate()+6);
           const ymd = d => d.toISOString().slice(0,10).replace(/-/g,'');
-          const dateRanges = [ymd(pastFrom)+'-'+ymd(today), ymd(today)+'-'+ymd(futureTo)];
+          const analysisRange = ymd(pastFrom)+'-'+ymd(futureTo);
           const leagues = [
             ['eng.1','Premier League'],['eng.2','Championship'],['esp.1','La Liga'],['esp.2','Segunda División'],
             ['ger.1','Bundesliga'],['ita.1','Serie A'],['fra.1','Ligue 1'],['ned.1','Eredivisie'],['por.1','Primeira Liga'],
@@ -83,9 +83,8 @@ jobs:
               }
             }
             const supplemental=[];
-            const todayKey=ymd(today);
             for(let i=0;i<leagues.length;i+=5) {
-              const batch=await Promise.all(leagues.slice(i,i+5).map(league=>fetchLeague(league,todayKey)));
+              const batch=await Promise.all(leagues.slice(i,i+5).map(league=>fetchLeague(league,analysisRange)));
               supplemental.push(...batch.flat());
               await sleep(150);
             }
@@ -93,7 +92,7 @@ jobs:
             const merged=new Map();
             for(const m of supplemental) merged.set(key(m),m);
             for(const m of official) merged.set(key(m),m);
-            const matches=[...merged.values()].sort((a,b)=>new Date(a.utcDate)-new Date(b.utcDate));
+            const matches=[...merged.values()].filter(m=>m.utcDate && m.homeTeam?.name && m.awayTeam?.name).sort((a,b)=>new Date(a.utcDate)-new Date(b.utcDate));
             const result={generatedAt:new Date().toISOString(),sources:{footballData:official.length,espn:supplemental.length},matches};
             if(!matches.length) throw new Error('Aucun match reçu : arrêt du déploiement pour ne pas publier un calendrier vide.');
             fs.writeFileSync('matches.json',JSON.stringify(result));
