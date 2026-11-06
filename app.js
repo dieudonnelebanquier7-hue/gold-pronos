@@ -1,5 +1,7 @@
 const $=id=>document.getElementById(id);
 const state={matches:[],filter:'all'};
+$('source-status').textContent='DÉMARRAGE DU MOTEUR';
+window.addEventListener('error',event=>{const status=$('source-status');if(status)status.textContent='ERREUR JAVASCRIPT';const panel=$('match-status');if(panel)panel.textContent='Erreur JavaScript : '+(event.message||'le moteur ne démarre pas')+'.';});
 const dateFmt=new Intl.DateTimeFormat('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 const timeFmt=new Intl.DateTimeFormat('fr-FR',{hour:'2-digit',minute:'2-digit'});
 $('today').textContent=dateFmt.format(new Date());
@@ -57,4 +59,5 @@ $('refresh-btn').addEventListener('click',loadMatches);
 document.querySelectorAll('.filter').forEach(button=>button.addEventListener('click',()=>{document.querySelectorAll('.filter').forEach(b=>b.classList.toggle('active',b===button));state.filter=button.dataset.filter;renderMatches();}));
 document.querySelectorAll('.bottom-nav a').forEach(a=>a.addEventListener('click',()=>{document.querySelectorAll('.bottom-nav a').forEach(b=>b.classList.toggle('active',b===a));}));
 loadMatches();
-if('serviceWorker'in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));}
+// Le service worker est temporairement désactivé pendant le diagnostic afin d'éviter les anciennes versions en cache.
+if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(registrations=>registrations.forEach(registration=>registration.unregister())).catch(()=>{});}
