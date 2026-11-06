@@ -7,7 +7,7 @@
   <meta name="description" content="Gold Pronos — calendrier football, statistiques vérifiées et analyses prudentes.">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=27">
+  <link rel="stylesheet" href="./styles.css?v=28">
   <title>GOLD PRONOS — Le football analysé</title>
 </head>
 <body>
@@ -103,6 +103,30 @@
         <p class="data-caveat">Source ESPN publique. Les scores peuvent être retardés, incomplets ou indisponibles selon les compétitions. Ce service n’est pas une garantie de temps réel officiel.</p>
       </section>
     </div>
+    <div class="app-page" id="page-tv">
+      <section class="section gold-tv-section">
+        <div class="section-heading"><div><p class="eyebrow">GOLD TV · DIFFUSIONS OFFICIELLES</p><h2>Football en direct gratuit</h2></div><span class="tv-free-badge">100 % GRATUIT</span></div>
+        <p class="tv-intro">Retrouve ici les matchs diffusés gratuitement par leurs détenteurs officiels de droits. Aucun abonnement GOLD PRONOS n’est nécessaire pour ces diffusions.</p>
+        <article class="tv-provider-card">
+          <div class="tv-provider-top"><span class="tv-provider-logo">FIFA+</span><span class="tv-live-tag">DIRECTS GRATUITS</span></div>
+          <h3>Football béninois et matchs disponibles sur FIFA+</h3>
+          <p>La vitrine officielle de la Fédération Béninoise de Football propose des directs gratuits et des rediffusions, notamment de la Super Ligue Pro du Bénin, selon le calendrier de diffusion.</p>
+          <a class="tv-watch-button" href="https://www.plus.fifa.com/fr/showcase/beninese-football-association/b72ca00a-8c3b-45bb-b82e-0456265efaa6" target="_blank" rel="noopener noreferrer">▶ Ouvrir les matchs gratuits sur FIFA+</a>
+          <a class="tv-secondary-link" href="https://www.fifa.com/en/articles/watch-100s-of-live-matches-on-fifa" target="_blank" rel="noopener noreferrer">Voir les compétitions diffusées gratuitement</a>
+        </article>
+        <div class="tv-player-shell">
+          <div class="tv-player-heading"><span>ACCÈS AU DIFFUSEUR OFFICIEL</span><span>FIFA+</span></div>
+          <iframe class="tv-player" src="https://www.plus.fifa.com/fr/showcase/beninese-football-association/b72ca00a-8c3b-45bb-b82e-0456265efaa6" title="Diffusions officielles gratuites du football béninois sur FIFA+" loading="lazy" allow="autoplay; fullscreen; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+          <p class="tv-fallback">Si le diffuseur bloque l’affichage intégré, utilise le bouton « Ouvrir les matchs gratuits sur FIFA+ » ci-dessus. Le direct dépend des droits, du pays et du programme en cours.</p>
+        </div>
+        <div class="tv-info-grid">
+          <div><strong>Pas de paiement GOLD</strong><span>Les flux gratuits officiels restent gratuits pour les utilisateurs.</span></div>
+          <div><strong>Pas de flux pirate</strong><span>Uniquement les diffuseurs et plateformes autorisés.</span></div>
+          <div><strong>Plusieurs championnats</strong><span>Les matchs disponibles varient selon les droits de chaque compétition.</span></div>
+        </div>
+        <p class="data-caveat">Important : GOLD PRONOS ne peut pas légalement débloquer les chaînes payantes ni diffuser sans autorisation des matchs protégés. Quand aucun direct gratuit officiel n’existe, les utilisateurs pourront toujours suivre le score, les statistiques et les événements dans le Centre du direct.</p>
+      </section>
+    </div>
     <div class="app-page" id="page-leagues"><section class="section"><div class="section-heading"><div><p class="eyebrow">STATISTIQUES · SAISON</p><h2>Championnats & classements</h2></div><button class="text-button" id="refresh-leagues" type="button">Actualiser ↻</button></div><p class="league-intro">Classements complets, meilleurs buteurs et meilleurs passeurs des compétitions suivies.</p><label for="league-select">Choisir un championnat</label><select id="league-select" class="league-select"></select><p class="small-note" id="league-updated">Chargement des données…</p><div id="league-standings" class="league-table-wrap"></div><div class="league-leaders-grid"><section class="leader-panel"><h3>⚽ MEILLEURS BUTEURS</h3><div id="league-scorers"></div></section><section class="leader-panel"><h3>🎯 MEILLEURS PASSEURS</h3><div id="league-assists"></div></section></div></section><section class="section fan-vote-section"><p class="eyebrow">LA VOIX DES SUPPORTERS</p><h2>Homme du match</h2><p class="settings-copy">Le vote collectif nécessite un service de stockage partagé ; cette rubrique sera activée dès que ce service sera relié.</p><div class="status-panel">Vote communautaire en préparation — aucun faux total de votes ne sera affiché.</div></section></div><div class="app-page" id="page-clubs"><section class="section"><div class="section-heading"><div><p class="eyebrow">FOOTBALL MONDIAL · FICHES OFFICIELLES</p><h2>Clubs & Nations</h2></div><button class="text-button" id="refresh-clubs" type="button">Actualiser ↻</button></div><p class="club-intro">Recherche un club ou une sélection dans une compétition pour consulter son entraîneur, sa nationalité, son identité et les informations disponibles.</p><label for="club-competition">Compétition / championnat</label><select id="club-competition" class="club-select"></select><label for="club-search">Nom du club ou de la nation</label><input id="club-search" class="club-search" type="search" placeholder="Ex. : Real Madrid, Sénégal, Brésil…"><button id="club-search-button" class="club-search-button" type="button">Rechercher l’équipe</button><p id="club-status" class="small-note">Choisis une compétition puis recherche une équipe.</p><div id="club-results" class="club-results"><div class="status-panel">Les fiches seront affichées ici avec les données réellement disponibles.</div></div><p class="data-caveat">Les photos de joueurs sont affichées lorsqu’ESPN les fournit. Aucun portrait n’est fabriqué ou attribué au mauvais joueur.</p><section class="international-block"><p class="eyebrow">SÉLECTIONS & TOURNOIS INTERNATIONAUX</p><h3>Compétitions nationales et continentales</h3><p class="small-note">Classements, groupes et calendrier selon les données publiées par la source.</p><div id="national-competitions" class="national-competitions"></div></section></section></div><div class="app-page" id="page-news">
       <section class="section">
         <div class="section-heading"><div><p class="eyebrow">FOOTBALL · ACTUALITÉS</p><h2 data-i18n="news_title">Actualités football</h2></div><button class="text-button" id="refresh-news" type="button">Actualiser ↻</button></div>
@@ -172,13 +196,13 @@
   <nav class="bottom-nav" aria-label="Navigation principale">
     <a class="active" href="#page-accueil" data-page="page-accueil">⌂<span>Accueil</span></a>
     <a href="#page-matches" data-page="page-matches">⚽<span>Matchs</span></a>
-    <a href="#page-live" data-page="page-live">●<span>Direct</span></a>
+    <a href="#page-live" data-page="page-live">●<span>Direct</span></a>\n    <a href="#page-tv" data-page="page-tv">▶<span>GOLD TV</span></a>
     <a href="#page-leagues" data-page="page-leagues">🏆<span>Ligues</span></a><a href="#page-clubs" data-page="page-clubs">🌍<span>Clubs</span></a><a href="#page-news" data-page="page-news">▣<span>Actus</span></a>
     <a href="#page-analysis" data-page="page-analysis">▤<span>Analyses</span></a>\n    <a href="#page-vip" data-page="page-vip">✦<span>VIP</span></a>
     <a href="#page-settings" data-page="page-settings">⚙<span>Réglages</span></a>
   </nav>
   <script>window.addEventListener("error",function(e){var s=document.getElementById("source-status"),m=document.getElementById("match-status");if(s)s.textContent="ERREUR JAVASCRIPT";if(m)m.textContent="Le moteur JavaScript a rencontré une erreur : "+(e.message||"erreur inconnue");});</script>
   <script src="./i18n.js?v=6"></script>
-  <script src="./app.js?v=38" onerror="document.getElementById('source-status').textContent='ERREUR SCRIPT';document.getElementById('match-status').textContent='Le moteur de l’application ne se charge pas. Recharge la page.';"></script>
+  <script src="./app.js?v=39" onerror="document.getElementById('source-status').textContent='ERREUR SCRIPT';document.getElementById('match-status').textContent='Le moteur de l’application ne se charge pas. Recharge la page.';"></script>
 </body>
 </html>
