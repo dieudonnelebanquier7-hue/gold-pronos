@@ -341,3 +341,24 @@ html[dir="rtl"] .competition-heading{border-left:0;border-right:3px solid var(--
 .vip-security h3{margin:0 0 10px;color:#8ee0b6;font-size:16px}
 .vip-security p{font-size:12px;line-height:1.7;color:#e0e7e1}
 @media(min-width:620px){.vip-plans{grid-template-columns:1fr 1fr}}
+
+/* Centre des matchs – scoreboard inspiré des usages livescore */
+.scoreboard-datebar{display:flex;align-items:center;gap:8px;margin:5px 0 14px;padding:10px;background:var(--panel);border:1px solid var(--line);border-radius:12px}
+.date-arrow{width:36px;height:36px;border:1px solid var(--line);border-radius:9px;background:#202024;color:var(--gold);font-size:24px;line-height:1}
+.scoreboard-date{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px}
+.scoreboard-date span{font-size:12px;font-weight:800;text-transform:capitalize;color:var(--white)}
+.scoreboard-date input{max-width:145px;background:transparent;color:var(--muted);border:0;font:11px inherit;text-align:center}
+.date-today{border:1px solid #6e572d;border-radius:8px;padding:9px 10px;background:#2b2212;color:var(--gold2);font-size:10px;font-weight:800}
+.scoreboard-filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:13px}
+.scoreboard-filter{display:flex;align-items:center;justify-content:center;gap:5px;min-height:43px;padding:8px 5px;border:1px solid var(--line);border-radius:9px;background:#17171a;color:var(--muted);font-size:11px;font-weight:700;white-space:nowrap}
+.scoreboard-filter b{font-size:10px;color:var(--white);background:#2b2b30;border-radius:20px;padding:2px 6px}
+.scoreboard-filter.active{background:#342916;border-color:#8c6d32;color:var(--gold2)}
+.scoreboard-filter.active b{background:#574322;color:#fff0c5}
+.match-competition-filter{margin:0 0 12px}
+.match-competition-filter label{display:block;margin:0 0 7px;color:var(--gold);font-size:10px;font-weight:800;letter-spacing:1px}
+.league-select{width:100%;padding:12px;border:1px solid var(--line);border-radius:9px;background:#17171a;color:var(--white);font-size:13px}
+#page-matches .match-list{margin-top:12px}
+#page-matches .competition-heading{position:relative;margin-top:16px}
+#page-matches .match-card{border-radius:8px}
+#page-matches .match-card+.match-card{margin-top:-6px}
+@media(max-width:370px){.scoreboard-filter{font-size:10px;gap:3px}.scoreboard-filter b{font-size:9px;padding:2px 4px}.date-today{font-size:9px;padding-inline:7px}}
