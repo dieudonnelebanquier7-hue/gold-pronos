@@ -139,7 +139,7 @@
   function createMatchCard(match) {
     const card=document.createElement('article');card.className='match-card';
     const top=document.createElement('div');top.className='match-top';
-    const competition=document.createElement('span');competition.className='competition';competition.textContent=match.competition?.name||'Compétition non précisée';if(competitionPriority(match)<=2){const featured=document.createElement('span');featured.className='featured-label';featured.textContent='GRAND RENDEZ-VOUS';top.append(competition,featured);}else top.append(competition);
+    const competition=document.createElement('span');competition.className='competition';competition.textContent=match.competition?.name||'Compétition non précisée';if(competitionOrder(match)<=5 || /champions league|ligue des champions|europa league|conference league|world cup|coupe du monde|africa cup of nations|afcon|copa libertadores/.test(normalizeName(match.competition?.name||''))){const featured=document.createElement('span');featured.className='featured-label';featured.textContent='GRAND RENDEZ-VOUS';top.append(competition,featured);}else top.append(competition);
     const status=document.createElement('span');const labels={FINISHED:'TERMINÉ',IN_PLAY:'EN COURS',PAUSED:'PAUSE',POSTPONED:'REPORTÉ',CANCELLED:'ANNULÉ',SCHEDULED:'À VENIR'};status.textContent=labels[match.status]||'PROGRAMMÉ';top.append(status);
     const teams=document.createElement('div');teams.className='match-teams';
     const home=document.createElement('span');home.textContent=teamName(match.homeTeam)||'Équipe domicile';
