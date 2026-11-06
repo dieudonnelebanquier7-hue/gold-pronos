@@ -217,6 +217,25 @@
       list.append(createMatchCard(m));
     });
   }
+  function renderAnalysisPicker() {
+    const select=$('analysis-match-select'), output=$('daily-analysis-result');
+    if(!select||!output)return;
+    const upcoming=state.matches.filter(m=>!['FINISHED','CANCELLED'].includes(m.status))
+      .sort((a,b)=>competitionOrder(a)-competitionOrder(b)||new Date(a.utcDate)-new Date(b.utcDate));
+    const previous=select.value;select.replaceChildren();
+    const first=document.createElement('option');first.value='';first.textContent='— Choisir une rencontre —';select.append(first);
+    upcoming.forEach(match=>{const option=document.createElement('option');option.value=String(match.id);option.textContent=(match.competition?.name||'Autre')+' · '+teamName(match.homeTeam)+' - '+teamName(match.awayTeam)+' · '+timeFmt.format(new Date(match.utcDate));select.append(option);});
+    if(upcoming.some(m=>String(m.id)===previous))select.value=previous;else if(upcoming.length)select.value=String(upcoming[0].id);
+    const selected=upcoming.find(m=>String(m.id)===select.value);output.replaceChildren();
+    if(selected)output.append(createAnalysis(selected));else{const empty=document.createElement('div');empty.className='status-panel';empty.textContent='Aucune rencontre à analyser dans le calendrier chargé.';output.append(empty);}
+  }
+  function showPage(id) {
+    const pageId=['page-accueil','page-matches','page-analysis','page-settings'].includes(id)?id:'page-accueil';
+    document.querySelectorAll('.app-page').forEach(page=>page.classList.toggle('active',page.id===pageId));
+    document.querySelectorAll('.bottom-nav a[data-page]').forEach(link=>link.classList.toggle('active',link.dataset.page===pageId));
+    if(pageId==='page-analysis')renderAnalysisPicker();
+    window.scrollTo({top:0,behavior:'instant'});
+  }
   function updateSourceDetails() {
     const count=state.matches.length,fd=Number(state.sources.footballData||0),espn=Number(state.sources.espn||0),history=Number(state.sources.historyMatches||0);
     setText('source-status',count?'DONNÉES CHARGÉES':'AUCUN MATCH');setText('source-detail',fd+' football-data.org · '+espn+' ESPN · '+history+' résultats historiques');
@@ -234,7 +253,7 @@
       if(!response.ok)throw new Error('Fichier des rencontres inaccessible (HTTP '+response.status+').');
       const data=await response.json();if(!data||!Array.isArray(data.matches))throw new Error('Format du calendrier invalide : liste des matchs absente.');
       state.matches=data.matches.filter(validMatch);state.generatedAt=data.generatedAt||null;state.sources=data.sources||{};
-      updateSourceDetails();setText('match-status',state.matches.length+' rencontre(s) chargée(s). Les horaires suivent le fuseau de ton téléphone.');renderMatches();
+      updateSourceDetails();renderAnalysisPicker();setText('match-status',state.matches.length+' rencontre(s) chargée(s). Les horaires suivent le fuseau de ton téléphone.');renderMatches();
     } catch(error) {
       state.matches=[];setText('match-count','0');setText('source-status','INDISPONIBLE');setText('source-detail','Données à vérifier');
       setText('match-status',error.name==='AbortError'?'La source met trop de temps à répondre. Réessaie.':error.message||'Erreur inconnue.');
@@ -251,7 +270,10 @@
   if(resetSettings)resetSettings.addEventListener('click',()=>{state.settings={threshold:0.65,minimumHistory:5};loadSettings();saveSettings();});
   const refresh=$('refresh-btn');if(refresh)refresh.addEventListener('click',loadMatches);
   document.querySelectorAll('.filter').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.filter').forEach(x=>x.classList.toggle('active',x===b));state.filter=b.dataset.filter||'all';state.openAnalysis=null;renderMatches();}));
-  document.querySelectorAll('.bottom-nav a').forEach(link=>link.addEventListener('click',()=>document.querySelectorAll('.bottom-nav a').forEach(x=>x.classList.toggle('active',x===link))));
+  document.querySelectorAll('.bottom-nav a[data-page]').forEach(link=>link.addEventListener('click',event=>{event.preventDefault();const id=link.dataset.page;history.pushState({page:id},'', '#'+id);showPage(id);}));
+  window.addEventListener('popstate',()=>showPage(location.hash.slice(1)));
+  const analysisSelect=$('analysis-match-select');if(analysisSelect)analysisSelect.addEventListener('change',renderAnalysisPicker);
+  showPage(location.hash.slice(1)||'page-accueil');
   setText('today',dateFmt.format(new Date()));loadMatches();
   if('serviceWorker'in navigator)navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});
 })();
