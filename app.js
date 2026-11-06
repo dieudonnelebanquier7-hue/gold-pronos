@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
-  const state = { matches: [], filter: 'upcoming', generatedAt: null, sources: {}, openAnalysis: null, pickFilter: 'all', liveMatches: [], liveReady: false, goalAlerts: false, knownScores: {}, settings: { threshold: 0.65, minimumHistory: 5 } };
+  const state = { matches: [], filter: 'upcoming', selectedCompetition: 'all', generatedAt: null, sources: {}, openAnalysis: null, pickFilter: 'all', liveMatches: [], liveReady: false, goalAlerts: false, knownScores: {}, settings: { threshold: 0.65, minimumHistory: 5 } };
   const dateFmt = new Intl.DateTimeFormat('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
   const timeFmt = new Intl.DateTimeFormat('fr-FR', { hour:'2-digit', minute:'2-digit' });
   const setText = (id,value) => { const el=$(id); if(el) el.textContent=value; };
@@ -322,23 +322,31 @@
     const note=document.createElement('p');note.className='featured-picks-note';note.textContent='Probabilités indicatives du modèle, et non des cotes bookmaker. Les matchs sans historique suffisant et les statistiques corners absentes sont exclus. Aucun pari n’est garanti.';
     host.append(note);
   }
+  function updateMatchCompetitionOptions() {
+    const select=$('match-competition-select');if(!select)return;
+    const previous=state.selectedCompetition;
+    const names=[...new Set(state.matches.map(competitionName))].sort((a,b)=>competitionOrder({competition:{name:a}})-competitionOrder({competition:{name:b}})||a.localeCompare(b,'fr'));
+    select.replaceChildren();
+    const all=document.createElement('option');all.value='all';all.textContent='Tous les championnats ('+names.length+')';select.append(all);
+    const africa=document.createElement('optgroup');africa.label='AFRIQUE · CAF';
+    const africanNames=names.filter(n=>/africa|caf|south african|nigerian|ghanaian|afcon|coupe d afrique/i.test(n));
+    africanNames.forEach(n=>{const o=document.createElement('option');o.value=n;o.textContent=n;africa.append(o);});
+    if(africanNames.length)select.append(africa);
+    const other=document.createElement('optgroup');other.label='AUTRES COMPÉTITIONS';
+    names.filter(n=>!africanNames.includes(n)).forEach(n=>{const o=document.createElement('option');o.value=n;o.textContent=n;other.append(o);});
+    if(other.children.length)select.append(other);
+    select.value=names.includes(previous)?previous:'all';state.selectedCompetition=select.value;
+  }
   function renderMatches() {
     const list=$('match-list');if(!list)return;list.replaceChildren();const now=new Date();
     const isLive=m=>['IN_PLAY','PAUSED','LIVE','HALFTIME','EXTRA_TIME','PENALTY_SHOOTOUT'].includes(String(m.status||'').toUpperCase());
-    const filtered=state.matches.filter(m=>{const d=new Date(m.utcDate);if(state.filter==='live')return isLive(m);if(state.filter==='finished')return m.status==='FINISHED'&&hasFinalScore(m);if(state.filter==='upcoming')return !isLive(m)&&!['FINISHED','CANCELLED','POSTPONED','SUSPENDED'].includes(m.status);if(state.filter==='today')return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth()&&d.getDate()===now.getDate()&&!isLive(m)&&m.status!=='FINISHED';return !['FINISHED','CANCELLED'].includes(m.status);}).sort((a,b)=>competitionOrder(a)-competitionOrder(b)||competitionName(a).localeCompare(competitionName(b),'fr')||(state.filter==='finished'?new Date(b.utcDate)-new Date(a.utcDate):new Date(a.utcDate)-new Date(b.utcDate)));
+    const filtered=state.matches.filter(m=>{const d=new Date(m.utcDate);if(state.filter==='live')return isLive(m);if(state.filter==='finished')return m.status==='FINISHED'&&hasFinalScore(m);if(state.filter==='upcoming')return !isLive(m)&&!['FINISHED','CANCELLED','POSTPONED','SUSPENDED'].includes(m.status);if(state.filter==='today')return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth()&&d.getDate()===now.getDate()&&!isLive(m)&&m.status!=='FINISHED';return !['FINISHED','CANCELLED'].includes(m.status);}).filter(m=>state.selectedCompetition==='all'||competitionName(m)===state.selectedCompetition).sort((a,b)=>competitionOrder(a)-competitionOrder(b)||competitionName(a).localeCompare(competitionName(b),'fr')||(state.filter==='finished'?new Date(b.utcDate)-new Date(a.utcDate):new Date(a.utcDate)-new Date(b.utcDate)));
     setText('match-count',String(filtered.length));setText('match-period',state.filter==='live'?'Matchs en direct':state.filter==='today'?'Rencontres du jour':state.filter==='finished'?'Résultats par championnat':'Calendrier des matchs à venir');
-    if(!filtered.length){const e=document.createElement('div');e.className='status-panel';e.textContent=state.filter==='live'?'Aucun match en direct actuellement dans les données reçues.':state.filter==='finished'?'Aucun résultat terminé avec score disponible dans les données reçues.':state.matches.length?'Aucun match dans ce filtre pour la période chargée.':'Aucune rencontre disponible pour le moment.';list.append(e);return;}
-    let currentCompetition='';
-    filtered.forEach(m=>{
-      const group=competitionName(m);
-      if(group!==currentCompetition){
-        currentCompetition=group;
-        const heading=document.createElement('h3');
-        heading.className='competition-heading';
-        heading.textContent=group;
-        list.append(heading);
-      }
-      list.append(createMatchCard(m));
+    if(!filtered.length){const e=document.createElement('div');e.className='status-panel';e.textContent=state.filter==='live'?'Aucun match en direct actuellement dans les données reçues.':state.filter==='finished'?'Aucun résultat terminé avec score disponible dans les données reçues.':state.matches.length?'Aucun match dans ce championnat ou ce filtre pour la période chargée.':'Aucune rencontre disponible pour le moment.';list.append(e);return;}
+    const groups=new Map();filtered.forEach(m=>{const key=competitionName(m);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(m);});
+    groups.forEach((matches,name)=>{
+      const heading=document.createElement('h3');heading.className='competition-heading';heading.textContent=name+' · '+matches.length+' match(s)';list.append(heading);
+      matches.forEach(m=>list.append(createMatchCard(m)));
     });
   }
   function renderAnalysisPicker() {
@@ -354,7 +362,7 @@
     if(selected)output.append(createAnalysis(selected));else{const empty=document.createElement('div');empty.className='status-panel';empty.textContent='Aucune rencontre à analyser dans le calendrier chargé.';output.append(empty);}
   }
 
-  const LEAGUE_LIST=[['eng.1','Premier League'],['eng.2','Championship'],['esp.1','La Liga'],['esp.2','Segunda División'],['ger.1','Bundesliga'],['ita.1','Serie A'],['fra.1','Ligue 1'],['ned.1','Eredivisie'],['por.1','Primeira Liga'],['tur.1','Süper Lig'],['nor.1','Eliteserien'],['swe.1','Allsvenskan'],['sui.1','Swiss Super League'],['ksa.1','Saudi Pro League'],['cze.1','Czech First League'],['usa.1','MLS'],['rou.1','Liga I'],['rus.1','Russian Premier League'],['chn.1','Chinese Super League'],['jpn.1','J1 League'],['bra.1','Brasileirão'],['arg.1','Liga Profesional Argentina'],['mex.1','Liga MX'],['uefa.champions','Ligue des champions'],['uefa.europa','Ligue Europa'],['uefa.europa.conf','Ligue Conférence']];
+  const LEAGUE_LIST=[['caf.champions','Ligue des champions CAF'],['caf.confed','Coupe de la Confédération CAF'],['caf.nations','Coupe d’Afrique des nations'],['fifa.worldq.caf','Qualifications Coupe du monde – Afrique'],['rsa.1','Premier Soccer League (Afrique du Sud)'],['nga.1','Nigeria Premier League'],['gha.1','Ghana Premier League'],['eng.1','Premier League'],['eng.2','Championship'],['esp.1','La Liga'],['esp.2','Segunda División'],['ger.1','Bundesliga'],['ita.1','Serie A'],['fra.1','Ligue 1'],['ned.1','Eredivisie'],['por.1','Primeira Liga'],['tur.1','Süper Lig'],['nor.1','Eliteserien'],['swe.1','Allsvenskan'],['sui.1','Swiss Super League'],['ksa.1','Saudi Pro League'],['cze.1','Czech First League'],['usa.1','MLS'],['rou.1','Liga I'],['rus.1','Russian Premier League'],['chn.1','Chinese Super League'],['jpn.1','J1 League'],['bra.1','Brasileirão'],['arg.1','Liga Profesional Argentina'],['mex.1','Liga MX'],['uefa.champions','Ligue des champions'],['uefa.europa','Ligue Europa'],['uefa.europa.conf','Ligue Conférence']];
   async function leagueJson(url){const r=await fetch(url,{cache:'no-store',signal:AbortSignal.timeout(14000)});if(!r.ok)throw Error('HTTP '+r.status);return r.json();}
   function leagueEntries(x,out=[]){if(!x||typeof x!=='object')return out;if(Array.isArray(x.entries))out.push(...x.entries);if(Array.isArray(x.children))x.children.forEach(v=>leagueEntries(v,out));if(x.standings)leagueEntries(x.standings,out);return out;}
   function leagueStat(entry,keys){for(const s of entry.stats||[]){const n=String(s.name||s.abbreviation||s.displayName||'').toLowerCase();if(keys.some(k=>n.includes(k)))return s.displayValue??s.value??'—';}return '—';}
@@ -518,7 +526,7 @@
       if(!response.ok)throw new Error('Fichier des rencontres inaccessible (HTTP '+response.status+').');
       const data=await response.json();if(!data||!Array.isArray(data.matches))throw new Error('Format du calendrier invalide : liste des matchs absente.');
       state.matches=data.matches.filter(validMatch);state.generatedAt=data.generatedAt||null;state.sources=data.sources||{};
-      updateSourceDetails();renderAnalysisPicker();renderFeaturedPicks();setText('match-status',state.matches.length+' rencontre(s) chargée(s) · '+state.matches.filter(m=>['IN_PLAY','PAUSED','LIVE','HALFTIME','EXTRA_TIME','PENALTY_SHOOTOUT'].includes(String(m.status||'').toUpperCase())).length+' en direct · '+state.matches.filter(m=>m.status==='FINISHED'&&hasFinalScore(m)).length+' résultats. Les horaires suivent le fuseau de ton téléphone.');renderMatches();
+      updateSourceDetails();updateMatchCompetitionOptions();renderAnalysisPicker();renderFeaturedPicks();setText('match-status',state.matches.length+' rencontre(s) chargée(s) · '+state.matches.filter(m=>['IN_PLAY','PAUSED','LIVE','HALFTIME','EXTRA_TIME','PENALTY_SHOOTOUT'].includes(String(m.status||'').toUpperCase())).length+' en direct · '+state.matches.filter(m=>m.status==='FINISHED'&&hasFinalScore(m)).length+' résultats. Les horaires suivent le fuseau de ton téléphone.');renderMatches();
     } catch(error) {
       state.matches=[];setText('match-count','0');setText('source-status','INDISPONIBLE');setText('source-detail','Données à vérifier');
       setText('match-status',error.name==='AbortError'?'La source met trop de temps à répondre. Réessaie.':error.message||'Erreur inconnue.');
@@ -728,6 +736,7 @@
   const resetSettings=$('reset-settings');
   if(resetSettings)resetSettings.addEventListener('click',()=>{state.settings={threshold:0.65,minimumHistory:5};loadSettings();saveSettings();});
   const refresh=$('refresh-btn');if(refresh)refresh.addEventListener('click',loadMatches);
+  const matchCompetitionSelect=$('match-competition-select');if(matchCompetitionSelect)matchCompetitionSelect.addEventListener('change',()=>{state.selectedCompetition=matchCompetitionSelect.value;renderMatches();});
   const liveRefresh=$('refresh-live');if(liveRefresh)liveRefresh.addEventListener('click',fetchLiveScores);
   const leagueSelect=$('league-select');if(leagueSelect)leagueSelect.addEventListener('change',loadLeagueHub);
   const leagueRefresh=$('refresh-leagues');if(leagueRefresh)leagueRefresh.addEventListener('click',loadLeagueHub);
