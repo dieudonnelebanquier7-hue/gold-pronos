@@ -20,6 +20,7 @@ jobs:
         uses: actions/checkout@v4
       - name: Validate JavaScript syntax
         run: node --check app.js
+        run: node --check i18n.js
       - name: Fetch fixtures from all available competitions
         env:
           FOOTBALL_DATA_TOKEN: ${{ secrets.FOOTBALL_DATA_TOKEN }}
@@ -72,7 +73,16 @@ jobs:
                 const status=st.completed?'FINISHED':state==='in'?'IN_PLAY':state==='post'?'FINISHED':'SCHEDULED';
                 const homeScore=home.score==null?null:Number(home.score);
                 const awayScore=away.score==null?null:Number(away.score);
-                return {id:'espn-'+event.id,utcDate:event.date,status,competition:{name:event.league?.name||data.leagues?.[0]?.name||label,code:'ESPN-'+code},homeTeam:{name:home.team?.displayName||home.team?.name||'Équipe domicile'},awayTeam:{name:away.team?.displayName||away.team?.name||'Équipe extérieure'},score:{fullTime:{home:homeScore,away:awayScore}},matchday:null,source:'ESPN'};
+                const readCorners=team=>{
+                  const stats=team?.statistics;
+                  const list=Array.isArray(stats)?stats:Object.entries(stats||{}).map(([name,value])=>({name,value}));
+                  const item=list.find(x=>/corner/i.test(String(x.name||x.displayName||x.abbreviation||'')));
+                  if(!item)return null;
+                  const raw=item.value??item.displayValue??item.displayValue;
+                  const value=Number(String(raw??'').replace(',','.').match(/-?\\d+(?:\\.\\d+)?/)?.[0]);
+                  return Number.isFinite(value)&&value>=0?value:null;
+                };
+                return {id:'espn-'+event.id,utcDate:event.date,status,competition:{name:event.league?.name||data.leagues?.[0]?.name||label,code:'ESPN-'+code},homeTeam:{name:home.team?.displayName||home.team?.name||'Équipe domicile'},awayTeam:{name:away.team?.displayName||away.team?.name||'Équipe extérieure'},score:{fullTime:{home:homeScore,away:awayScore}},statistics:{homeCorners:readCorners(home),awayCorners:readCorners(away)},matchday:null,source:'ESPN'};
               }).filter(Boolean);
             } catch(e) { console.log('Compétition ignorée '+code+': '+e.message); return []; }
           }
