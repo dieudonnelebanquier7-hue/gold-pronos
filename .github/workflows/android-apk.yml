@@ -1,0 +1,99 @@
+name: Build GOLD PRONOS Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'app.js'
+      - 'index.html'
+      - 'styles.css'
+      - 'manifest.webmanifest'
+      - '.github/workflows/android-apk.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Fetch current football fixtures
+        env:
+          FOOTBALL_DATA_TOKEN: ${{ secrets.FOOTBALL_DATA_TOKEN }}
+        run: |
+          if [ -n "$FOOTBALL_DATA_TOKEN" ]; then
+            FROM_DATE=$(date -u +%F)
+            TO_DATE=$(date -u -d '+7 days' +%F)
+            CODE=$(curl --silent --show-error --output api-response.json --write-out "%{http_code}" --get "https://api.football-data.org/v4/matches" --data-urlencode "dateFrom=$FROM_DATE" --data-urlencode "dateTo=$TO_DATE" --header "X-Auth-Token: $FOOTBALL_DATA_TOKEN")
+            if [ "$CODE" = "200" ]; then
+              mv api-response.json matches.json
+              node -e "const fs=require('fs');const p='matches.json';const d=JSON.parse(fs.readFileSync(p,'utf8'));d.generatedAt=new Date().toISOString();fs.writeFileSync(p,JSON.stringify(d));"
+            else
+              echo "Football API returned HTTP $CODE; keeping the build independent of live API availability."
+              printf '{"error":true,"message":"Calendrier indisponible lors de la génération de cet APK.","matches":[]}' > matches.json
+            fi
+          else
+            printf '{"error":true,"message":"Calendrier indisponible lors de la génération de cet APK.","matches":[]}' > matches.json
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Prepare Capacitor Android project
+        run: |
+          mkdir -p www
+          cp index.html app.js styles.css manifest.webmanifest icon.svg matches.json www/
+          cat > package.json <<'EOF'
+          {
+            "name": "gold-pronos-android",
+            "version": "0.2.0",
+            "private": true,
+            "description": "GOLD PRONOS - Le Banquier",
+            "dependencies": {
+              "@capacitor/core": "^7.4.3",
+              "@capacitor/android": "^7.4.3"
+            },
+            "devDependencies": {
+              "@capacitor/cli": "^7.4.3"
+            }
+          }
+          EOF
+          cat > capacitor.config.json <<'EOF'
+          {
+            "appId": "com.lebanquier.goldpronos",
+            "appName": "GOLD PRONOS",
+            "webDir": "www",
+            "bundledWebRuntime": false
+          }
+          EOF
+          npm install
+          npx cap add android
+          npx cap sync android
+
+      - name: Build Android APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Publish APK on GitHub Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="android-v0.2-build-${GITHUB_RUN_NUMBER}"
+          gh release create "$TAG" android/app/build/outputs/apk/debug/app-debug.apk             --title "GOLD PRONOS Android v0.2 - Build ${GITHUB_RUN_NUMBER}"             --notes "APK Android de GOLD PRONOS - Le Banquier. Installation manuelle Android. Cette version embarque le calendrier disponible au moment de la compilation. Les analyses avancées et cotes ne sont pas incluses tant qu'elles ne sont pas réellement implémentées et alimentées par une source fiable."
