@@ -466,8 +466,8 @@
     window.scrollTo({top:0,behavior:'instant'});
   }
   function updateSourceDetails() {
-    const count=state.matches.length,fd=Number(state.sources.footballData||0),espn=Number(state.sources.espn||0),history=Number(state.sources.historyMatches||0);
-    setText('source-status',count?'DONNÉES CHARGÉES':'AUCUN MATCH');setText('source-detail',fd+' football-data.org · '+espn+' ESPN · '+history+' résultats historiques');
+    const count=state.matches.length,fd=Number(state.sources.footballData||0),espn=Number(state.sources.espn||0),api=Number(state.sources.apiFootball||0),history=Number(state.sources.historyMatches||0);
+    setText('source-status',count?'DONNÉES CHARGÉES':'AUCUN MATCH');setText('source-detail',fd+' football-data.org · '+espn+' ESPN · '+api+' API-Football · '+history+' résultats historiques');
     const generated=state.generatedAt?new Date(state.generatedAt):null;
     const label=generated&&!Number.isNaN(generated.getTime())?'Dernière collecte : '+dateFmt.format(generated)+' à '+timeFmt.format(generated)+'. ':'';
     setText('report-title',count+' rencontre(s) disponibles');
