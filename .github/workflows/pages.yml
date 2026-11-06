@@ -5,6 +5,9 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '0 */6 * * *'
+concurrency:
+  group: gold-pronos-pages
+  cancel-in-progress: true
 permissions:
   contents: read
   pages: write
@@ -15,6 +18,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Validate JavaScript syntax
+        run: node --check app.js
       - name: Fetch fixtures from all available competitions
         env:
           FOOTBALL_DATA_TOKEN: ${{ secrets.FOOTBALL_DATA_TOKEN }}
@@ -47,8 +52,9 @@ jobs:
             try {
               const url='https://site.api.espn.com/apis/site/v2/sports/soccer/'+code+'/scoreboard?dates='+dateRange;
               const response=await fetch(url,{signal:AbortSignal.timeout(12000),headers:{'User-Agent':'GOLD-PRONOS/0.3'}});
-              if(!response.ok) return [];
+              if(!response.ok) { console.log('ESPN '+code+' indisponible : HTTP '+response.status); return []; }
               const data=await response.json();
+              if(!(data.events||[]).length) console.log('ESPN '+code+' : aucun événement retourné pour '+dateRange);
               return (data.events||[]).map(event=>{
                 const comp=event.competitions?.[0];
                 const competitors=comp?.competitors||[];
@@ -81,8 +87,10 @@ jobs:
             for(const m of official) merged.set(key(m),m);
             const matches=[...merged.values()].sort((a,b)=>new Date(a.utcDate)-new Date(b.utcDate));
             const result={generatedAt:new Date().toISOString(),sources:{footballData:official.length,espn:supplemental.length},matches};
+            if(!matches.length) throw new Error('Aucun match reçu : arrêt du déploiement pour ne pas publier un calendrier vide.');
             fs.writeFileSync('matches.json',JSON.stringify(result));
             console.log('Calendrier consolidé : '+official.length+' football-data.org + '+supplemental.length+' ESPN = '+matches.length+' matchs uniques.');
+            console.log('Contrôle qualité : '+matches.length+' matchs, JSON valide, collecte '+result.generatedAt);
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE
       - name: Configure Pages
