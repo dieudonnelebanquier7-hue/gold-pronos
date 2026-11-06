@@ -19,8 +19,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Validate JavaScript syntax
-        run: node --check app.js
-        run: node --check i18n.js
+        run: |
+          node --check app.js
+          node --check i18n.js
       - name: Fetch fixtures from all available competitions
         env:
           FOOTBALL_DATA_TOKEN: ${{ secrets.FOOTBALL_DATA_TOKEN }}
