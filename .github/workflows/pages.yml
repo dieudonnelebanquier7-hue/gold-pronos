@@ -54,7 +54,7 @@ jobs:
           const sleep = ms => new Promise(r=>setTimeout(r,ms));
           async function fetchLeague([code,label], dateRange) {
             try {
-              const url='https://site.api.espn.com/apis/site/v2/sports/soccer/'+code+'/scoreboard?dates='+dateRange;
+              const url='https://site.api.espn.com/apis/site/v2/sports/soccer/'+code+'/scoreboard?dates='+dateRange+'&limit=500';
               const response=await fetch(url,{signal:AbortSignal.timeout(12000),headers:{'User-Agent':'GOLD-PRONOS/0.3'}});
               if(!response.ok) { console.log('ESPN '+code+' indisponible : HTTP '+response.status); return []; }
               const data=await response.json();
@@ -93,10 +93,12 @@ jobs:
             for(const m of supplemental) merged.set(key(m),m);
             for(const m of official) merged.set(key(m),m);
             const matches=[...merged.values()].filter(m=>m.utcDate && m.homeTeam?.name && m.awayTeam?.name).sort((a,b)=>new Date(a.utcDate)-new Date(b.utcDate));
-            const result={generatedAt:new Date().toISOString(),sources:{footballData:official.length,espn:supplemental.length},matches};
+            const hasScore=m=>m.score?.fullTime?.home!==null && m.score?.fullTime?.home!==undefined && m.score?.fullTime?.away!==null && m.score?.fullTime?.away!==undefined && Number.isFinite(Number(m.score.fullTime.home)) && Number.isFinite(Number(m.score.fullTime.away));
+            const historyMatches=matches.filter(m=>m.status==='FINISHED' && hasScore(m)).length;
+            const result={generatedAt:new Date().toISOString(),sources:{footballData:official.length,espn:supplemental.length,historyMatches},matches};
             if(!matches.length) throw new Error('Aucun match reçu : arrêt du déploiement pour ne pas publier un calendrier vide.');
             fs.writeFileSync('matches.json',JSON.stringify(result));
-            console.log('Calendrier consolidé : '+official.length+' football-data.org + '+supplemental.length+' ESPN = '+matches.length+' matchs uniques.');
+            console.log('Calendrier consolidé : '+official.length+' football-data.org + '+supplemental.length+' ESPN = '+matches.length+' matchs uniques, dont '+historyMatches+' résultats terminés avec score.');
             console.log('Contrôle qualité : '+matches.length+' matchs, JSON valide, collecte '+result.generatedAt);
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE
