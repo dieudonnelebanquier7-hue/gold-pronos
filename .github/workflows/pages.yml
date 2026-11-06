@@ -24,7 +24,7 @@ jobs:
         env:
           FOOTBALL_DATA_TOKEN: ${{ secrets.FOOTBALL_DATA_TOKEN }}
         run: |
-          FROM_DATE=$(date -u +%F)
+          FROM_DATE=$(date -u -d '-7 days' +%F)
           TO_DATE=$(date -u -d '+7 days' +%F)
           mkdir -p data-fetch
           if [ -n "$FOOTBALL_DATA_TOKEN" ]; then
