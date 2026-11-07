@@ -667,3 +667,7 @@ body{font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}
 .analysis-compact-detail{font-size:11px;line-height:1.35;color:#52645a}
 .analysis-compact-foot{margin:2px 0 0!important;font-size:10px!important;line-height:1.4!important;color:#7a877e!important}
 @media(max-width:420px){.analysis-compact-grid{gap:6px}.analysis-compact-card{padding:9px}.analysis-compact-value{font-size:19px}}
+
+/* Six choix d'analyse, toujours compacts sur mobile */
+.analysis-compact-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.analysis-compact-card{min-height:76px}
