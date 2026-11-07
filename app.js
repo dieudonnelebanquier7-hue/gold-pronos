@@ -1054,29 +1054,49 @@
   setInterval(fetchLiveScores,90000);
   setInterval(loadFootballNews,900000);
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){fetchLiveScores();}});
-  // Installation PWA : utilise la fenêtre d'installation native de Chrome quand elle est disponible.
+  // Installation multiplateforme : fenêtre native quand disponible, instructions adaptées sinon.
   let deferredInstallPrompt=null;
   const installButton=$('install-app-btn'),installStatus=$('install-status');
   const setInstallMessage=message=>{if(installStatus)installStatus.textContent=message;};
+  const ua=navigator.userAgent||'';
+  const isIOS=/iPad|iPhone|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  const isAndroid=/Android/i.test(ua);
+  const isSafari=/Safari/i.test(ua)&&!/Chrome|CriOS|Edg|OPR|FxiOS/i.test(ua);
+  const isDesktop=!isIOS&&!isAndroid;
+  if(installButton){
+    installButton.disabled=false;
+    installButton.textContent=isIOS?'＋ Ajouter à l’écran d’accueil':'⬇ Installer GOLD PRONOS';
+  }
+  if(isIOS){
+    setInstallMessage('Sur iPhone ou iPad : ouvre cette page dans Safari, touche Partager (□↑), puis « Sur l’écran d’accueil » et « Ajouter ». L’installation directe n’est pas proposée par les autres navigateurs iOS.');
+  }else if(isAndroid){
+    setInstallMessage('Sur Android : utilise Chrome. Si la fenêtre ne s’ouvre pas, touche ⋮ puis « Installer l’application » ou « Ajouter à l’écran d’accueil ».');
+  }else{
+    setInstallMessage('Sur ordinateur : dans Chrome ou Edge, utilise l’icône Installer dans la barre d’adresse ou le menu du navigateur. Sur les autres navigateurs, ajoute la page aux favoris.');
+  }
   window.addEventListener('beforeinstallprompt',event=>{
     event.preventDefault();
     deferredInstallPrompt=event;
     if(installButton){installButton.disabled=false;installButton.textContent='⬇ Installer GOLD PRONOS';}
-    setInstallMessage('GOLD PRONOS peut être installé sur cet appareil. Appuie sur le bouton pour confirmer.');
+    setInstallMessage('Installation disponible sur cet appareil. Appuie sur le bouton pour ouvrir la fenêtre officielle du navigateur.');
   });
   if(installButton)installButton.addEventListener('click',async()=>{
     if(deferredInstallPrompt){
       deferredInstallPrompt.prompt();
       const choice=await deferredInstallPrompt.userChoice;
       deferredInstallPrompt=null;
-      setInstallMessage(choice&&choice.outcome==='accepted'?'Installation acceptée. Termine les étapes affichées par Chrome.':'Installation non confirmée. Tu peux réessayer depuis le menu Chrome.');
+      setInstallMessage(choice&&choice.outcome==='accepted'?'Demande acceptée. Termine les étapes affichées par le navigateur.':'Installation non confirmée. Tu peux réessayer depuis le menu du navigateur.');
+    }else if(isIOS){
+      setInstallMessage('Pour installer : Safari → Partager (□↑) → Sur l’écran d’accueil → Ajouter. Vérifie que tu consultes bien le site dans Safari.');
+    }else if(isAndroid){
+      setInstallMessage('Pour installer : Chrome → menu ⋮ → Installer l’application (ou Ajouter à l’écran d’accueil). Si cette option manque, recharge la page après quelques secondes.');
     }else{
-      setInstallMessage('Chrome ne propose pas encore la fenêtre automatique. Ouvre le menu ⋮ de Chrome puis choisis « Installer l’application » ou « Ajouter à l’écran d’accueil ».');
+      setInstallMessage('Pour installer : Chrome ou Edge → icône Installer dans la barre d’adresse, ou menu ⋮ → Installer cette page comme application.');
     }
   });
   window.addEventListener('appinstalled',()=>{
     deferredInstallPrompt=null;
-    setInstallMessage('GOLD PRONOS est installé sur ton appareil.');
+    setInstallMessage('GOLD PRONOS est installé sur cet appareil.');
     if(installButton){installButton.textContent='✓ GOLD PRONOS installé';installButton.disabled=true;}
   });
   if('serviceWorker' in navigator && location.protocol==='https:') {
