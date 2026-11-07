@@ -684,3 +684,10 @@ body,.app-page{background:var(--bg);color:var(--white)}
 .global-search-result,.pick-filter,.scoreboard-filter,.league-select,#global-search{color:#17251c}
 .scoreboard-filter.active,.pick-filter.active,.bottom-nav a.active{background:#e5f4eb!important;color:#16834f!important;border-color:#9ac9aa!important}
 .date-arrow,.date-today,.primary-button,.install-button,.tv-watch-button,.skip-link{background:#16834f!important;color:#fff!important;border-color:#16834f!important}
+
+/* Installation PWA et fiche de match simplifiée */
+.install-button{width:100%;border:0;cursor:pointer;font:inherit;font-weight:800}
+.install-status{margin:8px 0;padding:10px 12px;border-radius:9px;background:#f1f7f3;color:#42614e;font-size:12px;line-height:1.55}
+.match-centre-quick-analysis{margin:0 0 14px;border-color:#cfe3d5;background:#f7fbf8}
+.match-centre-quick-analysis .analysis-compact-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.match-centre-quick-analysis .analysis-compact-card{min-height:66px}
