@@ -156,12 +156,16 @@
     const goalOptions=[['+1,5 but',result.markets.over15],['+2,5 buts',result.markets.over25],['+3,5 buts',result.markets.over35]].filter(x=>Number.isFinite(x[1]));
     const bestGoal=goalOptions.sort((a,b)=>b[1]-a[1])[0];
     addMarket('TOTAL BUTS',bestGoal?.[1],bestGoal?bestGoal[0]+' · '+pct(bestGoal[1]):'Non disponible');
+    addMarket('+1,5 BUTS',result.markets.over15,'Probabilité estimée');
+    addMarket('+2,5 BUTS',result.markets.over25,'Probabilité estimée');
     const corners=result.cornerMarkets;
     if(corners){
-      const cornerOptions=[['+7,5 corners',corners.over75],['+8,5 corners',corners.over85],['+9,5 corners',corners.over95],['+10,5 corners',corners.over105]].filter(x=>Number.isFinite(x[1]));
-      const bestCorner=cornerOptions.sort((a,b)=>b[1]-a[1])[0];
-      addMarket('TOTAL CORNERS',bestCorner?.[1],bestCorner?bestCorner[0]+' · '+pct(bestCorner[1]):'Non disponible');
-    }else addMarket('TOTAL CORNERS',null,'Statistiques corners indisponibles');
+      addMarket('TOTAL CORNERS',null,'Environ '+corners.expectedTotalCorners.toFixed(1)+' corners attendus');
+      addMarket('PLUS DE 8,5 CORNERS',corners.over85,'Probabilité estimée');
+    }else{
+      addMarket('TOTAL CORNERS',null,'Données de corners non disponibles');
+      addMarket('PLUS DE 8,5 CORNERS',null,'Données de corners non disponibles');
+    }
     panel.append(grid);
     const foot=document.createElement('p');foot.className='analysis-compact-foot';foot.textContent='Estimations statistiques · Confiance '+result.confidence+' · '+result.homeRows.length+'/'+result.awayRows.length+' matchs analysés. Aucun pronostic n’est garanti.';panel.append(foot);
     return panel;
@@ -235,6 +239,7 @@
       tabs.append(button);content.append(pane);panes[name]=pane;
     });
     const overview=panes['Aperçu'];
+    const quickAnalysis=createAnalysis(match);quickAnalysis.classList.add('match-centre-quick-analysis');overview.append(quickAnalysis);
     const summary=document.createElement('div');summary.className='match-centre-overview-grid';
     appendValue(summary,'Compétition',competitionName(match));
     appendValue(summary,'Équipe à domicile',teamName(match.homeTeam)||'—');
