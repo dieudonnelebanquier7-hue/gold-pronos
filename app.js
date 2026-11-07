@@ -510,28 +510,63 @@
     const table=document.createElement('table');table.className='league-standings-table';table.innerHTML='<thead><tr><th>#</th><th>Équipe</th><th>MJ</th><th>V</th><th>N</th><th>D</th><th>BP</th><th>BC</th><th>Diff.</th><th>Pts</th></tr></thead>';
     const body=document.createElement('tbody');entries.forEach((e,i)=>{const tr=document.createElement('tr');if(i===0)tr.className='league-first';const team=e.team||{};const vals=[i+1,team.displayName||team.name||e.name||'Équipe',leagueStat(e,['gamesplayed','played','gp']),leagueStat(e,['wins','win']),leagueStat(e,['ties','draw']),leagueStat(e,['losses','loss']),leagueStat(e,['pointsfor','goalsfor','gf']),leagueStat(e,['pointsagainst','goalsagainst','ga']),leagueStat(e,['pointdifferential','goaldifference','gd']),leagueStat(e,['points','pts'])];vals.forEach((v,j)=>{const td=document.createElement('td');td.textContent=v;if(j===1)td.className='team-cell';tr.append(td);});body.append(tr);});table.append(body);host.append(table);
   }
+  function collectLeaderCategories(data){
+    const found=[],seen=new Set();
+    const walk=(node,depth=0)=>{
+      if(!node||typeof node!=='object'||depth>8||seen.has(node))return;
+      seen.add(node);
+      if(Array.isArray(node)){node.forEach(x=>walk(x,depth+1));return;}
+      const label=[node.name,node.displayName,node.abbreviation,node.shortDisplayName,node.type?.name,node.type?.displayName].filter(Boolean).join(' ').toLowerCase();
+      const leaders=node.leaders||node.items||node.results||node.athletes;
+      if(Array.isArray(leaders)&&label)found.push({label,leaders});
+      Object.values(node).forEach(v=>{if(v&&typeof v==='object')walk(v,depth+1);});
+    };
+    walk(data);return found;
+  }
   async function renderLeagueLeaders(data,type){
     const host=$(type==='goals'?'league-scorers':'league-assists');if(!host)return;host.replaceChildren();
-    if(!data||typeof data!=='object'){host.textContent='Statistiques non publiées par la source.';return;}
-    const categorySource=data.categories??data.leaders??{};
-    const cats=Array.isArray(categorySource)?categorySource:Object.values(categorySource&&typeof categorySource==='object'?categorySource:{});
-    const cat=cats.find(x=>{const n=String(x.name||x.displayName||x.abbreviation||'').toLowerCase();return type==='goals'?/goal|scor|but/.test(n):/assist|pass/.test(n);});
-    const leaders=(cat?.leaders||cat?.items||[]).slice(0,5);
-    if(!leaders.length){host.textContent='Statistiques non publiées par la source.';return;}
+    const patterns=type==='goals'?/goal|scor|but|total.?goals/i:/assist|pass|goal.?assist/i;
+    const categories=collectLeaderCategories(data);
+    let category=categories.find(x=>patterns.test(x.label)&&x.leaders.length);
+    if(!category){
+      const root=data?.leaders??data?.categories??data;
+      const list=Array.isArray(root)?root:Object.values(root&&typeof root==='object'?root:{});
+      const item=list.find(x=>patterns.test([x?.name,x?.displayName,x?.abbreviation].filter(Boolean).join(' '))&&(x?.leaders||x?.items));
+      if(item)category={label:item.name||item.displayName||type,leaders:item.leaders||item.items};
+    }
+    const leaders=(category?.leaders||[]).slice(0,10);
+    if(!leaders.length){host.textContent=type==='goals'?'Classement des buteurs non fourni pour cette compétition par la source actuelle.':'Classement des passeurs non fourni pour cette compétition par la source actuelle.';return;}
     for(let i=0;i<leaders.length;i++){
-      const item=leaders[i];let athlete=item.athlete||item.player||{};
-      try{if(typeof athlete==='string')athlete=await leagueJson(athlete);else if(athlete.$ref)athlete=await leagueJson(athlete.$ref);}catch(_){}
-      const row=document.createElement('div');row.className='leader-row';const rank=document.createElement('b');rank.textContent=String(i+1).padStart(2,'0');const name=document.createElement('strong');name.textContent=athlete.displayName||athlete.fullName||athlete.name||'Joueur';const value=document.createElement('b');value.className='leader-value';value.textContent=item.displayValue||item.value||'—';row.append(rank,name,value);host.append(row);
+      const item=leaders[i]||{};let athlete=item.athlete||item.player||item.participant||{};
+      const ref=typeof athlete==='string'?athlete:(athlete.$ref||athlete.href||'');
+      if(ref){try{athlete=await leagueJson(ref);}catch(_){}}
+      const row=document.createElement('div');row.className='leader-row';
+      const rank=document.createElement('b');rank.textContent=String(item.rank??i+1).padStart(2,'0');
+      const name=document.createElement('strong');name.textContent=athlete.displayName||athlete.fullName||athlete.name||item.name||item.displayName||'Joueur non identifié';
+      const value=document.createElement('b');value.className='leader-value';
+      const stat=item.displayValue??item.value??item.statistics?.[0]?.displayValue??item.statistics?.[0]?.value??item.stat?.displayValue??item.stat?.value;
+      value.textContent=stat==null?'—':String(stat);
+      row.append(rank,name,value);host.append(row);
     }
   }
   async function loadLeagueHub(){
     const select=$('league-select');if(!select)return;
     if(!select.options.length)LEAGUE_LIST.forEach(([id,name])=>{const o=document.createElement('option');o.value=id;o.textContent=name;select.append(o);});
     const league=LEAGUE_LIST.find(x=>x[0]===select.value)||LEAGUE_LIST[0];setText('league-updated','Chargement de '+league[1]+'…');
-    const results=await Promise.allSettled([leagueJson('https://site.api.espn.com/apis/v2/sports/soccer/'+league[0]+'/standings'),leagueJson('https://sports.core.api.espn.com/v2/sports/soccer/leagues/'+league[0]+'/leaders?limit=100')]);
-    if(results[0].status==='fulfilled')renderLeagueTable(results[0].value);else $('league-standings').textContent='Classement indisponible actuellement.';
-    if(results[1].status==='fulfilled')await Promise.all([renderLeagueLeaders(results[1].value,'goals'),renderLeagueLeaders(results[1].value,'assists')]);else{$('league-scorers').textContent='Buteurs indisponibles.';$('league-assists').textContent='Passeurs indisponibles.';}
-    setText('league-updated',league[1]+' · Dernière vérification : '+timeFmt.format(new Date())+'. Les données absentes ne sont pas estimées.');
+    const base='https://sports.core.api.espn.com/v2/sports/soccer/leagues/'+league[0];
+    const results=await Promise.allSettled([
+      leagueJson('https://site.api.espn.com/apis/v2/sports/soccer/'+league[0]+'/standings'),
+      leagueJson(base+'/leaders?limit=100')
+    ]);
+    if(results[0].status==='fulfilled')renderLeagueTable(results[0].value);else $('league-standings').textContent='Classement indisponible actuellement pour cette compétition.';
+    let leaderData=results[1].status==='fulfilled'?results[1].value:null;
+    if(!leaderData){
+      const fallback=await Promise.allSettled([leagueJson('https://site.api.espn.com/apis/site/v2/sports/soccer/'+league[0]+'/statistics'),leagueJson('https://site.api.espn.com/apis/site/v2/sports/soccer/'+league[0]+'/leaders')]);
+      leaderData=fallback.find(x=>x.status==='fulfilled')?.value||null;
+    }
+    if(leaderData)await Promise.all([renderLeagueLeaders(leaderData,'goals'),renderLeagueLeaders(leaderData,'assists')]);
+    else{$('league-scorers').textContent='Données des buteurs indisponibles chez le fournisseur.';$('league-assists').textContent='Données des passeurs indisponibles chez le fournisseur.';}
+    setText('league-updated',league[1]+' · Actualisé : '+timeFmt.format(new Date())+'. Les classements sont affichés uniquement si la source fournit des données vérifiables.');
   }
 
 
