@@ -220,7 +220,7 @@
       if(Array.isArray(data)&&data.length){
         const list=document.createElement('ul');data.forEach(item=>{const li=document.createElement('li');if(item&&typeof item==='object'){const name=item.name||item.type||item.player?.name||item.athlete?.displayName||item.label||section.title;const value=item.value??item.displayValue??item.detail??item.minute??'';li.textContent=String(name)+(value!==''?' : '+String(value):'');}else li.textContent=String(item);list.append(li);});block.append(list);
       }else if(data&&typeof data==='object'&&!Array.isArray(data)){
-        const list=document.createElement('ul');Object.entries(data).forEach(([key,value])=>{const li=document.createElement('li');const label=key.replace(/([A-Z])/g,' $1').replace(/[_-]/g,' ');li.textContent=label+' : '+(value&&typeof value==='object'?JSON.stringify(value):String(value));list.append(li);});block.append(list);
+        const list=document.createElement('ul');Object.entries(data && typeof data==='object' ? data : {}).forEach(([key,value])=>{const li=document.createElement('li');const label=key.replace(/([A-Z])/g,' $1').replace(/[_-]/g,' ');li.textContent=label+' : '+(value&&typeof value==='object'?JSON.stringify(value):String(value));list.append(li);});block.append(list);
       }else{const note=document.createElement('p');note.className='small-note';note.textContent='Cette information n’est pas encore fournie par les sources connectées pour cette rencontre.';block.append(note);}
       panel.append(block);
     });
@@ -474,8 +474,10 @@
     const body=document.createElement('tbody');entries.forEach((e,i)=>{const tr=document.createElement('tr');if(i===0)tr.className='league-first';const team=e.team||{};const vals=[i+1,team.displayName||team.name||e.name||'Équipe',leagueStat(e,['gamesplayed','played','gp']),leagueStat(e,['wins','win']),leagueStat(e,['ties','draw']),leagueStat(e,['losses','loss']),leagueStat(e,['pointsfor','goalsfor','gf']),leagueStat(e,['pointsagainst','goalsagainst','ga']),leagueStat(e,['pointdifferential','goaldifference','gd']),leagueStat(e,['points','pts'])];vals.forEach((v,j)=>{const td=document.createElement('td');td.textContent=v;if(j===1)td.className='team-cell';tr.append(td);});body.append(tr);});table.append(body);host.append(table);
   }
   async function renderLeagueLeaders(data,type){
-    const host=$(type==='goals'?'league-scorers':'league-assists');host.replaceChildren();
-    const cats=Array.isArray(data.categories)?data.categories:Object.values(data.categories||data.leaders||{});
+    const host=$(type==='goals'?'league-scorers':'league-assists');if(!host)return;host.replaceChildren();
+    if(!data||typeof data!=='object'){host.textContent='Statistiques non publiées par la source.';return;}
+    const categorySource=data.categories??data.leaders??{};
+    const cats=Array.isArray(categorySource)?categorySource:Object.values(categorySource&&typeof categorySource==='object'?categorySource:{});
     const cat=cats.find(x=>{const n=String(x.name||x.displayName||x.abbreviation||'').toLowerCase();return type==='goals'?/goal|scor|but/.test(n):/assist|pass/.test(n);});
     const leaders=(cat?.leaders||cat?.items||[]).slice(0,5);
     if(!leaders.length){host.textContent='Statistiques non publiées par la source.';return;}
@@ -826,6 +828,26 @@
       setText('news-status',translatedCount+' / '+articles.length+' '+newsText('news_count_suffix'));
     } catch(e){setText('news-status',newsText('news_unavailable'));}
   }
+  const QUICK_PAGES=[['Accueil','page-accueil','Accueil et présentation'],['Matchs et résultats','page-matches','Calendrier, scores et résultats'],['Football féminin','page-women','Matchs féminins'],['Scores en direct','page-live','Rencontres en cours'],['Télévision et diffusions','page-tv','Diffuseurs officiels'],['Championnats et classements','page-leagues','Classements, buteurs et passeurs'],['Clubs et sélections','page-clubs','Équipes et effectifs'],['Actualités football','page-news','Informations et transferts'],['Analyses et pronostics','page-analysis','Statistiques et analyses'],['Espace VIP','page-vip','Espace premium'],['Paramètres','page-settings','Réglages de l’application']];
+  function quickSearch(query){
+    const input=$('global-search'),panel=$('global-search-results');if(!input||!panel)return;
+    const q=normalizeName(query);panel.replaceChildren();if(!q){panel.hidden=true;return;}
+    const results=[];
+    state.matches.filter(m=>normalizeName([teamName(m.homeTeam),teamName(m.awayTeam),competitionName(m)].join(' ')).includes(q)).slice(0,8).forEach(match=>results.push({kind:'match',label:teamName(match.homeTeam)+' – '+teamName(match.awayTeam),detail:competitionName(match)+' · '+formatDate(match.utcDate),match}));
+    QUICK_PAGES.filter(p=>normalizeName([p[0],p[2]].join(' ')).includes(q)).forEach(p=>results.push({kind:'page',label:p[0],detail:p[2],page:p[1]}));
+    const infoNodes=[...document.querySelectorAll('.app-page h1,.app-page h2,.app-page h3,.app-page .eyebrow')];
+    const seen=new Set(results.filter(x=>x.kind==='page').map(x=>x.label));
+    infoNodes.forEach(node=>{const label=(node.textContent||'').trim();if(label&&normalizeName(label).includes(q)&&!seen.has(label)){seen.add(label);const page=node.closest('.app-page');if(page)results.push({kind:'info',label,detail:'Information dans '+(QUICK_PAGES.find(p=>p[1]===page.id)?.[0]||'GOLD PRONOS'),page:page.id});}});
+    if(!results.length){const empty=document.createElement('p');empty.className='global-search-empty';empty.textContent='Aucun résultat trouvé. Essaie un nom de club, un match ou un championnat.';panel.append(empty);}
+    results.slice(0,10).forEach(item=>{const button=document.createElement('button');button.type='button';button.className='global-search-result';const title=document.createElement('strong');title.textContent=item.label;const detail=document.createElement('small');detail.textContent=(item.kind==='match'?'⚽ Match · ':'ℹ Information · ')+item.detail;button.append(title,detail);button.addEventListener('click',()=>{panel.hidden=true;input.value=item.label;if(item.kind==='match'){state.selectedDate=localDateKey(item.match.utcDate);const date=$('match-date');if(date)date.value=state.selectedDate;state.selectedCompetition='all';const select=$('match-competition-select');if(select)select.value='all';renderMatches();showPage('page-matches');openMatchCentre(item.match);}else{showPage(item.page);const target=[...document.querySelectorAll('#'+item.page+' h1,#'+item.page+' h2,#'+item.page+' h3,#'+item.page+' .eyebrow')].find(n=>(n.textContent||'').trim()===item.label);target?.scrollIntoView({behavior:'smooth',block:'center'});}});panel.append(button);});
+    panel.hidden=false;
+  }
+  function setupQuickSearch(){
+    const input=$('global-search'),panel=$('global-search-results');if(!input||!panel)return;
+    input.addEventListener('input',()=>quickSearch(input.value));
+    input.addEventListener('keydown',event=>{if(event.key==='Escape'){panel.hidden=true;input.blur();}else if(event.key==='Enter'){const first=panel.querySelector('button');if(first)first.click();}});
+    document.addEventListener('click',event=>{if(!event.target.closest('.global-search-wrap'))panel.hidden=true;});
+  }
   function enableGoalAlerts() {
     state.goalAlerts=true;
     try{localStorage.setItem('gold-goal-alerts','on');}catch(e){}
@@ -848,6 +870,7 @@
   window.addEventListener('unhandledrejection',e=>{setText('source-status','ERREUR APPLICATION');setText('match-status','Opération échouée : '+String(e.reason?.message||e.reason||'inconnue'));});
   document.addEventListener('gold-language-change',()=>{if(document.getElementById('page-news')?.classList.contains('active'))loadFootballNews();});
   loadSettings();
+  setupQuickSearch();
   const thresholdControl=$('probability-threshold'),historyControl=$('minimum-history');
   if(thresholdControl)thresholdControl.addEventListener('change',saveSettings);
   if(historyControl)historyControl.addEventListener('change',saveSettings);
