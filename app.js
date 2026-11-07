@@ -380,7 +380,7 @@
   function localDateKey(value){const d=new Date(value);return Number.isNaN(d.getTime())?'':d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
   function shiftMatchDate(days){
     const input=$('match-date');const base=new Date((state.selectedDate||localDateKey(new Date()))+'T12:00:00');base.setDate(base.getDate()+days);
-    state.selectedDate=localDateKey(base);if(input)input.value=state.selectedDate;renderMatches();
+    state.selectedDate=localDateKey(base);if(input)input.value=state.selectedDate;renderMatches();renderWomenMatches();
   }
   function competitionRegion(match){
     const raw=String(match.competition?.code||'').replace(/^ESPN-/,'').toLowerCase();
@@ -411,6 +411,8 @@
   function renderWomenMatches(){
     const host=$('women-match-list');if(!host)return;host.replaceChildren();
     const day=state.selectedDate||localDateKey(new Date());
+    const dateInput=$('women-date');if(dateInput&&dateInput.value!==day)dateInput.value=day;
+    const dateLabel=$('women-date-label');if(dateLabel)dateLabel.textContent=new Date(day+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
     const source=[...state.matches,...state.liveMatches].filter((m,i,arr)=>arr.findIndex(x=>String(x.id)===String(m.id))===i);
     const games=source.filter(m=>isWomensCompetition(m)&&localDateKey(m.utcDate)===day).sort((a,b)=>new Date(a.utcDate)-new Date(b.utcDate));
     setText('women-match-count',String(games.length));
@@ -833,7 +835,7 @@
     const input=$('global-search'),panel=$('global-search-results');if(!input||!panel)return;
     const q=normalizeName(query);panel.replaceChildren();if(!q){panel.hidden=true;return;}
     const results=[];
-    state.matches.filter(m=>normalizeName([teamName(m.homeTeam),teamName(m.awayTeam),competitionName(m)].join(' ')).includes(q)).slice(0,8).forEach(match=>results.push({kind:'match',label:teamName(match.homeTeam)+' – '+teamName(match.awayTeam),detail:competitionName(match)+' · '+formatDate(match.utcDate),match}));
+    [...state.matches,...state.liveMatches].filter((m,i,all)=>validMatch(m)&&all.findIndex(x=>String(x?.id)===String(m.id))===i).filter(m=>normalizeName([teamName(m.homeTeam),teamName(m.awayTeam),competitionName(m)].join(' ')).includes(q)).slice(0,8).forEach(match=>results.push({kind:'match',label:teamName(match.homeTeam)+' – '+teamName(match.awayTeam),detail:competitionName(match)+' · '+formatDate(match.utcDate),match}));
     QUICK_PAGES.filter(p=>normalizeName([p[0],p[2]].join(' ')).includes(q)).forEach(p=>results.push({kind:'page',label:p[0],detail:p[2],page:p[1]}));
     const infoNodes=[...document.querySelectorAll('.app-page h1,.app-page h2,.app-page h3,.app-page .eyebrow')];
     const seen=new Set(results.filter(x=>x.kind==='page').map(x=>x.label));
@@ -877,7 +879,11 @@
   const resetSettings=$('reset-settings');
   if(resetSettings)resetSettings.addEventListener('click',()=>{state.settings={threshold:0.65,minimumHistory:5};loadSettings();saveSettings();});
   const refresh=$('refresh-btn');if(refresh)refresh.addEventListener('click',loadMatches);
-  const matchDate=$('match-date');if(matchDate){matchDate.value=state.selectedDate;matchDate.addEventListener('change',()=>{state.selectedDate=matchDate.value||localDateKey(new Date());renderMatches();});}
+  const matchDate=$('match-date');if(matchDate){matchDate.value=state.selectedDate;matchDate.addEventListener('change',()=>{state.selectedDate=matchDate.value||localDateKey(new Date());const wd=$('women-date');if(wd)wd.value=state.selectedDate;renderMatches();renderWomenMatches();});}
+  const womenDate=$('women-date');if(womenDate){womenDate.value=state.selectedDate;womenDate.addEventListener('change',()=>{state.selectedDate=womenDate.value||localDateKey(new Date());if(matchDate)matchDate.value=state.selectedDate;renderWomenMatches();});}
+  const womenPrev=$('women-date-prev');if(womenPrev)womenPrev.addEventListener('click',()=>shiftMatchDate(-1));
+  const womenNext=$('women-date-next');if(womenNext)womenNext.addEventListener('click',()=>shiftMatchDate(1));
+  const womenToday=$('women-date-today');if(womenToday)womenToday.addEventListener('click',()=>{state.selectedDate=localDateKey(new Date());if(matchDate)matchDate.value=state.selectedDate;if(womenDate)womenDate.value=state.selectedDate;renderMatches();renderWomenMatches();});
   const prevMatchDay=$('match-date-prev');if(prevMatchDay)prevMatchDay.addEventListener('click',()=>shiftMatchDate(-1));
   const nextMatchDay=$('match-date-next');if(nextMatchDay)nextMatchDay.addEventListener('click',()=>shiftMatchDate(1));
   const todayMatchDay=$('match-date-today');if(todayMatchDay)todayMatchDay.addEventListener('click',()=>{state.selectedDate=localDateKey(new Date());if(matchDate)matchDate.value=state.selectedDate;renderMatches();});
