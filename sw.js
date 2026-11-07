@@ -1,4 +1,4 @@
-const CACHE='gold-pronos-v51';
+const CACHE='gold-pronos-v52';
 const APP_ASSETS=['./','./index.html','./styles.css?v=36','./app.js?v=48','./i18n.js?v=7','./manifest.webmanifest','./icon.svg'];
 self.addEventListener('install',event=>event.waitUntil((async()=>{const cache=await caches.open(CACHE);await Promise.all(APP_ASSETS.map(async url=>{try{const r=await fetch(url,{cache:'no-store'});if(r.ok)await cache.put(url,r);}catch(_){}}));await self.skipWaiting();})()));
 self.addEventListener('activate',event=>event.waitUntil((async()=>{const keys=await caches.keys();await Promise.all(keys.filter(key=>key.startsWith('gold-pronos-')&&key!==CACHE).map(key=>caches.delete(key)));await self.clients.claim();})()));
