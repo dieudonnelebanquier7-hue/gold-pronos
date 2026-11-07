@@ -85,15 +85,16 @@
         <button class="scoreboard-filter active" data-filter="all" type="button">Tous <b id="match-count-filter">0</b></button>
         <button class="scoreboard-filter" data-filter="live" type="button">🔴 Direct <b id="match-live-count">0</b></button>
         <button class="scoreboard-filter" data-filter="upcoming" type="button">À venir <b id="match-upcoming-count">0</b></button>
-        <button class="scoreboard-filter" data-filter="finished" type="button">Terminés <b id="match-finished-count">0</b></button>
+        <button class="scoreboard-filter" data-filter="finished" type="button">Terminés <b id="match-finished-count">0</b></button><button class="scoreboard-filter" data-filter="favorites" type="button">★ Favoris</button>
       </div>
-      <div class="match-competition-filter"><label for="match-competition-select">COMPÉTITIONS ET CHAMPIONNATS</label><select id="match-competition-select" class="league-select"><option value="all">Toutes les compétitions</option></select></div>
+      <div class="favorite-competitions"><strong>MES CHAMPIONNATS FAVORIS</strong><div id="favorite-competition-chips"></div></div><div class="match-competition-filter"><label for="match-competition-select">RECHERCHER / CHOISIR UN CHAMPIONNAT</label><select id="match-competition-select" class="league-select"><option value="all">Toutes les compétitions</option></select></div>
       <div class="status-panel" id="match-status" role="status">Connexion aux calendriers et aux scores…</div>
       <div class="match-list" id="match-list" aria-live="polite"></div>
       <p class="small-note">Les scores et événements dépendent des flux disponibles. Les rencontres absentes des sources ne sont pas inventées.</p>
     </section>
   </div>
 
+  <div class="app-page" id="page-women"><section class="section"><div class="section-heading"><div><p class="eyebrow">FOOTBALL FÉMININ · CALENDRIER · SCORES</p><h2>Matchs féminins</h2></div><span class="live-summary"><strong id="women-match-count">0</strong><span>match(s)</span></span></div><p class="small-note">Rencontres féminines disponibles dans les flux chargés. La liste évolue selon la couverture réelle des compétitions par les fournisseurs.</p><div class="match-list" id="women-match-list"></div></section></div>
   <div class="app-page" id="page-live">
       <section class="section">
         <div class="section-heading"><div><p class="eyebrow">FOOTBALL · SCORES</p><h2>Centre du direct</h2></div><button class="text-button" id="refresh-live" type="button">Actualiser ↻</button></div>
@@ -202,7 +203,7 @@
   </main>
   <nav class="bottom-nav" aria-label="Navigation principale">
     <a class="active" href="#page-accueil" data-page="page-accueil">⌂<span>Accueil</span></a>
-    <a href="#page-matches" data-page="page-matches">⚽<span>Matchs</span></a>
+    <a href="#page-matches" data-page="page-matches">⚽<span>Matchs</span></a>\n    <a href="#page-women" data-page="page-women">♀<span>Femmes</span></a>
     <a href="#page-live" data-page="page-live">●<span>Direct</span></a>\n    <a href="#page-tv" data-page="page-tv">▶<span>GOLD TV</span></a>
     <a href="#page-leagues" data-page="page-leagues">🏆<span>Ligues</span></a><a href="#page-clubs" data-page="page-clubs">🌍<span>Clubs</span></a><a href="#page-news" data-page="page-news">▣<span>Actus</span></a>
     <a href="#page-analysis" data-page="page-analysis">▤<span>Analyses</span></a>\n    <a href="#page-vip" data-page="page-vip">✦<span>VIP</span></a>
@@ -210,6 +211,6 @@
   </nav>
   <script>window.addEventListener("error",function(e){var s=document.getElementById("source-status"),m=document.getElementById("match-status");if(s)s.textContent="ERREUR JAVASCRIPT";if(m)m.textContent="Le moteur JavaScript a rencontré une erreur : "+(e.message||"erreur inconnue");});</script>
   <script src="./i18n.js?v=6"></script>
-  <script src="./app.js?v=40" onerror="document.getElementById('source-status').textContent='ERREUR SCRIPT';document.getElementById('match-status').textContent='Le moteur de l’application ne se charge pas. Recharge la page.';"></script>
+  <script src="./app.js?v=41" onerror="document.getElementById('source-status').textContent='ERREUR SCRIPT';document.getElementById('match-status').textContent='Le moteur de l’application ne se charge pas. Recharge la page.';"></script>
 </body>
 </html>
