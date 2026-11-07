@@ -257,6 +257,40 @@
       panes['Confrontations'].append(list);
     }else makeNote(panes['Confrontations'],'Aucune confrontation directe récente vérifiée dans les matchs actuellement chargés.');
     const standingsNote=document.createElement('p');standingsNote.className='match-centre-footnote';standingsNote.textContent='Classement et informations d’effectif : affichés lorsqu’ils sont fournis par la compétition et la source connectée. Les données manquantes ne sont jamais inventées.';panes['Aperçu'].append(standingsNote);
+    if(String(match.source||'').toUpperCase()==='ESPN'&&String(match.id||'').startsWith('espn-')){
+      const code=String(match.competition?.code||'').replace(/^ESPN-/i,'');
+      const eventId=String(match.id).replace(/^espn-/,'');
+      const loading=document.createElement('p');loading.className='match-centre-empty';loading.textContent='Chargement des statistiques officielles, événements et compositions disponibles…';panes['Statistiques'].replaceChildren(loading);
+      const summaryUrl='https://site.api.espn.com/apis/site/v2/sports/soccer/'+encodeURIComponent(code)+'/summary?event='+encodeURIComponent(eventId);
+      fetch(summaryUrl,{cache:'no-store',signal:AbortSignal.timeout(10000)}).then(r=>{if(!r.ok)throw Error('Résumé indisponible');return r.json();}).then(data=>{
+        if(!document.getElementById('match-centre-overlay')||!overlay.isConnected)return;
+        const box=data.boxscore||{};
+        const teamStats=[];
+        (box.teams||[]).forEach(team=>{
+          const teamNameLabel=team.team?.displayName||team.team?.name||team.displayName||'Équipe';
+          (team.statistics||[]).forEach(stat=>teamStats.push({name:teamNameLabel+' · '+(stat.label||stat.name||stat.displayName||'Statistique'),value:stat.displayValue??stat.value??'—'}));
+        });
+        const summaryStats=data.statistics?.splits?.categories||data.statistics?.teams||[];
+        if(!teamStats.length&&Array.isArray(summaryStats))summaryStats.forEach(group=>(group.stats||group.statistics||[]).forEach(stat=>teamStats.push({name:(group.name||'Match')+' · '+(stat.label||stat.name||'Statistique'),value:stat.displayValue??stat.value??'—'})));
+        panes['Statistiques'].replaceChildren();
+        if(!renderCollection(panes['Statistiques'],teamStats,'Statistique'))makeNote(panes['Statistiques'],'La source ne fournit pas de statistiques détaillées pour cette rencontre.');
+        const plays=data.plays||data.keyEvents||data.commentary||[];
+        panes['Événements'].replaceChildren();
+        if(!renderCollection(panes['Événements'],plays,'Événement'))makeNote(panes['Événements'],'Aucun événement détaillé transmis par la source.');
+        const rosterData=data.rosters||box.players||data.lineups||[];
+        panes['Compositions'].replaceChildren();
+        let rosterList=Array.isArray(rosterData)?rosterData:(rosterData.teams||rosterData.players||[]);
+        if(!renderCollection(panes['Compositions'],rosterList,'Joueur'))makeNote(panes['Compositions'],'Les compositions ne sont pas encore publiées pour cette rencontre.');
+        const leaders=data.leaders||box.players?.leaders||[];
+        if(Array.isArray(leaders)&&leaders.length){
+          const heading=document.createElement('h4');heading.textContent='Joueurs décisifs';panes['Statistiques'].append(heading);
+          renderCollection(panes['Statistiques'],leaders,'Joueur');
+        }
+      }).catch(()=>{
+        if(!overlay.isConnected)return;
+        const retryNote=document.createElement('p');retryNote.className='match-centre-empty';retryNote.textContent='Les informations détaillées ne sont pas accessibles pour le moment. Réessaie plus tard.';panes['Statistiques'].replaceChildren(retryNote);
+      });
+    }
     panel.append(tabs,content);
     const note=document.createElement('p');note.className='match-centre-footnote';note.textContent='Les détails dépendent de la couverture du fournisseur. Une fiche peut être consultable même si certaines rubriques ne sont pas encore alimentées.';panel.append(note);
     overlay.append(panel);overlay.addEventListener('click',event=>{if(event.target===overlay)overlay.remove();});
