@@ -471,7 +471,7 @@
   }
   function isWomensCompetition(match){
     const text=normalizeName([match.competition?.name,match.competition?.slug,match.competition?.code].filter(Boolean).join(' '));
-    return /women|womens|femen|feminin|feminine|ladies|women league|nwsl|liga f|frauen|damen|fifa women|uefa women/.test(text);
+    return /women|womens|femen|feminin|feminine|femenil|feminino|femenina|ladies|girls|girl|frauen|damen|nwsl|usl super league|liga f|fifa women|uefa women|women league/.test(text);
   }
   function renderWomenMatches(){
     const host=$('women-match-list');if(!host)return;host.replaceChildren();
