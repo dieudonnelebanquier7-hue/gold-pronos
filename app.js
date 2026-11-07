@@ -193,6 +193,42 @@
     panel.append(details);
     return panel;
   }
+  function openMatchCentre(match) {
+    const previous=document.getElementById('match-centre-overlay');if(previous)previous.remove();
+    const overlay=document.createElement('div');overlay.id='match-centre-overlay';overlay.className='match-centre-overlay';overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-labelledby','match-centre-title');
+    const panel=document.createElement('section');panel.className='match-centre-panel';
+    const header=document.createElement('div');header.className='match-centre-header';
+    const heading=document.createElement('div');const eyebrow=document.createElement('p');eyebrow.className='eyebrow';eyebrow.textContent=competitionName(match);
+    const title=document.createElement('h2');title.id='match-centre-title';title.textContent='Centre du match';heading.append(eyebrow,title);
+    const close=document.createElement('button');close.type='button';close.className='match-centre-close';close.textContent='Fermer ✕';close.addEventListener('click',()=>overlay.remove());header.append(heading,close);panel.append(header);
+    const status=String(match.status||'').toUpperCase();const labels={FINISHED:'TERMINÉ',IN_PLAY:'EN COURS',LIVE:'EN DIRECT',HALFTIME:'MI-TEMPS',PAUSED:'MI-TEMPS',EXTRA_TIME:'PROLONGATION',PENALTY_SHOOTOUT:'TIRS AU BUT',SCHEDULED:'À VENIR'};
+    const scoreBox=document.createElement('div');scoreBox.className='match-centre-score';
+    const home=document.createElement('strong');home.textContent=teamName(match.homeTeam)||'Domicile';
+    const score=document.createElement('b');const hs=match.score?.fullTime?.home??match.score?.halfTime?.home,as=match.score?.fullTime?.away??match.score?.halfTime?.away;
+    score.textContent=hs!=null&&as!=null?hs+' – '+as:'VS';
+    const away=document.createElement('strong');away.textContent=teamName(match.awayTeam)||'Extérieur';scoreBox.append(home,score,away);panel.append(scoreBox);
+    const meta=document.createElement('p');meta.className='match-centre-meta';meta.textContent=(labels[status]||'STATUT NON COMMUNIQUÉ')+' · '+new Date(match.utcDate).toLocaleString('fr-FR',{dateStyle:'full',timeStyle:'short'})+(match.venue?.name?' · '+match.venue.name:'');panel.append(meta);
+    const sections=[
+      {title:'Statistiques',data:match.statistics||match.stats},
+      {title:'Événements',data:match.events||match.incidents},
+      {title:'Compositions',data:match.lineups||match.rosters},
+      {title:'Arbitres et officiels',data:match.officials}
+    ];
+    sections.forEach(section=>{
+      const block=document.createElement('section');block.className='match-centre-section';const h=document.createElement('h3');h.textContent=section.title;block.append(h);
+      const data=section.data;
+      if(Array.isArray(data)&&data.length){
+        const list=document.createElement('ul');data.forEach(item=>{const li=document.createElement('li');if(item&&typeof item==='object'){const name=item.name||item.type||item.player?.name||item.athlete?.displayName||item.label||section.title;const value=item.value??item.displayValue??item.detail??item.minute??'';li.textContent=String(name)+(value!==''?' : '+String(value):'');}else li.textContent=String(item);list.append(li);});block.append(list);
+      }else if(data&&typeof data==='object'&&!Array.isArray(data)){
+        const list=document.createElement('ul');Object.entries(data).forEach(([key,value])=>{const li=document.createElement('li');const label=key.replace(/([A-Z])/g,' $1').replace(/[_-]/g,' ');li.textContent=label+' : '+(value&&typeof value==='object'?JSON.stringify(value):String(value));list.append(li);});block.append(list);
+      }else{const note=document.createElement('p');note.className='small-note';note.textContent='Cette information n’est pas encore fournie par les sources connectées pour cette rencontre.';block.append(note);}
+      panel.append(block);
+    });
+    const note=document.createElement('p');note.className='data-caveat';note.textContent='Les données affichées dépendent des fournisseurs. Une statistique absente n’est jamais inventée. Le centre détaillé sera enrichi avec les flux de statistiques en direct et les rapports après-match.';panel.append(note);
+    overlay.append(panel);overlay.addEventListener('click',event=>{if(event.target===overlay)overlay.remove();});
+    document.addEventListener('keydown',function closeOnEscape(event){if(event.key==='Escape'&&document.getElementById('match-centre-overlay')){overlay.remove();document.removeEventListener('keydown',closeOnEscape);}});
+    document.body.append(overlay);close.focus();
+  }
   function createMatchCard(match) {
     const card=document.createElement('article');const statusKey=String(match.status||'').toUpperCase();card.className='match-card '+(['IN_PLAY','LIVE','HALFTIME','PAUSED','EXTRA_TIME','PENALTY_SHOOTOUT'].includes(statusKey)?'status-live':statusKey==='FINISHED'?'status-finished':'status-upcoming');
     const top=document.createElement('div');top.className='match-top';
@@ -206,8 +242,9 @@
     const bottom=document.createElement('div');bottom.className='match-bottom';const d=new Date(match.utcDate);
     const dateLabel=document.createElement('span');dateLabel.textContent=formatDate(match.utcDate)+' · '+(Number.isNaN(d.getTime())?'--:--':timeFmt.format(d));
     const source=document.createElement('span');source.textContent=match.matchday?'Journée '+match.matchday:(match.source||'Calendrier');bottom.append(dateLabel,source);
+    const detailButton=document.createElement('button');detailButton.className='match-detail-button';detailButton.type='button';detailButton.textContent='Ouvrir le centre du match';detailButton.addEventListener('click',()=>openMatchCentre(match));
     const button=document.createElement('button');button.className='analysis-button';button.type='button';button.textContent=state.openAnalysis===String(match.id)?'Masquer l’analyse':'Analyser le match';
-    card.append(top,teams,bottom,button);
+    card.append(top,teams,bottom,detailButton,button);
     if(state.openAnalysis===String(match.id))card.append(createAnalysis(match));
     button.addEventListener('click',()=>{state.openAnalysis=state.openAnalysis===String(match.id)?null:String(match.id);renderMatches();});
     return card;
@@ -562,7 +599,7 @@
   }
 
   function showPage(id) {
-    const pageId=['page-accueil','page-matches','page-live','page-tv','page-leagues','page-clubs','page-news','page-analysis','page-vip','page-settings'].includes(id)?id:'page-accueil';
+    const pageId=['page-accueil','page-matches','page-women','page-live','page-tv','page-leagues','page-clubs','page-news','page-analysis','page-vip','page-settings'].includes(id)?id:'page-accueil';
     document.querySelectorAll('.app-page').forEach(page=>page.classList.toggle('active',page.id===pageId));
     document.querySelectorAll('.bottom-nav a[data-page]').forEach(link=>link.classList.toggle('active',link.dataset.page===pageId));
     if(pageId==='page-live')fetchLiveScores();
@@ -658,6 +695,7 @@
       const score=document.createElement('b');score.className='live-score-value';score.textContent=(m.score?.fullTime?.home??0)+' – '+(m.score?.fullTime?.away??0);
       const away=document.createElement('strong');away.textContent=teamName(m.awayTeam);
       teams.append(home,score,away);card.append(top,teams);
+      const detailButton=document.createElement('button');detailButton.type='button';detailButton.className='match-detail-button';detailButton.textContent='Ouvrir le centre du match';detailButton.addEventListener('click',()=>openMatchCentre(m));card.append(detailButton);
       const officials=(m.officials||[]).filter(o=>o.name);
       if(officials.length){
         const officialBox=document.createElement('div');officialBox.className='live-officials';
