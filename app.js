@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
-  const state = { matches: [], filter: 'all', selectedCompetition: 'all', selectedDate: new Date().toLocaleDateString('en-CA'), generatedAt: null, sources: {}, openAnalysis: null, pickFilter: 'all', liveMatches: [], liveReady: false, goalAlerts: false, knownScores: {}, settings: { threshold: 0.65, minimumHistory: 5 } };
+  const state = { matches: [], filter: 'all', selectedCompetition: 'all', favoriteCompetitions: (()=>{try{return JSON.parse(localStorage.getItem('gold-favorite-competitions')||'[]')}catch(_){return []}})(), selectedDate: new Date().toLocaleDateString('en-CA'), generatedAt: null, sources: {}, openAnalysis: null, pickFilter: 'all', liveMatches: [], liveReady: false, goalAlerts: false, knownScores: {}, settings: { threshold: 0.65, minimumHistory: 5 } };
   const dateFmt = new Intl.DateTimeFormat('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
   const timeFmt = new Intl.DateTimeFormat('fr-FR', { hour:'2-digit', minute:'2-digit' });
   const setText = (id,value) => { const el=$(id); if(el) el.textContent=value; };
@@ -355,13 +355,39 @@
     if(/uefa|champions league|europa league|conference league/i.test(name))return 'Europe · UEFA';
     return 'Autres compétitions';
   }
+  function toggleCompetitionFavorite(name){
+    const set=new Set(state.favoriteCompetitions);
+    if(set.has(name))set.delete(name);else set.add(name);
+    state.favoriteCompetitions=[...set];
+    try{localStorage.setItem('gold-favorite-competitions',JSON.stringify(state.favoriteCompetitions));}catch(_){}
+    renderMatches();renderFavoriteChips();
+  }
+  function renderFavoriteChips(){
+    const host=$('favorite-competition-chips');if(!host)return;host.replaceChildren();
+    if(!state.favoriteCompetitions.length){const note=document.createElement('span');note.className='small-note';note.textContent='Aucun favori pour le moment : touche ☆ à côté d’un championnat.';host.append(note);return;}
+    state.favoriteCompetitions.forEach(name=>{const b=document.createElement('button');b.type='button';b.className='favorite-chip';b.textContent='★ '+name;b.addEventListener('click',()=>{state.selectedCompetition=name;const select=$('match-competition-select');if(select)select.value=name;state.filter='all';document.querySelectorAll('.scoreboard-filter').forEach(x=>x.classList.toggle('active',x.dataset.filter==='all'));renderMatches();});host.append(b);});
+  }
+  function isWomensCompetition(match){
+    const text=normalizeName([match.competition?.name,match.competition?.slug,match.competition?.code].filter(Boolean).join(' '));
+    return /women|womens|femen|feminin|feminine|ladies|women league|nwsl|liga f|frauen|damen|fifa women|uefa women/.test(text);
+  }
+  function renderWomenMatches(){
+    const host=$('women-match-list');if(!host)return;host.replaceChildren();
+    const day=state.selectedDate||localDateKey(new Date());
+    const source=[...state.matches,...state.liveMatches].filter((m,i,arr)=>arr.findIndex(x=>String(x.id)===String(m.id))===i);
+    const games=source.filter(m=>isWomensCompetition(m)&&localDateKey(m.utcDate)===day).sort((a,b)=>new Date(a.utcDate)-new Date(b.utcDate));
+    setText('women-match-count',String(games.length));
+    if(!games.length){const note=document.createElement('div');note.className='status-panel';note.textContent='Aucun match féminin daté de ce jour dans les flux actuellement chargés. Cela ne signifie pas qu’aucune rencontre féminine n’est programmée : la couverture dépend des compétitions fournies par les sources.';host.append(note);return;}
+    const groups=new Map();games.forEach(m=>{const n=competitionName(m);if(!groups.has(n))groups.set(n,[]);groups.get(n).push(m);});
+    groups.forEach((matches,name)=>{const title=document.createElement('h3');title.className='competition-heading';title.textContent=name+' · '+matches.length;host.append(title);matches.forEach(m=>host.append(createMatchCard(m)));});
+  }
   function renderMatches() {
     const list=$('match-list');if(!list)return;list.replaceChildren();
     const isLive=m=>['IN_PLAY','PAUSED','LIVE','HALFTIME','EXTRA_TIME','PENALTY_SHOOTOUT'].includes(String(m.status||'').toUpperCase());
     const day=state.selectedDate||localDateKey(new Date());
     const filtered=state.matches.filter(m=>{
       if(localDateKey(m.utcDate)!==day)return false;
-      if(state.filter==='live')return isLive(m);
+      if(state.filter==='live')return isLive(m);\n      if(state.filter==='favorites')return state.favoriteCompetitions.includes(competitionName(m));
       if(state.filter==='finished')return m.status==='FINISHED'&&hasFinalScore(m);
       if(state.filter==='upcoming')return !isLive(m)&&!['FINISHED','CANCELLED','POSTPONED','SUSPENDED'].includes(String(m.status||'').toUpperCase());
       return !['CANCELLED','POSTPONED','SUSPENDED'].includes(String(m.status||'').toUpperCase());
@@ -378,7 +404,10 @@
     regions.forEach((leagues,region)=>{
       if(regions.size>1){const country=document.createElement('h3');country.className='region-heading';country.textContent=region;list.append(country);}
       leagues.forEach((matches,name)=>{
-        const heading=document.createElement('h4');heading.className='competition-heading';heading.textContent=name+' · '+matches.length;list.append(heading);
+        const heading=document.createElement('div');heading.className='competition-heading-row';
+        const title=document.createElement('h4');title.className='competition-heading';title.textContent=name+' · '+matches.length;
+        const favorite=document.createElement('button');favorite.type='button';favorite.className='competition-favorite'+(state.favoriteCompetitions.includes(name)?' is-favorite':'');favorite.textContent=state.favoriteCompetitions.includes(name)?'★':'☆';favorite.setAttribute('aria-label',(state.favoriteCompetitions.includes(name)?'Retirer des':'Ajouter aux')+' favoris : '+name);favorite.addEventListener('click',()=>toggleCompetitionFavorite(name));
+        heading.append(title,favorite);list.append(heading);
         matches.forEach(m=>list.append(createMatchCard(m)));
       });
     });
@@ -540,7 +569,7 @@
     if(pageId==='page-clubs')initClubHub();
     if(pageId==='page-news')loadFootballNews();
     if(pageId==='page-analysis')renderAnalysisPicker();
-    if(pageId==='page-matches')renderFeaturedPicks();
+    if(pageId==='page-matches')renderFeaturedPicks();\n    if(pageId==='page-women')renderWomenMatches();
     window.scrollTo({top:0,behavior:'instant'});
   }
   function updateSourceDetails() {
@@ -774,7 +803,7 @@
   const prevMatchDay=$('match-date-prev');if(prevMatchDay)prevMatchDay.addEventListener('click',()=>shiftMatchDate(-1));
   const nextMatchDay=$('match-date-next');if(nextMatchDay)nextMatchDay.addEventListener('click',()=>shiftMatchDate(1));
   const todayMatchDay=$('match-date-today');if(todayMatchDay)todayMatchDay.addEventListener('click',()=>{state.selectedDate=localDateKey(new Date());if(matchDate)matchDate.value=state.selectedDate;renderMatches();});
-  const matchCompetitionSelect=$('match-competition-select');if(matchCompetitionSelect)matchCompetitionSelect.addEventListener('change',()=>{state.selectedCompetition=matchCompetitionSelect.value;renderMatches();});
+  const matchCompetitionSelect=$('match-competition-select');if(matchCompetitionSelect)matchCompetitionSelect.addEventListener('change',()=>{state.selectedCompetition=matchCompetitionSelect.value;renderMatches();});\n  renderFavoriteChips();
   const liveRefresh=$('refresh-live');if(liveRefresh)liveRefresh.addEventListener('click',fetchLiveScores);
   const leagueSelect=$('league-select');if(leagueSelect)leagueSelect.addEventListener('change',loadLeagueHub);
   const leagueRefresh=$('refresh-leagues');if(leagueRefresh)leagueRefresh.addEventListener('click',loadLeagueHub);
@@ -786,7 +815,7 @@
   const alertButton=$('enable-goal-alerts');if(alertButton)alertButton.addEventListener('click',toggleGoalAlerts);
   try{state.goalAlerts=localStorage.getItem('gold-goal-alerts')==='on';}catch(e){}
   updateAlertButton();
-  document.querySelectorAll('.scoreboard-filter').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.scoreboard-filter').forEach(x=>x.classList.toggle('active',x===b));state.filter=b.dataset.filter||'all';state.openAnalysis=null;renderMatches();}));
+  document.querySelectorAll('.scoreboard-filter').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.scoreboard-filter').forEach(x=>x.classList.toggle('active',x===b));state.filter=b.dataset.filter||'all';state.openAnalysis=null;renderMatches();if(state.filter==='favorites'&&!state.favoriteCompetitions.length)setText('match-status','Ajoute des championnats en favoris avec ☆ pour les retrouver ici.');}));
   document.querySelectorAll('.bottom-nav a[data-page]').forEach(link=>link.addEventListener('click',event=>{event.preventDefault();const id=link.dataset.page;history.pushState({page:id},'', '#'+id);showPage(id);}));
   window.addEventListener('popstate',()=>showPage(location.hash.slice(1)));
   const analysisSelect=$('analysis-match-select');if(analysisSelect)analysisSelect.addEventListener('change',renderAnalysisPicker);
