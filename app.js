@@ -369,6 +369,7 @@
       .sort((a,b)=>competitionOrder(a)-competitionOrder(b)||competitionName(a).localeCompare(competitionName(b),'fr')||new Date(a.utcDate)-new Date(b.utcDate));
     const liveCount=filtered.filter(isLive).length, upcomingCount=filtered.filter(m=>!isLive(m)&&!['FINISHED','CANCELLED','POSTPONED','SUSPENDED'].includes(String(m.status||'').toUpperCase())).length, finishedCount=filtered.filter(m=>m.status==='FINISHED'&&hasFinalScore(m)).length;
     setText('match-count',String(filtered.length));
+    setText('match-count-filter',String(filtered.length));
     setText('match-period',state.filter==='live'?'En direct':state.filter==='today'?'Aujourd’hui':state.filter==='finished'?'Terminés':state.filter==='upcoming'?'À venir':'Tous les matchs');
     setText('match-live-count',String(liveCount));setText('match-upcoming-count',String(upcomingCount));setText('match-finished-count',String(finishedCount));
     const dateLabel=$('match-date-label');if(dateLabel){const d=new Date(day+'T12:00:00');dateLabel.textContent=d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});}
@@ -561,7 +562,7 @@
       state.matches=data.matches.filter(validMatch);state.generatedAt=data.generatedAt||null;state.sources=data.sources||{};
       updateSourceDetails();updateMatchCompetitionOptions();renderAnalysisPicker();renderFeaturedPicks();setText('match-status',state.matches.length+' rencontre(s) chargée(s) · '+state.matches.filter(m=>['IN_PLAY','PAUSED','LIVE','HALFTIME','EXTRA_TIME','PENALTY_SHOOTOUT'].includes(String(m.status||'').toUpperCase())).length+' en direct · '+state.matches.filter(m=>m.status==='FINISHED'&&hasFinalScore(m)).length+' résultats. Les horaires suivent le fuseau de ton téléphone.');renderMatches();
     } catch(error) {
-      state.matches=[];setText('match-count','0');setText('source-status','INDISPONIBLE');setText('source-detail','Données à vérifier');
+      state.matches=[];setText('match-count','0');setText('match-count-filter','0');setText('source-status','INDISPONIBLE');setText('source-detail','Données à vérifier');
       setText('match-status',error.name==='AbortError'?'La source met trop de temps à répondre. Réessaie.':error.message||'Erreur inconnue.');
       const list=$('match-list');if(list)list.replaceChildren();setText('report-title','Données indisponibles');setText('report-copy','Aucune analyse sans calendrier valide.');setText('settings-message','Vérifie le déploiement GitHub Pages puis réessaie.');
     } finally {if(button){button.disabled=false;button.textContent='Actualiser ↻';}}
