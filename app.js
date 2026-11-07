@@ -144,27 +144,18 @@
       const sub=document.createElement('small');sub.className='analysis-compact-detail';sub.textContent=detail||'Données insuffisantes';
       card.append(name,val,sub);grid.append(card);
     };
-    addMarket('V1 · '+teamName(match.homeTeam),result.markets.home,'Victoire domicile');
-    addMarket('N · Match nul',result.markets.draw,'Match nul');
-    addMarket('V2 · '+teamName(match.awayTeam),result.markets.away,'Victoire extérieur');
+    addMarket('V1',result.markets.home,'Victoire domicile');
     const homeIsFavorite=result.markets.home>=result.markets.away;
-    const favoriteName=homeIsFavorite?teamName(match.homeTeam):teamName(match.awayTeam);
-    const favoriteWin=homeIsFavorite?result.markets.home:result.markets.away;
-    addMarket('VICTOIRE FAVORI',favoriteWin,favoriteName);
     const favoriteOrDraw=homeIsFavorite?result.markets.homeOrDraw:result.markets.awayOrDraw;
-    addMarket('FAVORI OU NUL',favoriteOrDraw,favoriteName+' ou match nul');
-    const goalOptions=[['+1,5 but',result.markets.over15],['+2,5 buts',result.markets.over25],['+3,5 buts',result.markets.over35]].filter(x=>Number.isFinite(x[1]));
-    const bestGoal=goalOptions.sort((a,b)=>b[1]-a[1])[0];
-    addMarket('TOTAL BUTS',bestGoal?.[1],bestGoal?bestGoal[0]+' · '+pct(bestGoal[1]):'Non disponible');
-    addMarket('+1,5 BUTS',result.markets.over15,'Probabilité estimée');
-    addMarket('+2,5 BUTS',result.markets.over25,'Probabilité estimée');
+    const favoriteName=homeIsFavorite?teamName(match.homeTeam):teamName(match.awayTeam);
+    addMarket('NUL OU VICTOIRE',favoriteOrDraw,'Double chance · '+favoriteName+' ou nul');
+    addMarket('PLUS DE 1,5 BUTS',result.markets.over15,'Probabilité estimée');
+    addMarket('PLUS DE 2,5 BUTS',result.markets.over25,'Probabilité estimée');
     const corners=result.cornerMarkets;
     if(corners){
       addMarket('TOTAL CORNERS',null,'Environ '+corners.expectedTotalCorners.toFixed(1)+' corners attendus');
-      addMarket('PLUS DE 8,5 CORNERS',corners.over85,'Probabilité estimée');
     }else{
       addMarket('TOTAL CORNERS',null,'Données de corners non disponibles');
-      addMarket('PLUS DE 8,5 CORNERS',null,'Données de corners non disponibles');
     }
     panel.append(grid);
     const foot=document.createElement('p');foot.className='analysis-compact-foot';foot.textContent='Estimations statistiques · Confiance '+result.confidence+' · '+result.homeRows.length+'/'+result.awayRows.length+' matchs analysés. Aucun pronostic n’est garanti.';panel.append(foot);
