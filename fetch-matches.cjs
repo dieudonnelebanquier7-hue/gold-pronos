@@ -17,7 +17,7 @@ const from=new Date(today);from.setUTCDate(from.getUTCDate()-45);
 const to=new Date(today);to.setUTCDate(to.getUTCDate()+14);
 const key=d=>d.toISOString().slice(0,10).replace(/-/g,'');
 const range=key(from)+'-'+key(to);
-async function fetchLeague([code,label]){
+async function fetchLeague([code,label],range){
  const url='https://site.api.espn.com/apis/site/v2/sports/soccer/'+code+'/scoreboard?dates='+range+'&limit=180';
  try{
   const response=await fetch(url,{signal:AbortSignal.timeout(15000),headers:{'User-Agent':'GOLD-PRONOS/1.0'}});
@@ -39,7 +39,16 @@ async function fetchLeague([code,label]){
 (async()=>{
  let all=[];
  for(let i=0;i<leagues.length;i+=5){
-  const batch=await Promise.all(leagues.slice(i,i+5).map(fetchLeague));
+  const batch=await Promise.all(leagues.slice(i,i+5).map(async league=>{
+   const parts=[];
+   for(let day=new Date(from);day<=to;){
+    const end=new Date(day);end.setUTCDate(end.getUTCDate()+6);if(end>to)end.setTime(to.getTime());
+    const rangePart=key(day)+'-'+key(end);
+    parts.push(...await fetchLeague(league,rangePart));
+    day=new Date(end);day.setUTCDate(day.getUTCDate()+1);
+   }
+   return parts;
+  }));
   all.push(...batch.flat());
  }
  const unique=new Map(all.map(m=>[m.id,m]));
