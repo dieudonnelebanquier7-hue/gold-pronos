@@ -583,3 +583,74 @@ button,a,select,input{touch-action:manipulation}
 .global-search-empty{padding:8px 10px}
 @media(max-width:620px){.topbar{height:auto;min-height:70px;padding:9px 12px;flex-wrap:wrap;gap:8px}.brand{flex:0 0 auto}.global-search-wrap{order:3;flex:1 0 100%;max-width:none;margin:0}.topbar-tools{margin-left:auto}.language-label,.live-dot{display:none}.global-search-results{max-height:55vh}}
 @media(min-width:1000px){.global-search-wrap{max-width:540px}}
+
+
+/* GOLD PRONOS — nouvelle identité claire blanc & vert */
+:root{color-scheme:light;--bg:#f4f7f5;--panel:#ffffff;--panel2:#edf5ef;--line:#dce7df;--gold:#16834f;--gold2:#176b43;--muted:#68766e;--white:#17231c;--green:#16834f;--red:#d94b55}
+html,body{background:#f4f7f5!important;color:#17231c!important}
+body{font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}
+.topbar{background:rgba(255,255,255,.96)!important;border-bottom:1px solid #dce7df!important;box-shadow:0 2px 12px #173c2510}
+.brand,.brand small{color:#17231c}
+.brand-mark{background:#16834f!important;color:#fff!important}
+.global-search-wrap #global-search,.topbar-tools select,.language-settings select{background:#fff!important;color:#17231c!important;border-color:#b9d8c5!important}
+#global-search::placeholder{color:#77847c}
+.global-search-results{background:#fff!important;border-color:#c9dfd0!important;box-shadow:0 14px 35px #163b251c}
+.global-search-result{color:#17231c!important;border-bottom-color:#e7eee9!important}
+.global-search-result:focus,.global-search-result:hover{background:#eaf6ef!important}
+.live-dot,.eyebrow,.muted,.small-note,.data-caveat{color:#63736a}
+.hero{background:linear-gradient(135deg,#eaf6ef,#fff)!important;color:#17231c!important;border-bottom:1px solid #dce7df}
+.hero h1,.section h2,.section h3{color:#17231c}
+.hero h1 em{color:#16834f}
+.hero-copy,.hero-meta{color:#53645a}
+.pill,.summary-card,.install-card,.language-quick,.favorite-competitions,.match-competition-filter,.status-panel,.match-card,.news-card,.leader-panel,.club-profile-card,.national-competition-card,.tv-provider-card,.analysis-card,.settings-card{background:#fff!important;color:#17231c!important;border-color:#dce7df!important;box-shadow:0 3px 14px #1c432510}
+.summary-card strong,.gold-text,.section-heading h2,.competition,.match-teams .versus,.live-score-card .live-score-value{color:#16834f!important}
+.install-card p,.install-card li,.install-card small,.section p,.match-bottom,.match-top,.match-teams{color:#53645a}
+.install-button,.tv-watch-button,.club-search-button,.primary-button{background:#16834f!important;color:#fff!important;border-color:#16834f!important}
+.secondary-install,.text-button{background:#fff!important;color:#16834f!important;border-color:#b9d8c5!important}
+.bottom-nav{background:rgba(255,255,255,.98)!important;border-color:#dce7df!important;box-shadow:0 -3px 16px #173c250b}
+.bottom-nav a{color:#63736a!important}
+.bottom-nav a.active,.bottom-nav a:hover{background:#eaf6ef!important;color:#16834f!important}
+.section{color:#17231c}
+.scoreboard-datebar,.scoreboard-filters,.favorite-competitions,.match-competition-filter{background:#fff!important;border-color:#dce7df!important}
+.scoreboard-filter,.date-arrow,.date-today,.favorite-chip,.competition-favorite{background:#f3f8f4!important;color:#176b43!important;border-color:#c9dfd0!important}
+.scoreboard-filter.active,.competition-favorite.is-favorite{background:#16834f!important;color:#fff!important;border-color:#16834f!important}
+.league-select,.club-select,.club-search,.scoreboard-date input{background:#fff!important;color:#17231c!important;border-color:#bfd8c7!important}
+.match-card{border:1px solid #dce7df!important;border-left:4px solid #a9cbb5!important;border-radius:14px}
+.match-card.status-live{border-left-color:#16834f!important}
+.match-card.status-finished{border-left-color:#9aa79f!important}
+.match-card .match-top,.match-card .match-bottom{color:#66756c!important}
+.match-card .competition-heading,.competition-heading{background:#edf7f0!important;color:#176b43!important;border-color:#16834f!important}
+.match-card .featured-label{background:#eaf6ef!important;color:#176b43!important}
+.match-detail-button{background:#eaf6ef!important;border:1px solid #b9d8c5!important;color:#16834f!important}
+.analysis-button{background:#fff!important;color:#176b43!important;border:1px solid #b9d8c5!important}
+.match-centre-overlay{background:rgba(15,35,23,.48)!important;backdrop-filter:blur(4px)}
+.match-centre-panel{background:#fff!important;color:#17231c!important;border:1px solid #dce7df!important;box-shadow:0 24px 80px #102c1c35!important}
+.match-centre-header h2{color:#17231c!important}
+.match-centre-close{background:#f2f7f3!important;color:#176b43!important;border:1px solid #c9dfd0!important}
+.match-centre-score{padding:20px 12px;border-radius:16px;background:linear-gradient(135deg,#eaf6ef,#f8fbf9)}
+.match-centre-score strong{color:#26372d!important}
+.match-centre-score b{color:#16834f!important}
+.match-centre-meta,.match-centre-section{background:#fff!important;border:1px solid #dce7df!important;color:#53645a!important}
+.match-centre-section h3{color:#16834f!important}
+.match-centre-tabs{display:flex;gap:7px;overflow-x:auto;padding:8px 0 12px;position:sticky;top:0;background:#fff;z-index:2}
+.match-centre-tab{flex:0 0 auto;min-height:42px;padding:9px 13px;border:1px solid #c9dfd0;border-radius:22px;background:#f5f9f6;color:#526258;font-size:13px;font-weight:750}
+.match-centre-tab.active{background:#16834f;color:#fff;border-color:#16834f}
+.match-centre-pane{display:none;min-height:120px;padding:4px 0 10px}
+.match-centre-pane.active{display:block}
+.match-centre-status{display:inline-flex;padding:6px 10px;border-radius:20px;background:#edf2ef;color:#58675e;font-size:12px;font-weight:800}
+.match-centre-status.is-live{background:#e5f6ec;color:#16834f}
+.match-centre-status.is-finished{background:#f0f2f1;color:#58675e}
+.match-centre-meta p{margin:8px 0 0;font-size:13px}
+.match-centre-overview-grid,.match-centre-data-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.match-centre-data-row{display:flex;flex-direction:column;gap:5px;min-width:0;padding:12px;border:1px solid #e1ebe4;border-radius:10px;background:#f8fbf9}
+.match-centre-data-row span{font-size:11px;color:#718077;text-transform:uppercase;letter-spacing:.3px}
+.match-centre-data-row strong{font-size:14px;color:#20372a;overflow-wrap:anywhere}
+.match-centre-list{display:grid;gap:8px}
+.match-centre-list-item{display:flex;flex-direction:column;gap:5px;padding:12px;border:1px solid #e1ebe4;border-radius:10px;background:#f8fbf9}
+.match-centre-list-item strong{color:#20372a;font-size:14px}
+.match-centre-list-item small{color:#718077;font-size:12px;line-height:1.5}
+.match-centre-empty,.match-centre-footnote,.match-centre-context{padding:12px;border-radius:10px;background:#f4f8f5;color:#64736a;font-size:13px;line-height:1.6}
+.match-centre-footnote{margin-top:12px}
+.match-centre-content{min-height:140px}
+@media(max-width:520px){.match-centre-overlay{padding:0!important;align-items:flex-end!important}.match-centre-panel{width:100%!important;max-height:94vh!important;border-radius:18px 18px 0 0!important;padding:15px!important}.match-centre-score{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:7px}.match-centre-score strong{font-size:12px}.match-centre-score b{font-size:1.5rem}.match-centre-overview-grid,.match-centre-data-list{grid-template-columns:1fr}.match-centre-tab{font-size:12px;padding:8px 11px}}
+@media(min-width:1000px){.bottom-nav a.active{background:#eaf6ef!important;color:#16834f!important}}
