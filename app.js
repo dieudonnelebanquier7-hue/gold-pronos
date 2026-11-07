@@ -591,7 +591,7 @@
       if(!response.ok)throw new Error('Fichier des rencontres inaccessible (HTTP '+response.status+').');
       const data=await response.json();if(!data||!Array.isArray(data.matches))throw new Error('Format du calendrier invalide : liste des matchs absente.');
       state.matches=data.matches.filter(validMatch);state.generatedAt=data.generatedAt||null;state.sources=data.sources||{};
-      updateSourceDetails();updateMatchCompetitionOptions();renderAnalysisPicker();renderFeaturedPicks();setText('match-status',state.matches.length+' rencontre(s) chargée(s) · '+state.matches.filter(m=>['IN_PLAY','PAUSED','LIVE','HALFTIME','EXTRA_TIME','PENALTY_SHOOTOUT'].includes(String(m.status||'').toUpperCase())).length+' en direct · '+state.matches.filter(m=>m.status==='FINISHED'&&hasFinalScore(m)).length+' résultats. Les horaires suivent le fuseau de ton téléphone.');renderMatches();
+      updateSourceDetails();updateMatchCompetitionOptions();renderAnalysisPicker();renderFeaturedPicks();renderWomenMatches();setText('match-status',state.matches.length+' rencontre(s) chargée(s) · '+state.matches.filter(m=>['IN_PLAY','PAUSED','LIVE','HALFTIME','EXTRA_TIME','PENALTY_SHOOTOUT'].includes(String(m.status||'').toUpperCase())).length+' en direct · '+state.matches.filter(m=>m.status==='FINISHED'&&hasFinalScore(m)).length+' résultats. Les horaires suivent le fuseau de ton téléphone.');renderMatches();
     } catch(error) {
       state.matches=[];setText('match-count','0');setText('match-count-filter','0');setText('source-status','INDISPONIBLE');setText('source-detail','Données à vérifier');
       setText('match-status',error.name==='AbortError'?'La source met trop de temps à répondre. Réessaie.':error.message||'Erreur inconnue.');
@@ -692,7 +692,7 @@
     // Ne pas sonner au premier chargement : il sert de référence initiale.
     state.knownScores=current;
     state.liveMatches=collected;state.liveReady=true;
-    renderLiveMatches();
+    renderLiveMatches();renderWomenMatches();
     setText('live-updated','Dernière vérification : '+timeFmt.format(new Date())+' · actualisation automatique environ toutes les 90 secondes');
     const liveCount=collected.filter(m=>isLiveStatus(m.status)).length;
     setText('live-count',String(liveCount));
