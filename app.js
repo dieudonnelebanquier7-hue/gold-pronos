@@ -197,36 +197,97 @@
     const previous=document.getElementById('match-centre-overlay');if(previous)previous.remove();
     const overlay=document.createElement('div');overlay.id='match-centre-overlay';overlay.className='match-centre-overlay';overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-labelledby','match-centre-title');
     const panel=document.createElement('section');panel.className='match-centre-panel';
+    const status=String(match.status||'').toUpperCase();
+    const live=['IN_PLAY','LIVE','HALFTIME','PAUSED','EXTRA_TIME','PENALTY_SHOOTOUT'].includes(status);
+    const labels={FINISHED:'Terminé',IN_PLAY:'En direct',LIVE:'En direct',HALFTIME:'Mi-temps',PAUSED:'En pause',EXTRA_TIME:'Prolongation',PENALTY_SHOOTOUT:'Tirs au but',SCHEDULED:'À venir',POSTPONED:'Reporté',CANCELLED:'Annulé',SUSPENDED:'Suspendu'};
+    const hs=match.score?.fullTime?.home??match.score?.halfTime?.home,as=match.score?.fullTime?.away??match.score?.halfTime?.away;
     const header=document.createElement('div');header.className='match-centre-header';
     const heading=document.createElement('div');const eyebrow=document.createElement('p');eyebrow.className='eyebrow';eyebrow.textContent=competitionName(match);
-    const title=document.createElement('h2');title.id='match-centre-title';title.textContent='Centre du match';heading.append(eyebrow,title);
-    const close=document.createElement('button');close.type='button';close.className='match-centre-close';close.textContent='Fermer ✕';close.addEventListener('click',()=>overlay.remove());header.append(heading,close);panel.append(header);
-    const status=String(match.status||'').toUpperCase();const labels={FINISHED:'TERMINÉ',IN_PLAY:'EN COURS',LIVE:'EN DIRECT',HALFTIME:'MI-TEMPS',PAUSED:'MI-TEMPS',EXTRA_TIME:'PROLONGATION',PENALTY_SHOOTOUT:'TIRS AU BUT',SCHEDULED:'À VENIR'};
+    const title=document.createElement('h2');title.id='match-centre-title';title.textContent='Fiche du match';heading.append(eyebrow,title);
+    const close=document.createElement('button');close.type='button';close.className='match-centre-close';close.textContent='✕ Fermer';close.setAttribute('aria-label','Fermer la fiche du match');close.addEventListener('click',()=>overlay.remove());header.append(heading,close);panel.append(header);
     const scoreBox=document.createElement('div');scoreBox.className='match-centre-score';
     const home=document.createElement('strong');home.textContent=teamName(match.homeTeam)||'Domicile';
-    const score=document.createElement('b');const hs=match.score?.fullTime?.home??match.score?.halfTime?.home,as=match.score?.fullTime?.away??match.score?.halfTime?.away;
-    score.textContent=hs!=null&&as!=null?hs+' – '+as:'VS';
+    const score=document.createElement('b');score.textContent=hs!=null&&as!=null?hs+' – '+as:'VS';
     const away=document.createElement('strong');away.textContent=teamName(match.awayTeam)||'Extérieur';scoreBox.append(home,score,away);panel.append(scoreBox);
-    const meta=document.createElement('p');meta.className='match-centre-meta';meta.textContent=(labels[status]||'STATUT NON COMMUNIQUÉ')+' · '+new Date(match.utcDate).toLocaleString('fr-FR',{dateStyle:'full',timeStyle:'short'})+(match.venue?.name?' · '+match.venue.name:'');panel.append(meta);
-    const sections=[
-      {title:'Statistiques',data:match.statistics||match.stats},
-      {title:'Événements',data:match.events||match.incidents},
-      {title:'Compositions',data:match.lineups||match.rosters},
-      {title:'Arbitres et officiels',data:match.officials}
-    ];
-    sections.forEach(section=>{
-      const block=document.createElement('section');block.className='match-centre-section';const h=document.createElement('h3');h.textContent=section.title;block.append(h);
-      const data=section.data;
+    const meta=document.createElement('div');meta.className='match-centre-meta';
+    const date=new Date(match.utcDate);
+    const statusBadge=document.createElement('span');statusBadge.className='match-centre-status '+(live?'is-live':status==='FINISHED'?'is-finished':'');statusBadge.textContent=labels[status]||'Statut non communiqué';meta.append(statusBadge);
+    const dateLine=document.createElement('p');dateLine.textContent=Number.isNaN(date.getTime())?'Date non disponible':date.toLocaleString('fr-FR',{dateStyle:'full',timeStyle:'short'});meta.append(dateLine);
+    if(match.venue?.name){const venue=document.createElement('p');venue.textContent='Stade : '+match.venue.name+(match.venue.city?' · '+match.venue.city:'');meta.append(venue);}
+    if(match.matchday){const round=document.createElement('p');round.textContent='Journée '+match.matchday;meta.append(round);}
+    panel.append(meta);
+    const tabs=document.createElement('div');tabs.className='match-centre-tabs';tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','Rubriques de la fiche');
+    const content=document.createElement('div');content.className='match-centre-content';
+    const tabNames=['Aperçu','Statistiques','Événements','Compositions','Confrontations'];
+    const panes={};
+    const makeNote=(parent,message)=>{const p=document.createElement('p');p.className='match-centre-empty';p.textContent=message;parent.append(p);};
+    const appendValue=(parent,label,value)=>{
+      const row=document.createElement('div');row.className='match-centre-data-row';
+      const key=document.createElement('span');key.textContent=label;
+      const val=document.createElement('strong');val.textContent=value==null?'—':String(value);
+      row.append(key,val);parent.append(row);
+    };
+    const readable=(value)=>typeof value==='object'&&value!==null?JSON.stringify(value):String(value??'—');
+    const renderCollection=(host,data,kind)=>{
       if(Array.isArray(data)&&data.length){
-        const list=document.createElement('ul');data.forEach(item=>{const li=document.createElement('li');if(item&&typeof item==='object'){const name=item.name||item.type||item.player?.name||item.athlete?.displayName||item.label||section.title;const value=item.value??item.displayValue??item.detail??item.minute??'';li.textContent=String(name)+(value!==''?' : '+String(value):'');}else li.textContent=String(item);list.append(li);});block.append(list);
-      }else if(data&&typeof data==='object'&&!Array.isArray(data)){
-        const list=document.createElement('ul');Object.entries(data && typeof data==='object' ? data : {}).forEach(([key,value])=>{const li=document.createElement('li');const label=key.replace(/([A-Z])/g,' $1').replace(/[_-]/g,' ');li.textContent=label+' : '+(value&&typeof value==='object'?JSON.stringify(value):String(value));list.append(li);});block.append(list);
-      }else{const note=document.createElement('p');note.className='small-note';note.textContent='Cette information n’est pas encore fournie par les sources connectées pour cette rencontre.';block.append(note);}
-      panel.append(block);
+        const list=document.createElement('div');list.className='match-centre-list';
+        data.forEach((item,index)=>{
+          const row=document.createElement('article');row.className='match-centre-list-item';
+          if(item&&typeof item==='object'){
+            const primary=item.player?.name||item.athlete?.displayName||item.name||item.type||item.label||item.team?.name||kind+' '+(index+1);
+            const detail=[item.minute!=null?item.minute+"'":'',item.detail||item.description||item.displayValue||item.value||'',item.position||item.role||''].filter(Boolean).map(readable).join(' · ');
+            const strong=document.createElement('strong');strong.textContent=String(primary);row.append(strong);
+            if(detail){const small=document.createElement('small');small.textContent=detail;row.append(small);}
+          }else{const strong=document.createElement('strong');strong.textContent=String(item);row.append(strong);}
+          list.append(row);
+        });
+        host.append(list);return true;
+      }
+      if(data&&typeof data==='object'){
+        const entries=Object.entries(data);
+        if(entries.length){const list=document.createElement('div');list.className='match-centre-data-list';entries.forEach(([key,value])=>appendValue(list,key.replace(/([A-Z])/g,' $1').replace(/[_-]/g,' '),readable(value)));host.append(list);return true;}
+      }
+      return false;
+    };
+    tabNames.forEach((name,index)=>{
+      const id='match-centre-tab-'+index;
+      const button=document.createElement('button');button.type='button';button.className='match-centre-tab'+(index===0?' active':'');button.textContent=name;button.setAttribute('role','tab');button.setAttribute('aria-controls',id);button.setAttribute('aria-selected',index===0?'true':'false');
+      const pane=document.createElement('section');pane.id=id;pane.className='match-centre-pane'+(index===0?' active':'');pane.setAttribute('role','tabpanel');
+      button.addEventListener('click',()=>{
+        tabs.querySelectorAll('.match-centre-tab').forEach((b)=>{b.classList.remove('active');b.setAttribute('aria-selected','false');});
+        content.querySelectorAll('.match-centre-pane').forEach(p=>p.classList.remove('active'));
+        button.classList.add('active');button.setAttribute('aria-selected','true');pane.classList.add('active');
+      });
+      tabs.append(button);content.append(pane);panes[name]=pane;
     });
-    const note=document.createElement('p');note.className='data-caveat';note.textContent='Les données affichées dépendent des fournisseurs. Une statistique absente n’est jamais inventée. Le centre détaillé sera enrichi avec les flux de statistiques en direct et les rapports après-match.';panel.append(note);
+    const overview=panes['Aperçu'];
+    const summary=document.createElement('div');summary.className='match-centre-overview-grid';
+    appendValue(summary,'Compétition',competitionName(match));
+    appendValue(summary,'Équipe à domicile',teamName(match.homeTeam)||'—');
+    appendValue(summary,'Équipe à l’extérieur',teamName(match.awayTeam)||'—');
+    appendValue(summary,'Score',hs!=null&&as!=null?hs+' – '+as:'Non commencé / indisponible');
+    appendValue(summary,'Statut',labels[status]||'Non communiqué');
+    if(match.venue?.name)appendValue(summary,'Stade',match.venue.name);
+    overview.append(summary);
+    if(match.note||match.statusText){const note=document.createElement('p');note.className='match-centre-context';note.textContent=String(match.note||match.statusText);overview.append(note);}
+    const stats=match.statistics||match.stats;
+    if(!renderCollection(panes['Statistiques'],stats,'Statistique'))makeNote(panes['Statistiques'],'Les statistiques détaillées ne sont pas encore fournies par la source pour ce match.');
+    const events=match.events||match.incidents||match.commentary;
+    if(!renderCollection(panes['Événements'],events,'Événement'))makeNote(panes['Événements'],'Aucun événement détaillé disponible pour le moment. Les buts, cartons et remplacements apparaîtront ici si le fournisseur les transmet.');
+    const lineups=match.lineups||match.rosters;
+    if(!renderCollection(panes['Compositions'],lineups,'Joueur'))makeNote(panes['Compositions'],'Les compositions officielles ne sont pas encore disponibles pour cette rencontre.');
+    const h2h=state.matches.filter(m=>m&&m.status==='FINISHED'&&hasFinalScore(m)&&((sameTeam(teamName(m.homeTeam),teamName(match.homeTeam))&&sameTeam(teamName(m.awayTeam),teamName(match.awayTeam)))||(sameTeam(teamName(m.homeTeam),teamName(match.awayTeam))&&sameTeam(teamName(m.awayTeam),teamName(match.homeTeam))))).sort((a,b)=>new Date(b.utcDate)-new Date(a.utcDate)).slice(0,8);
+    if(h2h.length){
+      const list=document.createElement('div');list.className='match-centre-list';
+      h2h.forEach(m=>{const row=document.createElement('article');row.className='match-centre-list-item h2h-item';const strong=document.createElement('strong');strong.textContent=teamName(m.homeTeam)+' '+m.score.fullTime.home+' – '+m.score.fullTime.away+' '+teamName(m.awayTeam);const small=document.createElement('small');small.textContent=formatDate(m.utcDate);row.append(strong,small);list.append(row);});
+      panes['Confrontations'].append(list);
+    }else makeNote(panes['Confrontations'],'Aucune confrontation directe récente vérifiée dans les matchs actuellement chargés.');
+    const standingsNote=document.createElement('p');standingsNote.className='match-centre-footnote';standingsNote.textContent='Classement et informations d’effectif : affichés lorsqu’ils sont fournis par la compétition et la source connectée. Les données manquantes ne sont jamais inventées.';panes['Aperçu'].append(standingsNote);
+    panel.append(tabs,content);
+    const note=document.createElement('p');note.className='match-centre-footnote';note.textContent='Les détails dépendent de la couverture du fournisseur. Une fiche peut être consultable même si certaines rubriques ne sont pas encore alimentées.';panel.append(note);
     overlay.append(panel);overlay.addEventListener('click',event=>{if(event.target===overlay)overlay.remove();});
-    document.addEventListener('keydown',function closeOnEscape(event){if(event.key==='Escape'&&document.getElementById('match-centre-overlay')){overlay.remove();document.removeEventListener('keydown',closeOnEscape);}});
+    const closeOnEscape=event=>{if(event.key==='Escape'&&document.getElementById('match-centre-overlay')){overlay.remove();document.removeEventListener('keydown',closeOnEscape);}};
+    document.addEventListener('keydown',closeOnEscape);
     document.body.append(overlay);close.focus();
   }
   function createMatchCard(match) {
