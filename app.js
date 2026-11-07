@@ -387,7 +387,8 @@
     const day=state.selectedDate||localDateKey(new Date());
     const filtered=state.matches.filter(m=>{
       if(localDateKey(m.utcDate)!==day)return false;
-      if(state.filter==='live')return isLive(m);\n      if(state.filter==='favorites')return state.favoriteCompetitions.includes(competitionName(m));
+      if(state.filter==='live')return isLive(m);
+      if(state.filter==='favorites')return state.favoriteCompetitions.includes(competitionName(m));
       if(state.filter==='finished')return m.status==='FINISHED'&&hasFinalScore(m);
       if(state.filter==='upcoming')return !isLive(m)&&!['FINISHED','CANCELLED','POSTPONED','SUSPENDED'].includes(String(m.status||'').toUpperCase());
       return !['CANCELLED','POSTPONED','SUSPENDED'].includes(String(m.status||'').toUpperCase());
@@ -569,7 +570,8 @@
     if(pageId==='page-clubs')initClubHub();
     if(pageId==='page-news')loadFootballNews();
     if(pageId==='page-analysis')renderAnalysisPicker();
-    if(pageId==='page-matches')renderFeaturedPicks();\n    if(pageId==='page-women')renderWomenMatches();
+    if(pageId==='page-matches')renderFeaturedPicks();
+    if(pageId==='page-women')renderWomenMatches();
     window.scrollTo({top:0,behavior:'instant'});
   }
   function updateSourceDetails() {
@@ -803,7 +805,8 @@
   const prevMatchDay=$('match-date-prev');if(prevMatchDay)prevMatchDay.addEventListener('click',()=>shiftMatchDate(-1));
   const nextMatchDay=$('match-date-next');if(nextMatchDay)nextMatchDay.addEventListener('click',()=>shiftMatchDate(1));
   const todayMatchDay=$('match-date-today');if(todayMatchDay)todayMatchDay.addEventListener('click',()=>{state.selectedDate=localDateKey(new Date());if(matchDate)matchDate.value=state.selectedDate;renderMatches();});
-  const matchCompetitionSelect=$('match-competition-select');if(matchCompetitionSelect)matchCompetitionSelect.addEventListener('change',()=>{state.selectedCompetition=matchCompetitionSelect.value;renderMatches();});\n  renderFavoriteChips();
+  const matchCompetitionSelect=$('match-competition-select');if(matchCompetitionSelect)matchCompetitionSelect.addEventListener('change',()=>{state.selectedCompetition=matchCompetitionSelect.value;renderMatches();});
+  renderFavoriteChips();
   const liveRefresh=$('refresh-live');if(liveRefresh)liveRefresh.addEventListener('click',fetchLiveScores);
   const leagueSelect=$('league-select');if(leagueSelect)leagueSelect.addEventListener('change',loadLeagueHub);
   const leagueRefresh=$('refresh-leagues');if(leagueRefresh)leagueRefresh.addEventListener('click',loadLeagueHub);
