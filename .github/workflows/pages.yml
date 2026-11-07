@@ -135,18 +135,54 @@ jobs:
               supplemental.push(...batch.flat());
               await sleep(250);
             }
+            const openLigaDB=[];
+            for(const year of years) {
+              try {
+                const response=await fetch('https://api.openligadb.de/getavailableleagues/'+year,{signal:AbortSignal.timeout(12000)});
+                if(!response.ok)throw new Error('HTTP '+response.status);
+                const available=await response.json();
+                const selected=(Array.isArray(available)?available:[]).filter(l=>/premier league|laliga|la liga|bundesliga|serie a|ligue 1|eredivisie|champions league|europa league|conference league|frauen|women/i.test(String(l.leagueName||''))).slice(0,14);
+                for(let i=0;i<selected.length;i+=5) {
+                  const batch=await Promise.all(selected.slice(i,i+5).map(async league=>{
+                    try {
+                      const shortcut=encodeURIComponent(league.leagueShortcut||'');
+                      const season=Number(league.leagueSeason)||year;
+                      if(!shortcut)return [];
+                      const r=await fetch('https://api.openligadb.de/getmatchdata/'+shortcut+'/'+season,{signal:AbortSignal.timeout(18000)});
+                      if(!r.ok)return [];
+                      const list=await r.json();
+                      return (Array.isArray(list)?list:[]).map(m=>{
+                        const home=m.team1?.teamName,away=m.team2?.teamName,date=m.matchDateTimeUTC||m.matchDateTime;
+                        if(!home||!away||!date)return null;
+                        const ordered=(Array.isArray(m.matchResults)?m.matchResults:[]).slice().sort((a,b)=>Number(b.resultOrderID||0)-Number(a.resultOrderID||0));
+                        const chosen=ordered.find(x=>/final|endergebnis|after90|afterextra|afterpenalt/i.test(String(x.resultName||x.resultTypeName||x.resultTypeKind||'')))||ordered[0];
+                        const sh=chosen?.pointsTeam1,sa=chosen?.pointsTeam2;
+                        const hasScore=sh!=null&&sa!=null&&Number.isFinite(Number(sh))&&Number.isFinite(Number(sa));
+                        const kickoff=new Date(date).getTime(),finished=Boolean(m.matchIsFinished);
+                        const status=finished?'FINISHED':(kickoff<=Date.now()&&hasScore?'IN_PLAY':'SCHEDULED');
+                        const events=(Array.isArray(m.goals)?m.goals:[]).map(g=>({minute:g.matchMinute??null,player:g.goalGetterName||'Buteur non communiqué',type:g.isPenalty?'Penalty':g.isOwnGoal?'But contre son camp':'But'}));
+                        return {id:'openligadb-'+m.matchID,utcDate:date,status,competition:{name:m.leagueName||league.leagueName||'Compétition',code:'OPENLIGA-'+(league.leagueShortcut||'')},homeTeam:{name:home},awayTeam:{name:away},score:{fullTime:{home:hasScore?Number(sh):null,away:hasScore?Number(sa):null}},events,source:'OpenLigaDB'};
+                      }).filter(m=>m&&new Date(m.utcDate)>=pastFrom&&new Date(m.utcDate)<futureTo.getTime()+86400000);
+                    } catch(e){console.log('OpenLigaDB '+(league.leagueName||'ligue')+' indisponible : '+e.message);return [];}
+                  }));
+                  openLigaDB.push(...batch.flat());
+                  await sleep(300);
+                }
+              } catch(e){console.log('OpenLigaDB catalogue '+year+' indisponible : '+e.message);}
+            }
             const key=m=>[m.utcDate?.slice(0,16),m.homeTeam?.name?.toLowerCase(),m.awayTeam?.name?.toLowerCase()].join('|');
             const merged=new Map();
             for(const m of supplemental) merged.set(key(m),m);
+            for(const m of openLigaDB) merged.set(key(m),m);
             for(const m of apiFootball) merged.set(key(m),m);
             for(const m of official) merged.set(key(m),m);
             const matches=[...merged.values()].filter(m=>m.utcDate && m.homeTeam?.name && m.awayTeam?.name).sort((a,b)=>new Date(a.utcDate)-new Date(b.utcDate));
             const hasScore=m=>m.score?.fullTime?.home!==null && m.score?.fullTime?.home!==undefined && m.score?.fullTime?.away!==null && m.score?.fullTime?.away!==undefined && Number.isFinite(Number(m.score.fullTime.home)) && Number.isFinite(Number(m.score.fullTime.away));
             const historyMatches=matches.filter(m=>m.status==='FINISHED' && hasScore(m)).length;
-            const result={generatedAt:new Date().toISOString(),sources:{footballData:official.length,espn:supplemental.length,apiFootball:apiFootball.length,historyMatches},matches};
+            const result={generatedAt:new Date().toISOString(),sources:{footballData:official.length,espn:supplemental.length,apiFootball:apiFootball.length,openLigaDB:openLigaDB.length,historyMatches},matches};
             if(!matches.length) throw new Error('Aucun match reçu : arrêt du déploiement pour ne pas publier un calendrier vide.');
             fs.writeFileSync('matches.json',JSON.stringify(result));
-            console.log('Calendrier consolidé : '+official.length+' football-data.org + '+supplemental.length+' ESPN + '+apiFootball.length+' API-Football = '+matches.length+' matchs uniques, dont '+historyMatches+' résultats terminés avec score.');
+            console.log('Calendrier consolidé : '+official.length+' football-data.org + '+apiFootball.length+' API-Football + '+openLigaDB.length+' OpenLigaDB + '+supplemental.length+' ESPN secours = '+matches.length+' matchs uniques, dont '+historyMatches+' résultats terminés avec score.');
             console.log('Contrôle qualité : '+matches.length+' matchs, JSON valide, collecte '+result.generatedAt);
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE

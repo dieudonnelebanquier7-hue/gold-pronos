@@ -720,8 +720,8 @@
     window.scrollTo({top:0,behavior:'instant'});
   }
   function updateSourceDetails() {
-    const count=state.matches.length,fd=Number(state.sources.footballData||0),espn=Number(state.sources.espn||0),api=Number(state.sources.apiFootball||0),history=Number(state.sources.historyMatches||0);
-    setText('source-status',count?'DONNÉES CHARGÉES':'AUCUN MATCH');setText('source-detail',fd+' football-data.org · '+espn+' ESPN · '+api+' API-Football · '+history+' résultats historiques');
+    const count=state.matches.length,fd=Number(state.sources.footballData||0),espn=Number(state.sources.espn||0),api=Number(state.sources.apiFootball||0),openLiga=Number(state.sources.openLigaDB||0),history=Number(state.sources.historyMatches||0);
+    setText('source-status',count?'DONNÉES CHARGÉES':'AUCUN MATCH');setText('source-detail',fd+' football-data.org · '+api+' API-Football · '+openLiga+' OpenLigaDB · '+espn+' ESPN (secours) · '+history+' résultats historiques');
     const generated=state.generatedAt?new Date(state.generatedAt):null;
     const label=generated&&!Number.isNaN(generated.getTime())?'Dernière collecte : '+dateFmt.format(generated)+' à '+timeFmt.format(generated)+'. ':'';
     setText('report-title',count+' rencontre(s) disponibles');
@@ -821,6 +821,45 @@
       host.append(card);
     });
   }
+  async function fetchOpenLigaLive() {
+    const now=Date.now(), season=new Date().getFullYear();
+    const relevant=name=>/premier league|laliga|la liga|bundesliga|serie a|ligue 1|eredivisie|champions league|europa league|conference league|frauen|women/i.test(String(name||''));
+    try {
+      const response=await fetch('https://api.openligadb.de/getavailableleagues/'+season,{cache:'no-store',signal:AbortSignal.timeout(7000)});
+      if(!response.ok)throw new Error('OpenLigaDB catalogue indisponible');
+      const leagues=await response.json();
+      const selected=(Array.isArray(leagues)?leagues:[]).filter(l=>relevant(l.leagueName)).slice(0,12);
+      const results=await Promise.all(selected.map(async league=>{
+        try {
+          const shortcut=encodeURIComponent(league.leagueShortcut||'');
+          const year=Number(league.leagueSeason)||season;
+          if(!shortcut)return [];
+          const groupResponse=await fetch('https://api.openligadb.de/getcurrentgroup/'+shortcut,{cache:'no-store',signal:AbortSignal.timeout(6000)});
+          if(!groupResponse.ok)return [];
+          const group=await groupResponse.json();
+          const groupId=group?.groupOrderID??group?.groupOrderId??group?.groupID;
+          if(groupId==null)return [];
+          const matchResponse=await fetch('https://api.openligadb.de/getmatchdata/'+shortcut+'/'+year+'/'+encodeURIComponent(groupId),{cache:'no-store',signal:AbortSignal.timeout(7000)});
+          if(!matchResponse.ok)return [];
+          const matches=await matchResponse.json();
+          return (Array.isArray(matches)?matches:[]).map(m=>{
+            const home=m.team1?.teamName,away=m.team2?.teamName,date=m.matchDateTimeUTC||m.matchDateTime;
+            if(!home||!away||!date)return null;
+            const resultsList=Array.isArray(m.matchResults)?m.matchResults:[];
+            const ordered=resultsList.slice().sort((a,b)=>Number(b.resultOrderID||0)-Number(a.resultOrderID||0));
+            const chosen=ordered.find(x=>/final|endergebnis|after90|afterextra|afterpenalt/i.test(String(x.resultName||x.resultTypeName||x.resultTypeKind||'')))||ordered[0];
+            const sh=chosen?.pointsTeam1,sa=chosen?.pointsTeam2;
+            const hasScore=sh!=null&&sa!=null&&Number.isFinite(Number(sh))&&Number.isFinite(Number(sa));
+            const kickoff=new Date(date).getTime();
+            const status=m.matchIsFinished?'FINISHED':(kickoff<=now&&hasScore?'IN_PLAY':'SCHEDULED');
+            const goals=(Array.isArray(m.goals)?m.goals:[]).map(g=>({minute:g.matchMinute??g.minute??null,player:g.goalGetterName||g.goalGetter||'Buteur non communiqué',team:g.scoreTeam1!=null?home:g.scoreTeam2!=null?away:'',type:g.isPenalty?'Penalty':g.isOwnGoal?'But contre son camp':'But'}));
+            return {id:'openligadb-'+m.matchID,utcDate:date,status,statusDetail:status==='IN_PLAY'?'Score signalé par OpenLigaDB · horloge non fournie':status==='FINISHED'?'Résultat OpenLigaDB':'',competition:{name:m.leagueName||league.leagueName||'Compétition',code:'OPENLIGA-'+(league.leagueShortcut||'')},homeTeam:{name:home},awayTeam:{name:away},score:{fullTime:{home:hasScore?Number(sh):null,away:hasScore?Number(sa):null}},events:goals,source:'OpenLigaDB'};
+          }).filter(Boolean);
+        } catch(e){return [];}
+      }));
+      return results.flat();
+    } catch(e){console.warn('OpenLigaDB non disponible',e);return [];}
+  }
   async function fetchLiveScores() {
     if(document.visibilityState==='hidden')return;
     const today=new Date().toISOString().slice(0,10).replace(/-/g,'');
@@ -843,8 +882,14 @@
       }));
       collected.push(...batch.flat());
     }
+    const openLigaMatches=await fetchOpenLigaLive();
+    const combined=[...collected,...openLigaMatches];
+    const unique=new Map();
+    combined.forEach(m=>{const key=[String(m.utcDate||'').slice(0,16),normalizeName(teamName(m.homeTeam)),normalizeName(teamName(m.awayTeam))].join('|');if(!unique.has(key)||m.source==='OpenLigaDB')unique.set(key,m);});
+    const allLive=[...unique.values()];
+    state.sources=state.sources||{};state.sources.openLigaDB=openLigaMatches.length;
     const current={};
-    collected.forEach(m=>{
+    allLive.forEach(m=>{
       const h=Number(m.score.fullTime.home)||0,a=Number(m.score.fullTime.away)||0;
       current[m.id]={home:h,away:a,match:m};
       const previous=state.knownScores[m.id];
@@ -852,10 +897,10 @@
     });
     // Ne pas sonner au premier chargement : il sert de référence initiale.
     state.knownScores=current;
-    state.liveMatches=collected;state.liveReady=true;
+    state.liveMatches=allLive;state.liveReady=true;
     renderLiveMatches();renderWomenMatches();
     setText('live-updated','Dernière vérification : '+timeFmt.format(new Date())+' · actualisation automatique environ toutes les 90 secondes');
-    const liveCount=collected.filter(m=>isLiveStatus(m.status)).length;
+    const liveCount=allLive.filter(m=>isLiveStatus(m.status)).length;
     setText('live-count',String(liveCount));
   }
   const NEWS_LANGS={fr:'fr',en:'en',es:'es',pt:'pt',de:'de',it:'it',ar:'ar'};
