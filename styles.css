@@ -489,3 +489,16 @@ button,.bottom-nav a,.install-button,.tv-watch-button,.club-search-button,.date-
 .settings-controls select,.analysis-workspace select,.league-select,.club-select,.club-search,.language-settings select,.topbar-tools select{min-height:48px;padding:12px 14px;font-size:14px}
 .scoreboard-datebar{padding:11px}
 @media(max-width:390px){.bottom-nav{grid-template-columns:repeat(8,minmax(68px,1fr))}.bottom-nav a{min-width:68px}.bottom-nav a span{font-size:10px}.section h2{font-size:27px}}
+
+/* Match centre: league favorites and separate women's fixtures */
+.competition-heading-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:14px 0 7px;padding:8px 10px;background:#fff;border:1px solid var(--line);border-radius:10px}
+.competition-heading-row .competition-heading{margin:0;flex:1;background:transparent;border:0;padding:0}
+.competition-favorite{flex:0 0 42px;min-width:42px;min-height:42px;border:1px solid #d8c69d;border-radius:10px;background:#fff8e8;color:#8a610f;font-size:23px;font-weight:800}
+.competition-favorite.is-favorite{background:#fff0c9;color:#8b5e08;border-color:#c59b42}
+.favorite-competitions{margin:12px 0 16px;padding:12px;background:#fff;border:1px solid var(--line);border-radius:12px}
+.favorite-competitions>strong{display:block;color:#8a610f;font-size:11px;letter-spacing:.8px;margin-bottom:8px}
+#favorite-competition-chips{display:flex;gap:7px;flex-wrap:wrap}
+.favorite-chip{min-height:40px;padding:8px 12px;border:1px solid #d7c18e;border-radius:22px;background:#fff7e5;color:#79540e;font-size:12px;font-weight:700}
+#page-women .section-heading{align-items:center}
+#page-women .live-summary{margin:0}
+@media(max-width:700px){.bottom-nav{justify-content:flex-start}.bottom-nav a{flex:0 0 68px}.scoreboard-filters{padding-bottom:5px}.competition-favorite{min-height:44px}}
