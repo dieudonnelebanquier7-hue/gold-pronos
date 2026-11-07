@@ -1,207 +1,30 @@
-name: Deploy Gold Pronos with football data
+name: Deploy GOLD PRONOS
 on:
   push:
     branches: [main]
   workflow_dispatch:
-  schedule:
-    - cron: '0 */6 * * *'
-concurrency:
-  group: gold-pronos-pages
-  cancel-in-progress: true
 permissions:
   contents: read
   pages: write
   id-token: write
+concurrency:
+  group: gold-pronos-pages
+  cancel-in-progress: true
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Validate JavaScript syntax
-        run: |
-          node --check app.js
-          node --check i18n.js
-      - name: Fetch fixtures from all available competitions
-        env:
-          FOOTBALL_DATA_TOKEN: ${{ secrets.FOOTBALL_DATA_TOKEN }}
-          API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
-        run: |
-          PAST_FROM=$(date -u -d '-365 days' +%F)
-          TODAY=$(date -u +%F)
-          FUTURE_TO=$(date -u -d '+6 days' +%F)
-          mkdir -p data-fetch
-          if [ -n "$FOOTBALL_DATA_TOKEN" ]; then
-            # football-data.org rejects oversized date ranges: split history into 10-day windows.
-            CURSOR="$PAST_FROM"
-            INDEX=0
-            while [[ "$CURSOR" < "$TODAY" ]]; do
-              CHUNK_TO=$(date -u -d "$CURSOR +9 days" +%F)
-              if [[ "$CHUNK_TO" > "$TODAY" ]]; then CHUNK_TO="$TODAY"; fi
-              FILE=$(printf 'data-fetch/football-data-past-%02d.json' "$INDEX")
-              CODE=$(curl --silent --show-error --output "$FILE" --write-out "%{http_code}" --get "https://api.football-data.org/v4/matches" --data-urlencode "dateFrom=$CURSOR" --data-urlencode "dateTo=$CHUNK_TO" --header "X-Auth-Token: $FOOTBALL_DATA_TOKEN" || true)
-              if [ "$CODE" != "200" ]; then echo "football-data.org historique $CURSOR à $CHUNK_TO indisponible (HTTP $CODE)."; fi
-              CURSOR=$(date -u -d "$CHUNK_TO +1 day" +%F)
-              INDEX=$((INDEX+1))
-              sleep 6
-            done
-            FUTURE_CODE=$(curl --silent --show-error --output data-fetch/football-data-future.json --write-out "%{http_code}" --get "https://api.football-data.org/v4/matches" --data-urlencode "dateFrom=$TODAY" --data-urlencode "dateTo=$FUTURE_TO" --header "X-Auth-Token: $FOOTBALL_DATA_TOKEN" || true)
-            if [ "$FUTURE_CODE" != "200" ]; then echo "football-data.org période future indisponible (HTTP $FUTURE_CODE)."; fi
-          fi
-          if [ -n "$API_FOOTBALL_KEY" ]; then
-            API_CODE=$(curl --silent --show-error --output data-fetch/api-football.json --write-out "%{http_code}" --get "https://v3.football.api-sports.io/fixtures" --data-urlencode "from=$TODAY" --data-urlencode "to=$FUTURE_TO" --data-urlencode "timezone=Africa/Porto-Novo" --header "x-apisports-key: $API_FOOTBALL_KEY" || true)
-            if [ "$API_CODE" != "200" ]; then echo "API-Football indisponible (HTTP $API_CODE)."; fi
-          else
-            echo "API-Football non configuré : ajouter le secret GitHub API_FOOTBALL_KEY pour activer cette source complémentaire."
-          fi
-          node <<'NODE'
-          const fs = require('fs');
-          const today = new Date(); today.setUTCHours(0,0,0,0);
-          const pastFrom = new Date(today); pastFrom.setUTCDate(pastFrom.getUTCDate()-365);
-          const futureTo = new Date(today); futureTo.setUTCDate(futureTo.getUTCDate()+6);
-          const ymd = d => d.toISOString().slice(0,10).replace(/-/g,'');
-          const analysisRange = ymd(pastFrom)+'-'+ymd(futureTo);
-          const leagues = [
-            ['caf.champions','CAF Champions League'],['caf.confed','CAF Confederation Cup'],['caf.nations','Africa Cup of Nations'],['fifa.worldq.caf','FIFA World Cup Qualifying CAF'],['rsa.1','South African Premiership'],['nga.1','Nigeria Premier League'],['gha.1','Ghana Premier League'],['eng.1','Premier League'],['eng.2','Championship'],['esp.1','La Liga'],['esp.2','Segunda División'],
-            ['ger.1','Bundesliga'],['ita.1','Serie A'],['fra.1','Ligue 1'],['ned.1','Eredivisie'],['por.1','Primeira Liga'],
-            ['tur.1','Süper Lig'],['nor.1','Eliteserien'],['swe.1','Allsvenskan'],['sui.1','Swiss Super League'],
-            ['ksa.1','Saudi Pro League'],['cze.1','Czech First League'],['usa.1','MLS'],['rou.1','Liga I'],
-            ['rus.1','Russian Premier League'],['chn.1','Chinese Super League'],['jpn.1','J1 League'],['bra.1','Brasileirão'],
-            ['arg.1','Liga Profesional Argentina'],['mex.1','Liga MX'],['uefa.champions','Ligue des champions'],
-            ['uefa.europa','Ligue Europa'],['uefa.europa.conf','Ligue Conférence'],['afc.champions','Ligue des champions AFC'],
-            ['fifa.world','Compétitions FIFA'],['fifa.worldq.caf','Qualifications Coupe du monde Afrique'],['uefa.wchampions','Ligue des championnes UEFA'],['usa.nwsl','NWSL · États-Unis'],['usa.nwsl.cup','NWSL Challenge Cup · États-Unis'],['usa.usl.w.1','USL Super League · États-Unis'],['usa.ncaa.w.1','Championnat universitaire féminin · États-Unis'],['eng.w.1','Women’s Super League · Angleterre'],['esp.w.1','Liga F · Espagne'],['fra.w.1','Première Ligue · France'],['ned.w.1','Eredivisie féminine · Pays-Bas'],['aus.w.1','A-League Women · Australie'],['can.w.nsl','Northern Super League · Canada'],['concacaf.w.gold','Gold Cup féminine · CONCACAF'],['concacaf.w.champions_cup','Ligue des championnes CONCACAF'],['conmebol.america.femenina','Copa América féminine'],['fifa.wwc','Coupe du monde féminine'],['conmebol.libertadores','Copa Libertadores'],['conmebol.sudamericana','Copa Sudamericana'],['concacaf.champions','Ligue des champions CONCACAF'],['afc.cup','Ligue des champions AFC 2']
-          ];
-          const sleep = ms => new Promise(r=>setTimeout(r,ms));
-          async function fetchLeague([code,label], year) {
-            try {
-              const url='https://site.api.espn.com/apis/site/v2/sports/soccer/'+code+'/scoreboard?dates='+year+'&limit=500';
-              const response=await fetch(url,{signal:AbortSignal.timeout(20000)});
-              if(!response.ok) { console.log('ESPN '+code+' indisponible pour '+year+' : HTTP '+response.status); return []; }
-              const data=await response.json();
-              const windowStart=pastFrom.getTime(), windowEnd=futureTo.getTime()+86400000;
-              const events=(data.events||[]).filter(event=>{const t=new Date(event.date).getTime();return Number.isFinite(t)&&t>=windowStart&&t<windowEnd;});
-              if(!events.length) console.log('ESPN '+code+' : aucun événement dans la fenêtre '+ymd(pastFrom)+'-'+ymd(futureTo));
-              return events.map(event=>{
-                const comp=event.competitions?.[0];
-                const competitors=comp?.competitors||[];
-                const home=competitors.find(t=>t.homeAway==='home')||competitors[0];
-                const away=competitors.find(t=>t.homeAway==='away')||competitors[1];
-                if(!home||!away) return null;
-                const st=comp.status?.type||event.status?.type||{};
-                const state=st.state;
-                const status=st.completed?'FINISHED':state==='in'?'IN_PLAY':state==='post'?'FINISHED':'SCHEDULED';
-                const homeScore=home.score==null?null:Number(home.score);
-                const awayScore=away.score==null?null:Number(away.score);
-                const readCorners=team=>{
-                  const stats=team?.statistics;
-                  const list=Array.isArray(stats)?stats:Object.entries(stats||{}).map(([name,value])=>({name,value}));
-                  const item=list.find(x=>/corner/i.test(String(x.name||x.displayName||x.abbreviation||'')));
-                  if(!item)return null;
-                  const raw=item.value??item.displayValue??item.displayValue;
-                  const value=Number(String(raw??'').replace(',','.').match(/-?\d+(?:\.\d+)?/)?.[0]);
-                  return Number.isFinite(value)&&value>=0?value:null;
-                };
-                return {id:'espn-'+event.id,utcDate:event.date,status,competition:{name:event.league?.name||data.leagues?.[0]?.name||label,code:'ESPN-'+code},homeTeam:{name:home.team?.displayName||home.team?.name||'Équipe domicile'},awayTeam:{name:away.team?.displayName||away.team?.name||'Équipe extérieure'},score:{fullTime:{home:homeScore,away:awayScore}},statistics:{homeCorners:readCorners(home),awayCorners:readCorners(away)},matchday:null,source:'ESPN'};
-              }).filter(Boolean);
-            } catch(e) { console.log('Compétition ignorée '+code+': '+e.message); return []; }
-          }
-          (async()=>{
-            let official=[];
-            for (const file of fs.readdirSync('data-fetch').filter(name=>name.startsWith('football-data-past-')).map(name=>'data-fetch/'+name).concat(['data-fetch/football-data-future.json'])) {
-              if(fs.existsSync(file)) {
-                try { const d=JSON.parse(fs.readFileSync(file,'utf8')); official.push(...(d.matches||[])); }
-                catch(e) { console.log('Réponse football-data.org illisible dans '+file); }
-              }
-            }
-            const apiFootball=[];
-            if(fs.existsSync('data-fetch/api-football.json')) {
-              try {
-                const payload=JSON.parse(fs.readFileSync('data-fetch/api-football.json','utf8'));
-                for(const item of payload.response||[]) {
-                  const f=item.fixture||{}, teams=item.teams||{}, goals=item.goals||{}, score=item.score||{}, league=item.league||{};
-                  const status=f.status?.short;
-                  const finished=['FT','AET','PEN'].includes(status);
-                  const live=['1H','2H','HT','ET','P','LIVE','BT'].includes(status);
-                  if(!f.date||!teams.home?.name||!teams.away?.name) continue;
-                  apiFootball.push({id:'api-football-'+f.id,utcDate:f.date,status:finished?'FINISHED':live?'IN_PLAY':['PST','CANC','ABD','AWD','WO'].includes(status)?'POSTPONED':'SCHEDULED',competition:{name:league.name||'Compétition',code:'API-'+league.id},homeTeam:{name:teams.home.name},awayTeam:{name:teams.away.name},score:{fullTime:{home:score.fulltime?.home??(finished?goals.home:null),away:score.fulltime?.away??(finished?goals.away:null)}},statistics:{homeCorners:null,awayCorners:null},matchday:league.round||null,source:'API-Football'});
-                }
-              } catch(e) { console.log('Réponse API-Football illisible : '+e.message); }
-            }
-            const supplemental=[];
-            const years=[...new Set([pastFrom.getUTCFullYear(),futureTo.getUTCFullYear()])];
-            const requests=leagues.flatMap(league=>years.map(year=>[league,year]));
-            for(let i=0;i<requests.length;i+=5) {
-              const batch=await Promise.all(requests.slice(i,i+5).map(([league,year])=>fetchLeague(league,year)));
-              supplemental.push(...batch.flat());
-              await sleep(250);
-            }
-            const openLigaDB=[];
-            for(const year of years) {
-              try {
-                const response=await fetch('https://api.openligadb.de/getavailableleagues/'+year,{signal:AbortSignal.timeout(12000)});
-                if(!response.ok)throw new Error('HTTP '+response.status);
-                const available=await response.json();
-                const selected=(Array.isArray(available)?available:[]).filter(l=>/premier league|laliga|la liga|bundesliga|serie a|ligue 1|eredivisie|champions league|europa league|conference league|frauen|women/i.test(String(l.leagueName||''))).slice(0,14);
-                for(let i=0;i<selected.length;i+=5) {
-                  const batch=await Promise.all(selected.slice(i,i+5).map(async league=>{
-                    try {
-                      const shortcut=encodeURIComponent(league.leagueShortcut||'');
-                      const season=Number(league.leagueSeason)||year;
-                      if(!shortcut)return [];
-                      const r=await fetch('https://api.openligadb.de/getmatchdata/'+shortcut+'/'+season,{signal:AbortSignal.timeout(18000)});
-                      if(!r.ok)return [];
-                      const list=await r.json();
-                      return (Array.isArray(list)?list:[]).map(m=>{
-                        const home=m.team1?.teamName,away=m.team2?.teamName,date=m.matchDateTimeUTC||m.matchDateTime;
-                        if(!home||!away||!date)return null;
-                        const ordered=(Array.isArray(m.matchResults)?m.matchResults:[]).slice().sort((a,b)=>Number(b.resultOrderID||0)-Number(a.resultOrderID||0));
-                        const chosen=ordered.find(x=>/final|endergebnis|after90|afterextra|afterpenalt/i.test(String(x.resultName||x.resultTypeName||x.resultTypeKind||'')))||ordered[0];
-                        const sh=chosen?.pointsTeam1,sa=chosen?.pointsTeam2;
-                        const hasScore=sh!=null&&sa!=null&&Number.isFinite(Number(sh))&&Number.isFinite(Number(sa));
-                        const kickoff=new Date(date).getTime(),finished=Boolean(m.matchIsFinished);
-                        const status=finished?'FINISHED':(kickoff<=Date.now()&&hasScore?'IN_PLAY':'SCHEDULED');
-                        const events=(Array.isArray(m.goals)?m.goals:[]).map(g=>({minute:g.matchMinute??null,player:g.goalGetterName||'Buteur non communiqué',type:g.isPenalty?'Penalty':g.isOwnGoal?'But contre son camp':'But'}));
-                        return {id:'openligadb-'+m.matchID,utcDate:date,status,competition:{name:m.leagueName||league.leagueName||'Compétition',code:'OPENLIGA-'+(league.leagueShortcut||'')},homeTeam:{name:home},awayTeam:{name:away},score:{fullTime:{home:hasScore?Number(sh):null,away:hasScore?Number(sa):null}},events,source:'OpenLigaDB'};
-                      }).filter(m=>m&&new Date(m.utcDate)>=pastFrom&&new Date(m.utcDate)<futureTo.getTime()+86400000);
-                    } catch(e){console.log('OpenLigaDB '+(league.leagueName||'ligue')+' indisponible : '+e.message);return [];}
-                  }));
-                  openLigaDB.push(...batch.flat());
-                  await sleep(300);
-                }
-              } catch(e){console.log('OpenLigaDB catalogue '+year+' indisponible : '+e.message);}
-            }
-            const key=m=>[m.utcDate?.slice(0,16),m.homeTeam?.name?.toLowerCase(),m.awayTeam?.name?.toLowerCase()].join('|');
-            const merged=new Map();
-            for(const m of supplemental) merged.set(key(m),m);
-            for(const m of openLigaDB) merged.set(key(m),m);
-            for(const m of apiFootball) merged.set(key(m),m);
-            for(const m of official) merged.set(key(m),m);
-            const matches=[...merged.values()].filter(m=>m.utcDate && m.homeTeam?.name && m.awayTeam?.name).sort((a,b)=>new Date(a.utcDate)-new Date(b.utcDate));
-            const hasScore=m=>m.score?.fullTime?.home!==null && m.score?.fullTime?.home!==undefined && m.score?.fullTime?.away!==null && m.score?.fullTime?.away!==undefined && Number.isFinite(Number(m.score.fullTime.home)) && Number.isFinite(Number(m.score.fullTime.away));
-            const historyMatches=matches.filter(m=>m.status==='FINISHED' && hasScore(m)).length;
-            const result={generatedAt:new Date().toISOString(),sources:{footballData:official.length,espn:supplemental.length,apiFootball:apiFootball.length,openLigaDB:openLigaDB.length,historyMatches},matches};
-            if(!matches.length) throw new Error('Aucun match reçu : arrêt du déploiement pour ne pas publier un calendrier vide.');
-            fs.writeFileSync('matches.json',JSON.stringify(result));
-            console.log('Calendrier consolidé : '+official.length+' football-data.org + '+apiFootball.length+' API-Football + '+openLigaDB.length+' OpenLigaDB + '+supplemental.length+' ESPN secours = '+matches.length+' matchs uniques, dont '+historyMatches+' résultats terminés avec score.');
-            console.log('Contrôle qualité : '+matches.length+' matchs, JSON valide, collecte '+result.generatedAt);
-          })().catch(e=>{console.error(e);process.exit(1)});
-          NODE
-      - name: Verify generated fixtures and historical results
-        run: |
-          node -e "const d=JSON.parse(require('fs').readFileSync('matches.json','utf8')); if(!Array.isArray(d.matches)||!d.matches.length) throw new Error('No fixtures generated'); const h=Number(d.sources?.historyMatches||0); if(h<3) throw new Error('Historical results unavailable: '+h); console.log(d.matches.length+' fixtures and '+h+' completed results validated');"
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-      - name: Upload site
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: .
   deploy:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    needs: build
     steps:
-      - name: Deploy
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Upload static application
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - name: Publish application
         id: deployment
         uses: actions/deploy-pages@v4
