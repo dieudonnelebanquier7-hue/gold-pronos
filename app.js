@@ -706,7 +706,7 @@
     const pageId=['page-accueil','page-matches','page-women','page-live','page-tv','page-leagues','page-clubs','page-news','page-analysis','page-vip','page-settings'].includes(id)?id:'page-accueil';
     document.querySelectorAll('.app-page').forEach(page=>page.classList.toggle('active',page.id===pageId));
     document.querySelectorAll('.bottom-nav a[data-page]').forEach(link=>link.classList.toggle('active',link.dataset.page===pageId));
-    if(pageId==='page-live')fetchLiveScores();
+    if(pageId==='page-live' && (!state.liveReady || Date.now()-(state.lastLiveFetchAt||0)>30000))fetchLiveScores();
     if(pageId==='page-leagues')loadLeagueHub();
     if(pageId==='page-clubs')initClubHub();
     if(pageId==='page-news')loadFootballNews();
@@ -860,26 +860,27 @@
     if(document.visibilityState==='hidden')return;
     const today=new Date().toISOString().slice(0,10).replace(/-/g,'');
     const collected=[];
-    for(let i=0;i<LIVE_LEAGUES.length;i+=7) {
-      const batch=await Promise.all(LIVE_LEAGUES.slice(i,i+7).map(async ([code,label])=>{
-        try {
-          const response=await fetch(ESPN_BASE+code+'/scoreboard?dates='+today,{cache:'no-store',signal:AbortSignal.timeout(10000)});
-          if(!response.ok)return [];
-          const data=await response.json();
-          return (data.events||[]).map(event=>{
-            const comp=event.competitions?.[0],teams=comp?.competitors||[];
-            const h=teams.find(t=>t.homeAway==='home')||teams[0],a=teams.find(t=>t.homeAway==='away')||teams[1];
-            if(!h||!a)return null;
-            const statusType=comp.status?.type||event.status?.type||{};
-            const status=statusType.completed?'FINISHED':statusType.state==='in'?'IN_PLAY':statusType.state==='post'?'FINISHED':'SCHEDULED';
-            return {id:String(event.id),utcDate:event.date,status,statusDetail:comp.status?.displayClock||statusType.detail||statusType.description||'EN DIRECT',competition:{name:event.league?.name||data.leagues?.[0]?.name||label},officials:(comp.officials||[]).map(o=>({name:o.fullName||o.displayName||o.name||'Arbitre',role:o.position?.name||o.position||o.displayName||'Officiel',nationality:o.nationality||o.country?.name||'',headshot:o.headshot?.href||o.headshot?.url||''})),homeTeam:{name:h.team?.displayName||h.team?.name||'Domicile'},awayTeam:{name:a.team?.displayName||a.team?.name||'Extérieur'},score:{fullTime:{home:h.score==null?0:Number(h.score),away:a.score==null?0:Number(a.score)}}};
-          }).filter(Boolean);
-        } catch(e){return [];}
-      }));
-      collected.push(...batch.flat());
-    }
-    const openLigaMatches=await fetchOpenLigaLive();
-    const combined=[...collected,...openLigaMatches];
+    // Une seule vague de requêtes parallèles : pas d'attente entre groupes de championnats.
+    const batches=await Promise.all(LIVE_LEAGUES.map(async ([code,label])=>{
+      try {
+        const response=await fetch(ESPN_BASE+code+'/scoreboard?dates='+today,{cache:'no-store',signal:AbortSignal.timeout(7000)});
+        if(!response.ok)return [];
+        const data=await response.json();
+        return (data.events||[]).map(event=>{
+          const comp=event.competitions?.[0],teams=comp?.competitors||[];
+          const h=teams.find(t=>t.homeAway==='home')||teams[0],a=teams.find(t=>t.homeAway==='away')||teams[1];
+          if(!h||!a)return null;
+          const statusType=comp.status?.type||event.status?.type||{};
+          const status=statusType.completed?'FINISHED':statusType.state==='in'?'IN_PLAY':statusType.state==='post'?'FINISHED':'SCHEDULED';
+          return {id:String(event.id),utcDate:event.date,status,statusDetail:comp.status?.displayClock||statusType.detail||statusType.description||'EN DIRECT',competition:{name:event.league?.name||data.leagues?.[0]?.name||label},officials:(comp.officials||[]).map(o=>({name:o.fullName||o.displayName||o.name||'Arbitre',role:o.position?.name||o.position||o.displayName||'Officiel',nationality:o.nationality||o.country?.name||'',headshot:o.headshot?.href||o.headshot?.url||''})),homeTeam:{name:h.team?.displayName||h.team?.name||'Domicile'},awayTeam:{name:a.team?.displayName||a.team?.name||'Extérieur'},score:{fullTime:{home:h.score==null?0:Number(h.score),away:a.score==null?0:Number(a.score)}}};
+        }).filter(Boolean);
+      } catch(e){return [];}
+    }));
+    collected.push(...batches.flat());
+    // Le flux principal de calendrier fournit déjà les compétitions disponibles ;
+    // éviter ici des dizaines de requêtes OpenLigaDB qui ralentissaient l'ouverture.
+    const openLigaMatches=[];
+    const combined=[...collected];
     const unique=new Map();
     combined.forEach(m=>{const key=[String(m.utcDate||'').slice(0,16),normalizeName(teamName(m.homeTeam)),normalizeName(teamName(m.awayTeam))].join('|');if(!unique.has(key)||m.source==='OpenLigaDB')unique.set(key,m);});
     const allLive=[...unique.values()];
@@ -893,7 +894,7 @@
     });
     // Ne pas sonner au premier chargement : il sert de référence initiale.
     state.knownScores=current;
-    state.liveMatches=allLive;state.liveReady=true;
+    state.liveMatches=allLive;state.liveReady=true;state.lastLiveFetchAt=Date.now();
     renderLiveMatches();renderWomenMatches();
     setText('live-updated','Dernière vérification : '+timeFmt.format(new Date())+' · actualisation automatique environ toutes les 90 secondes');
     const liveCount=allLive.filter(m=>isLiveStatus(m.status)).length;
@@ -1050,10 +1051,11 @@
   window.addEventListener('popstate',()=>showPage(location.hash.slice(1)));
   const analysisSelect=$('analysis-match-select');if(analysisSelect)analysisSelect.addEventListener('change',renderAnalysisPicker);
   showPage(location.hash.slice(1)||'page-accueil');
-  setText('today',dateFmt.format(new Date()));loadMatches();fetchLiveScores();loadFootballNews();
-  setInterval(fetchLiveScores,90000);
-  setInterval(loadFootballNews,900000);
-  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){fetchLiveScores();}});
+  setText('today',dateFmt.format(new Date()));loadMatches();
+  // Les flux secondaires ne doivent pas ralentir l'accueil : chargement à la demande.
+  setInterval(()=>{if(document.visibilityState==='visible'&&document.getElementById('page-live')?.classList.contains('active'))fetchLiveScores();},90000);
+  setInterval(()=>{if(document.visibilityState==='visible'&&document.getElementById('page-news')?.classList.contains('active'))loadFootballNews();},900000);
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&document.getElementById('page-live')?.classList.contains('active'))fetchLiveScores();});
   // Installation multiplateforme : fenêtre native quand disponible, instructions adaptées sinon.
   let deferredInstallPrompt=null;
   const installButton=$('install-app-btn'),installStatus=$('install-status');
