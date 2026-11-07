@@ -502,3 +502,51 @@ button,.bottom-nav a,.install-button,.tv-watch-button,.club-search-button,.date-
 #page-women .section-heading{align-items:center}
 #page-women .live-summary{margin:0}
 @media(max-width:700px){.bottom-nav{justify-content:flex-start}.bottom-nav a{flex:0 0 68px}.scoreboard-filters{padding-bottom:5px}.competition-favorite{min-height:44px}}
+
+
+/* GOLD PRONOS — disposition universelle mobile, tablette et ordinateur */
+.skip-link{position:absolute;left:12px;top:-60px;z-index:30;padding:12px 16px;border-radius:8px;background:#c79a3d;color:#17120a;font-weight:800}
+.skip-link:focus{top:12px}
+.install-grid{display:grid;grid-template-columns:1fr;gap:12px}
+.install-card{min-width:0}
+.install-card p,.install-card li,.install-card small{line-height:1.65;overflow-wrap:anywhere}
+img,iframe,video{max-width:100%}
+button,a,select,input{touch-action:manipulation}
+@media(min-width:700px) and (max-width:999px){
+  main{max-width:900px;margin-inline:auto;padding-inline:22px}
+  .topbar{padding-inline:22px}
+  .install-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .section{padding-inline:0}
+  .summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .match-list,.live-list,.news-list{max-width:100%}
+}
+@media(min-width:1000px){
+  body{padding-bottom:24px}
+  .topbar{position:sticky;top:0;z-index:10;padding-inline:220px 32px;min-height:78px}
+  main{width:auto;max-width:1500px;margin:0 28px 0 220px;padding:0 26px 48px}
+  .bottom-nav{position:fixed;top:78px;bottom:0;left:0;right:auto;width:190px;display:flex;flex-direction:column;justify-content:flex-start;align-items:stretch;gap:6px;overflow-y:auto;overflow-x:hidden;padding:18px 10px calc(18px + env(safe-area-inset-bottom));border-top:0;border-right:1px solid var(--line);background:rgba(255,255,255,.98)}
+  .bottom-nav a{flex:0 0 auto;width:100%;min-width:0;min-height:48px;flex-direction:row;justify-content:flex-start;gap:13px;padding:10px 13px;border-radius:9px;font-size:19px}
+  .bottom-nav a span{font-size:13px;letter-spacing:0;font-weight:750}
+  .bottom-nav a.active{background:#fff4d9;color:#79540e}
+  .hero{padding:54px 34px 40px;border-radius:0 0 18px 18px}
+  .hero h1{font-size:clamp(42px,5vw,66px)}
+  .hero-copy{max-width:720px}
+  .section{padding:24px 0}
+  .install-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .install-card{padding:22px}
+  .summary-grid{grid-template-columns:repeat(2,minmax(220px,1fr));padding-inline:0}
+  .league-leaders-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tv-info-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .analysis-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .match-list,.live-list,.news-list,.club-results{max-width:1120px}
+  .scoreboard-filters{grid-template-columns:repeat(5,minmax(0,1fr))}
+  .scoreboard-datebar{max-width:760px}
+  .scoreboard-datebar,.favorite-competitions,.match-competition-filter{max-width:900px}
+}
+@media(min-width:1500px){
+  main{margin-left:230px;margin-right:40px}
+  .topbar{padding-left:230px;padding-right:40px}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
