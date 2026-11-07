@@ -128,71 +128,38 @@
   }
   function addLine(parent,label,value) { const row=document.createElement('div'); row.className='analysis-stat'; const a=document.createElement('span');a.textContent=label;const b=document.createElement('strong');b.textContent=value;row.append(a,b);parent.append(row); }
   function createAnalysis(match) {
-    const panel=document.createElement('section');panel.className='match-analysis';panel.setAttribute('aria-label','Analyse du match');
-    const title=document.createElement('h3');title.textContent='ANALYSE · '+teamName(match.homeTeam)+' – '+teamName(match.awayTeam);panel.append(title);
+    const panel=document.createElement('section');panel.className='match-analysis match-analysis-compact';panel.setAttribute('aria-label','Analyse rapide du match');
+    const title=document.createElement('h3');title.textContent='ANALYSE RAPIDE';panel.append(title);
     const result=analyze(match);
-    if(!result.ready) {
-      const msg=document.createElement('p');msg.className='analysis-warning';msg.textContent=result.reason+' Aucun pronostic ne sera inventé. La collecte actuelle ne fournit pas encore un historique assez long.';panel.append(msg);
-      addLine(panel,'Résultats récents disponibles',result.homeRows.length+' · '+result.awayRows.length);
+    const teams=document.createElement('p');teams.className='analysis-compact-teams';teams.textContent=teamName(match.homeTeam)+' – '+teamName(match.awayTeam);panel.append(teams);
+    if(!result.ready){
+      const msg=document.createElement('p');msg.className='analysis-warning';msg.textContent='Analyse indisponible : '+result.reason+' Données insuffisantes pour afficher des pronostics fiables.';panel.append(msg);
       return panel;
     }
-    const quick=document.createElement('div');quick.className='analysis-quick-summary';
-    const quickLabel=document.createElement('span');quickLabel.className='quick-label';quickLabel.textContent='RÉSUMÉ RAPIDE';quick.append(quickLabel);
-    const quickPick=document.createElement('strong');quickPick.className='quick-pick';
-    const best=result.best;
-    if(best&&best[1]>=state.settings.threshold) quickPick.textContent=best[0]+' · '+pct(best[1]);
-    else quickPick.textContent='Aucun signal ne dépasse le seuil choisi';
-    quick.append(quickPick);
-    const quickMeta=document.createElement('span');quickMeta.className='quick-meta';quickMeta.textContent='Confiance '+result.confidence+' · '+result.homeRows.length+' / '+result.awayRows.length+' matchs analysés';quick.append(quickMeta);
-    panel.append(quick);
-    const details=document.createElement('details');details.className='analysis-details';
-    const summary=document.createElement('summary');summary.textContent='Voir l’analyse détaillée';details.append(summary);
-    const intro=document.createElement('p');intro.className='analysis-intro';intro.textContent='Estimation statistique indicative basée sur '+result.homeRows.length+' matchs de '+teamName(match.homeTeam)+' et '+result.awayRows.length+' de '+teamName(match.awayTeam)+'.';details.append(intro);
-    const grid=document.createElement('div');grid.className='analysis-stats';
-    addLine(grid,'Buts moyens domicile (équipe 1)',result.homeRows.length?average(result.homeRows,'gf').toFixed(2):'—');
-    addLine(grid,'Buts encaissés moyens (équipe 1)',average(result.homeRows,'ga').toFixed(2));
-    addLine(grid,'Buts moyens (équipe 2)',average(result.awayRows,'gf').toFixed(2));
-    addLine(grid,'Buts encaissés moyens (équipe 2)',average(result.awayRows,'ga').toFixed(2));
-    details.append(grid);
-    const expected=document.createElement('p');expected.className='analysis-intro';expected.textContent='Buts attendus par le modèle : '+result.homeLambda.toFixed(2)+' – '+result.awayLambda.toFixed(2)+' (total '+result.probs.expectedGoals.toFixed(2)+'). Le +2,5 est calculé sur le total attendu, pas sur une cote bookmaker.';details.append(expected);
-    const markets=document.createElement('div');markets.className='probability-grid';
-    [['1',result.markets.home],['N',result.markets.draw],['2',result.markets.away],['1X',result.markets.homeOrDraw],['X2',result.markets.awayOrDraw],['12',result.markets.noDraw],['+1,5 buts',result.markets.over15],['+2,5 buts',result.markets.over25],['+3,5 buts',result.markets.over35],['BTTS',result.markets.btts]].forEach(([label,value])=>{const cell=document.createElement('div');cell.className='probability-cell';const strong=document.createElement('strong');strong.textContent=pct(value);const small=document.createElement('span');small.textContent=label;cell.append(strong,small);markets.append(cell);});
-    details.append(markets);
-    const picks=document.createElement('div');picks.className='analysis-picks';
-    const picksTitle=document.createElement('h4');picksTitle.textContent='MARCHÉS À ÉTUDIER';picks.append(picksTitle);
-    const pickOptions=[
-      ['1X · '+teamName(match.homeTeam)+' ou nul',result.markets.homeOrDraw],
-      ['X2 · '+teamName(match.awayTeam)+' ou nul',result.markets.awayOrDraw],
-      ['12 · Pas de match nul',result.markets.noDraw],
-      ['Plus de 1,5 but',result.markets.over15],['Plus de 2,5 buts',result.markets.over25],
-      ['Plus de 3,5 buts',result.markets.over35],['Victoire '+teamName(match.homeTeam),result.markets.home],
-      ['Match nul',result.markets.draw],['Victoire '+teamName(match.awayTeam),result.markets.away]
-    ].filter(x=>x[1]>=state.settings.threshold).sort((a,b)=>b[1]-a[1]);
-    if(pickOptions.length)pickOptions.forEach(([label,value])=>addLine(picks,label,pct(value)+' · seuil choisi : '+pct(state.settings.threshold)));
-    else {const none=document.createElement('p');none.className='analysis-warning';none.textContent='Aucun marché ne dépasse le seuil indicatif de 65 %.';picks.append(none);}
-    if(result.cornerMarkets) {
-      const c=result.cornerMarkets;
-      [['Corners attendus (domicile)',c.expectedHomeCorners],['Corners attendus (extérieur)',c.expectedAwayCorners],['Total corners attendu',c.expectedTotalCorners],['+7,5 corners',c.over75],['+8,5 corners',c.over85],['+9,5 corners',c.over95],['+10,5 corners',c.over105]].forEach(([label,value])=>addLine(picks,label,typeof value==='number'&&value<=1?pct(value):Number(value).toFixed(2)));
-      const note=document.createElement('p');note.className='analysis-warning';note.textContent='Estimation corners issue de '+c.sample+' observations récentes avec statistiques disponibles. À interpréter avec prudence.';picks.append(note);
-    } else {
-      const cornerNote=document.createElement('p');cornerNote.className='analysis-warning';cornerNote.textContent='Corners : la source ne fournit pas encore au moins 5 matchs avec statistiques complètes pour chaque équipe. Aucun pourcentage corners ne sera inventé.';picks.append(cornerNote);
-    }
-    details.append(picks);
-    const form=document.createElement('p');form.className='analysis-intro';form.textContent='Forme sur les '+result.homeRows.length+' derniers matchs : '+teamName(match.homeTeam)+' ('+result.homeRows.slice(0,5).map(r=>r.form).join(' · ')+') ; '+teamName(match.awayTeam)+' ('+result.awayRows.slice(0,5).map(r=>r.form).join(' · ')+').';details.append(form);
-    const recent=document.createElement('div');recent.className='analysis-recent';
-    const recentTitle=document.createElement('h4');recentTitle.textContent='DERNIERS RÉSULTATS VÉRIFIÉS';recent.append(recentTitle);
-    [[teamName(match.homeTeam),result.homeRows],[teamName(match.awayTeam),result.awayRows]].forEach(([name,rows])=>{
-      const teamTitle=document.createElement('p');teamTitle.className='analysis-team-title';teamTitle.textContent=name;recent.append(teamTitle);
-      rows.slice(0,5).forEach(r=>addLine(recent,formatDate(r.date)+' · '+(r.home?'Domicile':'Extérieur')+' vs '+r.opponent,r.gf+' – '+r.ga+' ('+r.form+')'));
-    });
-    details.append(recent);
-    const venue=document.createElement('p');venue.className='analysis-intro';venue.textContent='Échantillons domicile/extérieur utilisés : '+result.homeVenueCount+' match(s) à domicile pour '+teamName(match.homeTeam)+' et '+result.awayVenueCount+' à l’extérieur pour '+teamName(match.awayTeam)+'.';details.append(venue);
-    const pick=document.createElement('p');pick.className='analysis-pick';pick.textContent=pickOptions.length?'Marchés à examiner classés par probabilité estimée ; aucun pari n’est garanti.':'Aucun signal ne dépasse le seuil retenu pour cette rencontre.';details.append(pick);
-    const caution=document.createElement('p');caution.className='analysis-warning';caution.textContent='Confiance : '+result.confidence+'. Modèle Poisson simplifié fondé sur les scores historiques chargés. Il ne connaît pas automatiquement blessures, compositions, xG ni cotes. Probabilités indicatives, non garanties ; elles ne constituent pas une garantie de gain.';details.append(caution);
-    if(result.h2h.length){const h=document.createElement('p');h.className='analysis-intro';h.textContent='Confrontations directes récentes : '+result.h2h.length+'.';details.append(h);}
-    panel.append(details);
+    const grid=document.createElement('div');grid.className='analysis-compact-grid';
+    const addMarket=(label,value,detail)=>{
+      const card=document.createElement('div');card.className='analysis-compact-card';
+      const name=document.createElement('span');name.className='analysis-compact-label';name.textContent=label;
+      const val=document.createElement('strong');val.className='analysis-compact-value';val.textContent=typeof value==='number'?pct(value):'—';
+      const sub=document.createElement('small');sub.className='analysis-compact-detail';sub.textContent=detail||'Données insuffisantes';
+      card.append(name,val,sub);grid.append(card);
+    };
+    addMarket('V1 · '+teamName(match.homeTeam),result.markets.home,'Victoire domicile');
+    addMarket('V2 · '+teamName(match.awayTeam),result.markets.away,'Victoire extérieur');
+    const goalOptions=[['+1,5 but',result.markets.over15],['+2,5 buts',result.markets.over25],['+3,5 buts',result.markets.over35]].filter(x=>Number.isFinite(x[1]));
+    const bestGoal=goalOptions.sort((a,b)=>b[1]-a[1])[0];
+    addMarket('TOTAL BUTS',bestGoal?.[1],bestGoal?bestGoal[0]+' · '+pct(bestGoal[1]):'Non disponible');
+    const corners=result.cornerMarkets;
+    if(corners){
+      const cornerOptions=[['+7,5 corners',corners.over75],['+8,5 corners',corners.over85],['+9,5 corners',corners.over95],['+10,5 corners',corners.over105]].filter(x=>Number.isFinite(x[1]));
+      const bestCorner=cornerOptions.sort((a,b)=>b[1]-a[1])[0];
+      addMarket('TOTAL CORNERS',bestCorner?.[1],bestCorner?bestCorner[0]+' · '+pct(bestCorner[1]):'Non disponible');
+    }else addMarket('TOTAL CORNERS',null,'Statistiques corners indisponibles');
+    panel.append(grid);
+    const foot=document.createElement('p');foot.className='analysis-compact-foot';foot.textContent='Estimations statistiques · Confiance '+result.confidence+' · '+result.homeRows.length+'/'+result.awayRows.length+' matchs analysés. Aucun pronostic n’est garanti.';panel.append(foot);
     return panel;
   }
+
   function openMatchCentre(match) {
     const previous=document.getElementById('match-centre-overlay');if(previous)previous.remove();
     const overlay=document.createElement('div');overlay.id='match-centre-overlay';overlay.className='match-centre-overlay';overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-labelledby','match-centre-title');
