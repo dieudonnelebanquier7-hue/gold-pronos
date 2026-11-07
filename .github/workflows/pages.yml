@@ -69,7 +69,7 @@ jobs:
             ['rus.1','Russian Premier League'],['chn.1','Chinese Super League'],['jpn.1','J1 League'],['bra.1','Brasileirão'],
             ['arg.1','Liga Profesional Argentina'],['mex.1','Liga MX'],['uefa.champions','Ligue des champions'],
             ['uefa.europa','Ligue Europa'],['uefa.europa.conf','Ligue Conférence'],['afc.champions','Ligue des champions AFC'],
-            ['fifa.world','Compétitions FIFA'],['fifa.worldq.caf','Qualifications Coupe du monde Afrique'],['uefa.wchampions','Ligue des championnes UEFA'],['conmebol.libertadores','Copa Libertadores'],['conmebol.sudamericana','Copa Sudamericana'],['concacaf.champions','Ligue des champions CONCACAF'],['afc.cup','Ligue des champions AFC 2']
+            ['fifa.world','Compétitions FIFA'],['fifa.worldq.caf','Qualifications Coupe du monde Afrique'],['uefa.wchampions','Ligue des championnes UEFA'],['usa.nwsl','NWSL · États-Unis'],['eng.w.1','Women’s Super League · Angleterre'],['esp.w.1','Liga F · Espagne'],['fifa.wwc','Coupe du monde féminine'],['conmebol.libertadores','Copa Libertadores'],['conmebol.sudamericana','Copa Sudamericana'],['concacaf.champions','Ligue des champions CONCACAF'],['afc.cup','Ligue des champions AFC 2']
           ];
           const sleep = ms => new Promise(r=>setTimeout(r,ms));
           async function fetchLeague([code,label], year) {
