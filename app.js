@@ -583,19 +583,34 @@
     setText('report-copy',label+'Ouvre une rencontre pour consulter les statistiques disponibles. '+history+' résultats terminés avec score sont chargés. Les cotes bookmakers ne sont pas intégrées.');
     setText('settings-message','Données préparées par GitHub Actions sur une fenêtre historique pouvant atteindre 365 jours. La profondeur réelle varie selon les compétitions et les sources.');
   }
+  function applyMatchData(data) {
+    if(!data||!Array.isArray(data.matches))throw new Error('Format du calendrier invalide : liste des matchs absente.');
+    state.matches=data.matches.filter(validMatch);state.generatedAt=data.generatedAt||null;state.sources=data.sources||{};
+    try{localStorage.setItem('gold-pronos-match-cache',JSON.stringify({savedAt:Date.now(),data}));}catch(_){}
+    updateSourceDetails();updateMatchCompetitionOptions();renderAnalysisPicker();renderFeaturedPicks();renderWomenMatches();
+    setText('match-status',state.matches.length+' rencontre(s) chargée(s) · '+state.matches.filter(m=>['IN_PLAY','PAUSED','LIVE','HALFTIME','EXTRA_TIME','PENALTY_SHOOTOUT'].includes(String(m.status||'').toUpperCase())).length+' en direct · '+state.matches.filter(m=>m.status==='FINISHED'&&hasFinalScore(m)).length+' résultats. Les horaires suivent le fuseau de ton téléphone.');
+    renderMatches();
+  }
   async function loadMatches() {
-    const button=$('refresh-btn');if(button){button.disabled=true;button.textContent='Chargement…';}setText('match-status','Chargement du calendrier…');
+    const button=$('refresh-btn');if(button){button.disabled=true;button.textContent='Mise à jour…';}
+    let cacheUsed=false;
     try {
-      const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),15000);let response;
-      try{response=await fetch('./matches.json?v='+Date.now(),{cache:'no-store',signal:controller.signal});}finally{clearTimeout(timeout);}
+      try {
+        const saved=JSON.parse(localStorage.getItem('gold-pronos-match-cache')||'null');
+        if(saved?.data?.matches?.length){applyMatchData(saved.data);cacheUsed=true;setText('match-status','Calendrier affiché immédiatement depuis cet appareil · vérification des dernières données…');}
+      } catch(_){}
+      const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),11000);let response;
+      try{response=await fetch('./matches.json',{cache:'no-store',signal:controller.signal});}finally{clearTimeout(timeout);}
       if(!response.ok)throw new Error('Fichier des rencontres inaccessible (HTTP '+response.status+').');
-      const data=await response.json();if(!data||!Array.isArray(data.matches))throw new Error('Format du calendrier invalide : liste des matchs absente.');
-      state.matches=data.matches.filter(validMatch);state.generatedAt=data.generatedAt||null;state.sources=data.sources||{};
-      updateSourceDetails();updateMatchCompetitionOptions();renderAnalysisPicker();renderFeaturedPicks();renderWomenMatches();setText('match-status',state.matches.length+' rencontre(s) chargée(s) · '+state.matches.filter(m=>['IN_PLAY','PAUSED','LIVE','HALFTIME','EXTRA_TIME','PENALTY_SHOOTOUT'].includes(String(m.status||'').toUpperCase())).length+' en direct · '+state.matches.filter(m=>m.status==='FINISHED'&&hasFinalScore(m)).length+' résultats. Les horaires suivent le fuseau de ton téléphone.');renderMatches();
+      const data=await response.json();applyMatchData(data);
     } catch(error) {
-      state.matches=[];setText('match-count','0');setText('match-count-filter','0');setText('source-status','INDISPONIBLE');setText('source-detail','Données à vérifier');
-      setText('match-status',error.name==='AbortError'?'La source met trop de temps à répondre. Réessaie.':error.message||'Erreur inconnue.');
-      const list=$('match-list');if(list)list.replaceChildren();setText('report-title','Données indisponibles');setText('report-copy','Aucune analyse sans calendrier valide.');setText('settings-message','Vérifie le déploiement GitHub Pages puis réessaie.');
+      if(cacheUsed){
+        setText('match-status','Connexion lente ou indisponible · calendrier enregistré affiché ('+state.matches.length+' rencontres). Les scores en direct nécessitent Internet.');
+      } else {
+        setText('match-count','0');setText('match-count-filter','0');setText('source-status','INDISPONIBLE');setText('source-detail','Données à vérifier');
+        setText('match-status',error.name==='AbortError'?'La source met trop de temps à répondre. Le calendrier enregistré sera utilisé dès qu’il sera disponible.':error.message||'Erreur inconnue.');
+        const list=$('match-list');if(list)list.replaceChildren();setText('report-title','Données indisponibles');setText('report-copy','Aucune analyse sans calendrier valide.');
+      }
     } finally {if(button){button.disabled=false;button.textContent='Actualiser ↻';}}
   }
 
@@ -827,5 +842,8 @@
   setInterval(fetchLiveScores,90000);
   setInterval(loadFootballNews,900000);
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){fetchLiveScores();}});
-  if('serviceWorker'in navigator)navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});
+  if('serviceWorker' in navigator && location.protocol==='https:') {
+    window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'})
+      .then(reg=>reg.update()).catch(()=>{}),{once:true});
+  }
 })();
