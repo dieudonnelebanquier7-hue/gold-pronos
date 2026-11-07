@@ -145,7 +145,14 @@
       card.append(name,val,sub);grid.append(card);
     };
     addMarket('V1 · '+teamName(match.homeTeam),result.markets.home,'Victoire domicile');
+    addMarket('N · Match nul',result.markets.draw,'Match nul');
     addMarket('V2 · '+teamName(match.awayTeam),result.markets.away,'Victoire extérieur');
+    const homeIsFavorite=result.markets.home>=result.markets.away;
+    const favoriteName=homeIsFavorite?teamName(match.homeTeam):teamName(match.awayTeam);
+    const favoriteWin=homeIsFavorite?result.markets.home:result.markets.away;
+    addMarket('VICTOIRE FAVORI',favoriteWin,favoriteName);
+    const favoriteOrDraw=homeIsFavorite?result.markets.homeOrDraw:result.markets.awayOrDraw;
+    addMarket('FAVORI OU NUL',favoriteOrDraw,favoriteName+' ou match nul');
     const goalOptions=[['+1,5 but',result.markets.over15],['+2,5 buts',result.markets.over25],['+3,5 buts',result.markets.over35]].filter(x=>Number.isFinite(x[1]));
     const bestGoal=goalOptions.sort((a,b)=>b[1]-a[1])[0];
     addMarket('TOTAL BUTS',bestGoal?.[1],bestGoal?bestGoal[0]+' · '+pct(bestGoal[1]):'Non disponible');
