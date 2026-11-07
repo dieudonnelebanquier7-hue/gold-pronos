@@ -1,17 +1,1 @@
-const CACHE='gold-pronos-v56';
-const APP_ASSETS=['./','./index.html','./styles.css?v=37','./app.js?v=52','./i18n.js?v=7','./manifest.webmanifest','./icon.svg'];
-self.addEventListener('install',event=>event.waitUntil((async()=>{const cache=await caches.open(CACHE);await Promise.all(APP_ASSETS.map(async url=>{try{const r=await fetch(url,{cache:'no-store'});if(r.ok)await cache.put(url,r);}catch(_){}}));await self.skipWaiting();})()));
-self.addEventListener('activate',event=>event.waitUntil((async()=>{const keys=await caches.keys();await Promise.all(keys.filter(key=>key.startsWith('gold-pronos-')&&key!==CACHE).map(key=>caches.delete(key)));await self.clients.claim();})()));
-self.addEventListener('fetch',event=>{
-  const request=event.request;if(request.method!=='GET')return;
-  const url=new URL(request.url);if(url.origin!==self.location.origin)return;
-  if(url.pathname.endsWith('/matches.json')){
-    event.respondWith((async()=>{const cache=await caches.open(CACHE);try{const fresh=await fetch(request,{cache:'no-store'});if(fresh.ok)await cache.put('./matches.json',fresh.clone());return fresh;}catch(_){return (await cache.match('./matches.json'))||Response.error();}})());return;
-  }
-  if(request.mode==='navigate'){
-    event.respondWith((async()=>{try{const fresh=await fetch(request);if(fresh.ok){const cache=await caches.open(CACHE);await cache.put('./index.html',fresh.clone());}return fresh;}catch(_){return (await caches.open(CACHE)).match('./index.html')||Response.error();}})());return;
-  }
-  if(/\.(js|css|svg|webmanifest)$/.test(url.pathname)){
-    event.respondWith((async()=>{const cache=await caches.open(CACHE);const cached=await cache.match(request);const update=fetch(request,{cache:'no-store'}).then(response=>{if(response.ok)cache.put(request,response.clone());return response;}).catch(()=>null);if(cached){event.waitUntil(update);return cached;}return (await update)||Response.error();})());return;
-  }
-});
+const CACHE='gold-pronos-v100';const ASSETS=['./','./index.html','./styles.css?v=100','./app.js?v=100','./manifest.webmanifest','./icon.svg'];self.addEventListener('install',e=>e.waitUntil((async()=>{const c=await caches.open(CACHE);await Promise.all(ASSETS.map(async u=>{try{const r=await fetch(u,{cache:'no-store'});if(r.ok)await c.put(u,r)}catch(_){}}));await self.skipWaiting()})()));self.addEventListener('activate',e=>e.waitUntil((async()=>{await Promise.all((await caches.keys()).filter(k=>k.startsWith('gold-pronos-')&&k!==CACHE).map(k=>caches.delete(k)));await self.clients.claim()})()));self.addEventListener('fetch',e=>{const r=e.request;if(r.method!=='GET'||new URL(r.url).origin!==self.location.origin)return;if(r.mode==='navigate'){e.respondWith((async()=>{try{const fresh=await fetch(r);if(fresh.ok){const c=await caches.open(CACHE);await c.put('./index.html',fresh.clone())}return fresh}catch(_){return(await caches.open(CACHE)).match('./index.html')||Response.error()}})());return}if(/\\.(js|css|svg|webmanifest)$/.test(new URL(r.url).pathname)){e.respondWith((async()=>{const c=await caches.open(CACHE),hit=await c.match(r);const update=fetch(r,{cache:'no-store'}).then(x=>{if(x.ok)c.put(r,x.clone());return x}).catch(()=>null);if(hit){e.waitUntil(update);return hit}return(await update)||Response.error()})())}});

@@ -1,1 +1,19 @@
-{"name":"GOLD PRONOS — Le Banquier","short_name":"Gold Pronos","lang":"fr","start_url":"./","scope":"./","display":"standalone","background_color":"#08090b","theme_color":"#08090b","description":"Le football mondial : matchs, scores, classements et statistiques.","icons":[{"src":"./icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]}
+{
+  "name": "GOLD PRONOS — Le Banquier",
+  "short_name": "Gold Pronos",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f8f6",
+  "theme_color": "#087b50",
+  "description": "Football mondial, suivi des matchs et analyses vérifiées.",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
