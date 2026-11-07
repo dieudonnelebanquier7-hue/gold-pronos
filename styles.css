@@ -386,3 +386,106 @@ html[dir="rtl"] .competition-heading{border-left:0;border-right:3px solid var(--
 .tv-info-grid strong{color:var(--gold2);font-size:13px}
 .tv-info-grid span{color:var(--muted);font-size:11px;line-height:1.5}
 @media(min-width:620px){.tv-info-grid{grid-template-columns:repeat(3,1fr)}.tv-player{height:620px}}
+
+
+/* GOLD PRONOS — thème clair et commandes plus confortables (novembre 2026) */
+:root{
+ color-scheme:light;
+ --bg:#f3f5f7;--panel:#ffffff;--panel2:#eef1f4;--line:#d9dee5;
+ --gold:#9a6b12;--gold2:#77500b;--muted:#5f6874;--white:#17202b;
+ --green:#16834f;--green-soft:#e7f5ed;--red:#c53642;--red-soft:#fbeaec;
+}
+body{background:var(--bg);color:var(--white)}
+.topbar{background:rgba(255,255,255,.96);border-bottom-color:var(--line);box-shadow:0 2px 12px rgba(25,35,45,.06)}
+.brand,.hero h1,.section h2,.report-box h3,.analysis-card h3,.tv-provider-logo,.vip-plan h3{color:#17202b}
+.brand small,.hero-meta #today,.hero-copy,.install-copy,.install-footnote,.tv-intro,.tv-provider-card p,.vip-intro,.vip-plan p,.vip-security p{color:#596575}
+.brand-mark{background:#fffaf0}
+.hero{background:radial-gradient(ellipse at 82% 12%,#e8d7ae66,transparent 58%)}
+.hero h1 em{color:var(--gold)}
+.eyebrow,.language-label,.settings label,.language-settings label,.language-quick label{color:var(--gold)}
+.summary-card,.match-card,.analysis-card,.analysis-workspace,.live-score-card,.news-card,.install-card,.tv-info-grid>div,.vip-plan,.scoreboard-datebar,.settings-controls,.language-settings,.player-roster-item,.staff-profile-row{background:#fff;border-color:var(--line);box-shadow:0 2px 8px rgba(25,35,45,.035)}
+.summary-card strong,.match-teams,.live-score-teams,.news-card h3,.featured-pick-info>strong,.daily-pick-card>strong{color:#17202b}
+.muted,.summary-card small,.match-top,.match-bottom,.versus,.small-note,.data-caveat,.analysis-card p,.settings-copy,.report-box p:not(.eyebrow),.notice p,.install-card p,.install-card li,.install-card small,.news-card p,.news-meta,.live-summary span,.tv-info-grid span,.vip-security p{color:#596575}
+.status-panel{background:#fff8e8;border:1px dashed #d9c89e;color:#6f561f}
+.report-box,.install-section,.featured-picks,.vip-plan,.tv-provider-card{background:linear-gradient(145deg,#fffdf7,#f4f6f8 72%);border-color:#d8c69d}
+.report-box h3,.install-section h2,.featured-picks>h3,.news-rendezvous h3,.tv-provider-card h3,.vip-plan h3{color:#26313e}
+.report-box p:not(.eyebrow),.featured-picks-subtitle,.featured-pick-info small,.featured-picks-note{color:#596575}
+.settings,.notice{background:#fff;border-color:var(--line)}
+.notice{border-color:#e0d2ad}
+.notice b{color:var(--gold)}
+.settings-controls,.language-settings{background:#f8fafb}
+.settings-controls select,.language-settings select,.topbar-tools select,.language-quick select,.language-quick select,.analysis-workspace select,.settings input,.league-select,.club-select,.club-search,.scoreboard-date input{
+ background:#fff;color:#17202b;border-color:#cbd3dc
+}
+.language-quick{background:#fff;border-color:#d8c69d}
+.language-quick p{color:#596575}
+.language-quick select{background:#fff;color:#17202b;border-color:#b99a5c}
+.bottom-nav{background:rgba(255,255,255,.98);border-top-color:var(--line);box-shadow:0 -3px 14px rgba(25,35,45,.07)}
+.bottom-nav a{color:#566170}
+.bottom-nav a.active{color:#8a5e0b}
+.text-button{color:#875b0a}
+.filter,.pick-filter,.scoreboard-filter,.date-arrow{background:#f1f3f6;color:#4d5866;border-color:#d5dbe3}
+.filter.active,.pick-filter.active,.scoreboard-filter.active{background:#fff4d9;color:#75500d;border-color:#c6a45e}
+.scoreboard-filter b{background:#e3e7ec;color:#344050}
+.scoreboard-filter.active b{background:#e8d5a8;color:#5e430d}
+.date-arrow{color:#80580d}
+.date-today,.primary-button,.install-button,.tv-watch-button{background:#c79a3d;color:#17120a}
+.secondary-install,.tv-secondary-link{background:#fff8e9;color:#75500d;border-color:#d6c18e}
+.analysis-button,.settings-reset,.daily-pick-detail{background:#fff6df;color:#77500b;border-color:#d4bb82}
+.match-analysis,.analysis-recent,.analysis-stat,.probability-cell,.analysis-picks,.daily-pick-card,.daily-conviction{background:#f6f7f9;color:#26313e;border-color:#d9dee5}
+.analysis-intro,.analysis-warning,.analysis-pick,.analysis-stat span,.probability-cell span,.analysis-recent .analysis-stat span{color:#586575}
+.analysis-stat strong,.probability-cell strong,.analysis-recent .analysis-stat strong{color:#17202b}
+.analysis-pick,.daily-pick-detail{background:#eaf6ef;color:#17633e;border-left-color:#16834f}
+.analysis-warning{background:#fff4e6;border-left-color:#c53642}
+.featured-pick-card,.daily-pick-card{border-color:#d9dee5}
+.featured-pick-info>strong,.daily-pick-card>strong{color:#17202b}
+.featured-pick-probability,.daily-pick-probability,.daily-pick-market{color:#79540e}
+.live-summary{background:#eaf6ef;border-color:#b8ddc7}
+.live-summary strong,.live-score-card .live-score-value,.live-score-meta b{color:#16834f}
+.live-score-card{border-left-color:#16834f}
+.news-card{border-left-color:#16834f}
+.news-card small,.news-card a{color:#16834f}
+.match-card.status-finished .match-top>span:last-child,.match-card.status-finished .versus{color:#c53642}
+.match-card.status-live .match-top>span:last-child,.match-card .match-status-live{color:#16834f}
+#page-live .section-heading h2,#page-news .section-heading h2{color:#16834f}
+#page-settings .goal-alert-settings{background:#fff6f6;border-color:#e7c5c8;border-left-color:#c53642}
+#page-settings .goal-alert-settings .eyebrow{color:#c53642}
+.goal-alert-settings h3{color:#26313e}
+.league-intro,.club-intro{background:#eaf6ef;color:#244c36;border-left-color:#16834f}
+.league-select,.club-select,.club-search{background:#fff;color:#17202b;border-color:#b8d8c5}
+.league-table-wrap,.leader-panel,.club-profile-card,.national-competition-card{background:#f4faf6;border-color:#c5dfce}
+.league-standings-table th{background:#e2f1e7;color:#17633e}
+.league-standings-table td{color:#26352c;border-top-color:#d9e8de}
+.league-standings-table .league-first td,.leader-row> b:first-child,.leader-value{color:#16834f}
+.leader-panel h3,.club-profile-card h4{color:#17633e}
+.club-profile-card h3,.club-profile-card p,.national-competition-card{color:#26352e}
+.fan-vote-section{border-top-color:#d88b92}
+.fan-vote-section h2,.fan-vote-section .eyebrow{color:#bd3d49}
+.vip-security{background:#edf8f1;border-color:#bfdfca}
+.vip-security h3{color:#17633e}
+.vip-coming{background:#fff9ea;color:#75500d;border-color:#d6c18e}
+.vip-plan-label,.vip-price{color:#875f10}
+.tv-free-badge,.tv-live-tag{background:#eaf6ef;color:#17633e;border-color:#b8ddc7}
+.tv-provider-logo{color:#17202b}
+.tv-player-shell{background:#fff;border-color:var(--line)}
+.tv-player-heading{color:#77500b}
+.region-heading,.competition-heading,.rendezvous-row{background:#fff8e8;color:#77500b;border-color:#e2d3ad}
+.rendezvous-row strong{color:#26313e}
+.player-roster-item,.staff-profile-row{background:#fff}
+.player-roster-info strong{color:#26313e}
+.player-roster-info small{color:#596575}
+button,select,input{font:inherit}
+button,.bottom-nav a,.install-button,.tv-watch-button,.club-search-button,.date-today,.date-arrow,.scoreboard-filter,.filter,.pick-filter,.analysis-button,.settings-reset,.primary-button,.text-button{
+ min-height:46px;font-size:14px
+}
+.bottom-nav{grid-template-columns:repeat(8,minmax(66px,1fr));overflow-x:auto;padding:8px 5px calc(8px + env(safe-area-inset-bottom))}
+.bottom-nav a{min-width:66px;min-height:62px;font-size:21px;gap:5px}
+.bottom-nav a span{font-size:10px;font-weight:700;white-space:nowrap}
+.scoreboard-filter{min-height:48px;padding:10px 7px;font-size:12px}
+.date-arrow{width:42px;height:42px;font-size:26px}
+.date-today{padding:10px 13px;font-size:12px}
+.text-button{padding:11px 13px}
+.analysis-button,.settings-reset,.primary-button,.club-search-button,.install-button,.tv-watch-button{padding:14px 17px;font-size:14px;line-height:1.35}
+.settings-controls select,.analysis-workspace select,.league-select,.club-select,.club-search,.language-settings select,.topbar-tools select{min-height:48px;padding:12px 14px;font-size:14px}
+.scoreboard-datebar{padding:11px}
+@media(max-width:390px){.bottom-nav{grid-template-columns:repeat(8,minmax(68px,1fr))}.bottom-nav a{min-width:68px}.bottom-nav a span{font-size:10px}.section h2{font-size:27px}}
