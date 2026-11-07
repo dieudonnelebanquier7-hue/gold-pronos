@@ -19,6 +19,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Generate verified football calendar
+        run: node fetch-matches.cjs
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
       - name: Upload static application
