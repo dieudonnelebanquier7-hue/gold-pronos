@@ -392,7 +392,7 @@
       if(state.filter==='finished')return m.status==='FINISHED'&&hasFinalScore(m);
       if(state.filter==='upcoming')return !isLive(m)&&!['FINISHED','CANCELLED','POSTPONED','SUSPENDED'].includes(String(m.status||'').toUpperCase());
       return !['CANCELLED','POSTPONED','SUSPENDED'].includes(String(m.status||'').toUpperCase());
-    }).filter(m=>state.selectedCompetition==='all'||competitionName(m)===state.selectedCompetition)
+    }).filter(m=>state.filter==='favorites'?state.favoriteCompetitions.includes(competitionName(m)):(state.selectedCompetition==='all'||competitionName(m)===state.selectedCompetition))
       .sort((a,b)=>competitionOrder(a)-competitionOrder(b)||competitionName(a).localeCompare(competitionName(b),'fr')||new Date(a.utcDate)-new Date(b.utcDate));
     const liveCount=filtered.filter(isLive).length, upcomingCount=filtered.filter(m=>!isLive(m)&&!['FINISHED','CANCELLED','POSTPONED','SUSPENDED'].includes(String(m.status||'').toUpperCase())).length, finishedCount=filtered.filter(m=>m.status==='FINISHED'&&hasFinalScore(m)).length;
     setText('match-count',String(filtered.length));
