@@ -48,7 +48,31 @@ box.querySelector('.loading')?.remove();box.insertAdjacentHTML('beforeend',chunk
 function xtext(x){return x.text||x.shortText||x.type?.text||x.type?.name||'Événement'}
 function recent(team,exclude){return matches.filter(x=>x.finished&&x.id!==exclude&&(x.home===team||x.away===team)&&x.homeScore!==null&&x.awayScore!==null).sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,8)}
 function points(m,team){const home=m.home===team,sc=Number(home?m.homeScore:m.awayScore),op=Number(home?m.awayScore:m.homeScore);return sc>op?3:sc===op?1:0}
-function renderPicks(){const box=$('picks'),up=matches.filter(m=>!m.live&&!m.finished&&new Date(m.date)>new Date()&&new Date(m.date)<Date.now()+7*86400000).slice(0,35);box.replaceChildren();let n=0;for(const m of up){const h=recent(m.home,m.id),a=recent(m.away,m.id);if(h.length<4||a.length<4)continue;const hp=h.reduce((s,x)=>s+points(x,m.home),0)/h.length,ap=a.reduce((s,x)=>s+points(x,m.away),0)/a.length;const hg=h.reduce((s,x)=>s+Number(x.home===m.home?x.homeScore:x.awayScore),0)/h.length,ag=a.reduce((s,x)=>s+Number(x.home===m.away?x.homeScore:x.awayScore),0)/a.length;let pick='Aucune tendance nette',why='Les résultats récents ne distinguent pas suffisamment les équipes.';if(hp-ap>=0.75){pick='1 · Avantage domicile';why='Points par match récents : '+hp.toFixed(2)+' contre '+ap.toFixed(2)+'.'}else if(ap-hp>=0.75){pick='2 · Avantage extérieur';why='Points par match récents : '+ap.toFixed(2)+' contre '+hp.toFixed(2)+'.'}else if(Math.abs(hp-ap)<0.35){pick='N · Équilibre relatif';why='Les deux équipes ont des moyennes de points proches.'}const el=document.createElement('article');el.className='pick-card';el.innerHTML='<span class="eyebrow">'+safe(m.league)+'</span><h3>'+safe(m.home)+' — '+safe(m.away)+'</h3><strong>'+pick+'</strong><p>'+why+'</p><small>Échantillon : '+h.length+' matchs domicile/équipe et '+a.length+' matchs extérieur/équipe · Tendance indicative, pas une probabilité garantie.</small>';box.append(el);n++}if(!n)box.innerHTML='<div class="notice">Pas assez de résultats récents vérifiés pour produire des tendances responsables. Le moteur n’invente pas de pronostics.</div>'}
+function dateKeyInAppZone(value){const prefs=readAppSettings(),zone=prefs.timezone||Intl.DateTimeFormat().resolvedOptions().timeZone;try{const parts=new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(value));const p=Object.fromEntries(parts.map(x=>[x.type,x.value]));return p.year+p.month+p.day}catch(e){return dateKey(value)}}
+function renderPicks(){
+ const box=$('picks');if(!box)return;
+ const now=Date.now(),today=dateKeyInAppZone(now);
+ const dayMatches=matches.filter(m=>!m.live&&!m.finished&&dateKeyInAppZone(m.date)===today&&new Date(m.date).getTime()>now).sort((a,b)=>new Date(a.date)-new Date(b.date));
+ box.replaceChildren();
+ const heading=document.createElement('div');heading.className='notice';heading.innerHTML='<b>PRONOSTICS DU JOUR · '+safe(appDate(now,{weekday:'long',day:'numeric',month:'long',year:'numeric'}))+'</b><br>'+dayMatches.length+' rencontre(s) à venir · Analyses actualisées avec les derniers résultats vérifiés.';box.append(heading);
+ if(!dayMatches.length){const empty=document.createElement('div');empty.className='notice';empty.textContent='Aucun match à venir confirmé pour aujourd’hui dans les compétitions suivies. Le calendrier sera actualisé automatiquement.';box.append(empty);return}
+ let generated=0;
+ for(const m of dayMatches){
+  const h=recent(m.home,m.id),a=recent(m.away,m.id);
+  const el=document.createElement('article');el.className='pick-card';
+  const base='<span class="eyebrow">'+safe(m.league)+'</span><h3>'+safe(m.home)+' — '+safe(m.away)+'</h3><p><b>Coup d’envoi :</b> '+safe(appDate(m.date,{hour:'2-digit',minute:'2-digit'}))+'</p>';
+  if(h.length<2||a.length<2){el.innerHTML=base+'<strong>Analyse en attente</strong><p>Historique récent insuffisant pour proposer une tendance sérieuse. La rencontre reste visible, sans pronostic inventé.</p><small>Échantillon disponible : '+h.length+' résultat(s) pour '+safe(m.home)+' et '+a.length+' pour '+safe(m.away)+'.</small>';box.append(el);continue}
+  const hp=h.reduce((s,x)=>s+points(x,m.home),0)/h.length,ap=a.reduce((s,x)=>s+points(x,m.away),0)/a.length;
+  let pick='Tendance équilibrée · prudence',why='Les résultats récents ne dégagent pas d’avantage suffisamment net.';
+  if(hp-ap>=0.75){pick='1 · Avantage domicile';why='Points par match récents : '+hp.toFixed(2)+' contre '+ap.toFixed(2)+'.'}
+  else if(ap-hp>=0.75){pick='2 · Avantage extérieur';why='Points par match récents : '+ap.toFixed(2)+' contre '+hp.toFixed(2)+'.'}
+  else if(Math.abs(hp-ap)<0.35){pick='N · Équilibre relatif';why='Les deux équipes présentent des moyennes de points proches.'}
+  const level=Math.min(h.length,a.length)>=5?'Échantillon correct': 'Échantillon limité · prudence';
+  el.innerHTML=base+'<strong>'+pick+'</strong><p>'+why+'</p><small>'+level+' · '+h.length+' résultats récents pour le domicile, '+a.length+' pour l’extérieur. Tendance indicative, jamais une certitude.</small>';
+  box.append(el);generated++;
+ }
+ if(!generated&&dayMatches.length){const note=document.createElement('div');note.className='notice';note.textContent='Les rencontres du jour sont bien chargées. Les analyses détaillées apparaîtront dès que les résultats récents des équipes seront disponibles.';box.append(note)}
+}
 function findRows(obj,out=[],seen=new Set()){
  if(!obj||typeof obj!=='object'||seen.has(obj))return out;seen.add(obj);
  if(Array.isArray(obj)){for(const x of obj)findRows(x,out,seen);return out}
