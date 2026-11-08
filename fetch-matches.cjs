@@ -18,7 +18,7 @@ const to=new Date(today);to.setUTCDate(to.getUTCDate()+14);
 const key=d=>d.toISOString().slice(0,10).replace(/-/g,'');
 const range=key(from)+'-'+key(to);
 async function fetchLeague([code,label],date){
- const url='https://site.api.espn.com/apis/site/v2/sports/soccer/'+code+'/scoreboard?dates='+date+'&limit=100';
+ const url='https://site.api.espn.com/apis/site/v2/sports/soccer/'+code+'/scoreboard?dates='+date+'&limit=100&region=fr&lang=fr';
  try{
   const response=await fetch(url,{signal:AbortSignal.timeout(15000),headers:{'User-Agent':'GOLD-PRONOS/1.0'}});
   if(!response.ok)throw Error('HTTP '+response.status);
@@ -29,7 +29,7 @@ async function fetchLeague([code,label],date){
    if(!home||!away)return null;
    const st=comp?.status?.type||event.status?.type||{};
    return {id:'espn-'+event.id,utcDate:event.date,status:st.completed?'FINISHED':st.state==='in'?'IN_PLAY':'SCHEDULED',
-    competition:{name:event.league?.name||data.leagues?.[0]?.name||label,code:'ESPN-'+code},
+    competition:{name:label,code:'ESPN-'+code},
     homeTeam:{name:home.team?.displayName||home.team?.name||'Équipe domicile'},
     awayTeam:{name:away.team?.displayName||away.team?.name||'Équipe extérieure'},
     score:{fullTime:{home:home.score==null?null:Number(home.score),away:away.score==null?null:Number(away.score)}},source:'ESPN'};
