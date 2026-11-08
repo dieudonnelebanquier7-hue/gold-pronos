@@ -15,7 +15,7 @@ const leagues=[
  ['caf.nations','CAF · Coupe d’Afrique des nations'],['uefa.wchampions','UEFA · Ligue des championnes']
 ];
 const today=new Date();today.setUTCHours(0,0,0,0);
-const from=new Date(today);from.setUTCDate(from.getUTCDate()-7);
+const from=new Date(today);from.setUTCDate(from.getUTCDate()-35);
 const to=new Date(today);to.setUTCDate(to.getUTCDate()+14);
 const dates=[];for(let d=new Date(from);d<=to;d.setUTCDate(d.getUTCDate()+1))dates.push(d.toISOString().slice(0,10).replace(/-/g,''));
 async function fetchLeagueDay(league,day){
