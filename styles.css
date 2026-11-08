@@ -427,6 +427,9 @@ footer b{color:#e0b44f!important}
  .page#page-home .filters{display:grid!important;grid-template-columns:minmax(0,1fr) 270px!important}
 }
 @media(max-width:760px){
+ .hero{flex-direction:column!important;align-items:stretch!important}
+ .hero>div:first-child{width:100%!important}
+ .hero-stat{align-self:stretch!important}
  .top{height:60px!important;padding:0 11px!important}
  .brand{font-size:12px!important;gap:7px!important}.brand small{font-size:7px!important}
  .mark{width:34px!important;height:34px!important}
