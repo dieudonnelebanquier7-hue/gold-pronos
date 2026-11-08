@@ -35,6 +35,16 @@ function mergeApiFootballFixtures(rows){
  }
  return extras;
 }
+async function loadApiFootballFixtures(force=false){
+ const now=Date.now();
+ if(!force){try{const cache=JSON.parse(localStorage.getItem(API_FOOTBALL_CACHE_KEY)||'null');if(cache&&now-cache.at<24*60*60*1000&&Array.isArray(cache.fixtures))return cache.fixtures}catch(_){}}
+ const start=new Date();start.setUTCDate(start.getUTCDate()-7);
+ const end=new Date();end.setUTCDate(end.getUTCDate()+14);
+ const data=await apiFootballRequest({action:'fixtures',from:start.toISOString().slice(0,10),to:end.toISOString().slice(0,10),timezone:'Africa/Porto-Novo'});
+ if(!data?.configured||!Array.isArray(data.fixtures))return [];
+ try{localStorage.setItem(API_FOOTBALL_CACHE_KEY,JSON.stringify({at:now,fixtures:data.fixtures}))}catch(_){}
+ return data.fixtures;
+}
 function renderApiFootballDetail(m,data){
  const panels=$('match-detail').querySelectorAll('[data-md-panel]');
  const f=data.fixture?.[0]||{},venue=f.fixture?.venue||{},referee=f.fixture?.referee||'';
