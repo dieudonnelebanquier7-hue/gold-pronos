@@ -33,8 +33,8 @@ async function fetchLeague([code,label]){
    const state=st.state;
    return {id:'espn-'+event.id,utcDate:event.date,status:st.completed||state==='post'?'FINISHED':state==='in'?'IN_PLAY':'SCHEDULED',
     competition:{name:label,code:'ESPN-'+code},
-    homeTeam:{name:home.team?.displayName||home.team?.name||'Équipe domicile'},
-    awayTeam:{name:away.team?.displayName||away.team?.name||'Équipe extérieure'},
+    homeTeam:{id:String(home.team?.id||home.id||''),name:home.team?.displayName||home.team?.name||'Équipe domicile'},
+    awayTeam:{id:String(away.team?.id||away.id||''),name:away.team?.displayName||away.team?.name||'Équipe extérieure'},
     score:{fullTime:{home:home.score==null?null:Number(home.score),away:away.score==null?null:Number(away.score)}},source:'ESPN'};
   }).filter(Boolean);
  }catch(e){console.log('Source indisponible '+code+': '+e.message);return []}
