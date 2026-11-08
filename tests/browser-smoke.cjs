@@ -5,7 +5,7 @@ const { chromium } = require('playwright');
   const browser = await chromium.launch({ headless: true });
   const errors = [];
   const context = await browser.newContext({ viewport: { width: 1365, height: 900 } });
-  await context.addInitScript(() => localStorage.setItem('gold-pronos-onboarding-v1', JSON.stringify({ completed: true })));
+  await context.addInitScript(() => localStorage.setItem('gold-pronos-onboarding-v1', JSON.stringify({ completed: true, club: 'Test FC' })));
   const page = await context.newPage();
   const now = Date.now();
   const fixtures = [
@@ -36,6 +36,9 @@ const { chromium } = require('playwright');
   await page.goto('http://127.0.0.1:4173/', {waitUntil:'networkidle'});
   await page.locator('#home-matches .match').first().waitFor({state:'visible',timeout:15000});
   if (!(await page.locator('#home-matches .match').count())) throw new Error('Home page did not render match cards');
+  await page.locator('#personalized-home .personalized-matches > div').first().waitFor({state:'visible',timeout:5000});
+  const favoriteFirst = await page.locator('#personalized-home .personalized-matches > div').first().innerText();
+  if (!favoriteFirst.includes('Test FC') || !favoriteFirst.includes('United Test')) throw new Error('Personalized home must prioritize the upcoming favorite-team fixture: '+favoriteFirst);
   const clubCard = page.locator('#home-matches .match').filter({hasText:'Test FC'}).filter({hasText:'United Test'}).last();
   const clubCrest = clubCard.locator('.match-crest').first();
   await clubCrest.waitFor({state:'visible'});
