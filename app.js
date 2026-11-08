@@ -149,7 +149,7 @@ async function localMatchAlerts(){
   const oldScore=previousScores.get(m.id),score=m.homeScore+'-'+m.awayScore,oldStatus=previousStatuses.get(m.id);
   if(oldScore&&oldScore!==score&&p.goals&&m.homeScore!==null&&m.awayScore!==null)send('But · '+m.home+' – '+m.away,'Nouveau score : '+score,m.id+'-but-'+score);
   if(oldStatus==='SCHEDULED'&&m.live&&p.kickoff)send('Coup d’envoi · '+m.home+' – '+m.away,'Le match vient de commencer.',m.id+'-debut');
-  if(oldStatus==='LIVE'&&m.finished&&p.halftime_fulltime)send('Fin du match · '+m.home+' – '+m.away,'Score final : '+score,m.id+'-fin');
+  
   previousScores.set(m.id,score);previousStatuses.set(m.id,m.status);
  }
 }
