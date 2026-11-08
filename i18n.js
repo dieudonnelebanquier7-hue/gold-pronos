@@ -67,7 +67,7 @@
     try{const saved=localStorage.getItem(storageKey);if(saved&&langs.includes(saved))current=saved;}catch(_){}
     ['language-select','language-select-main','language-select-settings'].forEach(id=>{const el=document.getElementById(id);if(el){el.value=current;el.addEventListener('change',()=>setLanguage(el.value));}});
     translatePage();
-    const observer=new MutationObserver(records=>{if(current==='fr')return;for(const record of records){if(record.type==='characterData')translateNode(record.target);record.addedNodes?.forEach(node=>{if(node.nodeType===Node.TEXT_NODE)translateNode(node);else if(node.nodeType===Node.ELEMENT_NODE){const walker=document.createTreeWalker(node,NodeFilter.SHOW_TEXT);while(walker.nextNode())translateNode(walker.currentNode);}});}});
+    const observer=new MutationObserver(records=>{for(const record of records){if(record.type==='characterData')translateNode(record.target);record.addedNodes?.forEach(node=>{if(node.nodeType===Node.TEXT_NODE)translateNode(node);else if(node.nodeType===Node.ELEMENT_NODE){const walker=document.createTreeWalker(node,NodeFilter.SHOW_TEXT);while(walker.nextNode())translateNode(walker.currentNode);}});}});
     observer.observe(document.body,{subtree:true,childList:true,characterData:true});
   }
   window.GoldI18n={setLanguage,getLanguage:()=>current,t:key=>(dictionaries[current]||{})[key]||key};
