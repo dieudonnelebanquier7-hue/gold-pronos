@@ -47,7 +47,8 @@ jobs:
           const pastFrom = new Date(today); pastFrom.setUTCDate(pastFrom.getUTCDate()-35);
           const futureTo = new Date(today); futureTo.setUTCDate(futureTo.getUTCDate()+14);
           const ymd = d => d.toISOString().slice(0,10).replace(/-/g,'');
-          const dateRanges = [ymd(pastFrom)+'-'+ymd(today), ymd(today)+'-'+ymd(futureTo)];
+          const dateKeys = [];
+          for (let d = new Date(pastFrom); d <= futureTo; d.setUTCDate(d.getUTCDate()+1)) dateKeys.push(ymd(d));
           const leagues = [
             ['eng.1','Premier League'],['eng.2','Championship'],['esp.1','La Liga'],['esp.2','Segunda División'],
             ['ger.1','Bundesliga'],['ita.1','Serie A'],['fra.1','Ligue 1'],['ned.1','Eredivisie'],['por.1','Primeira Liga'],
@@ -90,13 +91,14 @@ jobs:
               }
             }
             const supplemental=[];
-            for(let i=0;i<leagues.length;i+=5) {
-              const batch=await Promise.all(
-                leagues.slice(i,i+5).flatMap(league=>dateRanges.map(range=>fetchLeague(league,range)))
-              );
-              supplemental.push(...batch.flat());
-              await sleep(200);
-            }
+            const tasks=leagues.flatMap(league=>dateKeys.map(day=>()=>fetchLeague(league,day)));
+            let cursor=0,completed=0;
+            const workers=Array.from({length:10},async()=>{while(true){
+              const i=cursor++;if(i>=tasks.length)break;
+              supplemental.push(...await tasks[i]());completed++;
+              if(completed%100===0)console.log('Calendrier Android '+completed+'/'+tasks.length);
+            }});
+            await Promise.all(workers);
             const key=m=>[m.utcDate?.slice(0,16),m.homeTeam?.name?.toLowerCase(),m.awayTeam?.name?.toLowerCase()].join('|');
             const merged=new Map();
             for(const m of supplemental) merged.set(key(m),m);
