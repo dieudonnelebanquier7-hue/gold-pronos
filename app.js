@@ -221,7 +221,7 @@ function renderPicks(){
     },
     markets:[
      {name:'Équipe la plus forte',options:['V1','V2','NO_BET'],current:strong},
-     {name:'Double chance',options:['1X','X2','NO_BET'],current:double.startsWith('1X')?'1X':'X2'},
+     {name:'Double chance',options:['1X','X2','NO_BET'],current:double.startsWith('1X')?'1X':double.startsWith('X2')?'X2':'NO_BET'},
      {name:'Total buts 1.5',options:['OVER_1_5','NO_BET'],current:goals15.startsWith('+')?'OVER_1_5':'NO_BET'},
      {name:'Total buts 2.5',options:['OVER_2_5','NO_BET'],current:goals25.startsWith('+')?'OVER_2_5':'NO_BET'},
      {name:'Les deux équipes marquent',options:['BTTS_YES','NO_BET'],current:btts.startsWith('Oui')?'BTTS_YES':'NO_BET'}
@@ -231,7 +231,7 @@ function renderPicks(){
     const {data,error}=await db.functions.invoke('ai-crosscheck',{body:payload});
     if(error)throw error;
     if(!data?.verified){result.textContent=data?.message||'La comparaison n’a pas pu être validée.';return}
-    const rows=(data.consensus||[]).map(x=>x.market+' : '+x.pick+' ('+x.agreement+', confiance indicative '+x.confidence+'%)');
+    const rows=(data.consensus||[]).map(x=>x.market+' : '+x.pick+' ('+x.agreement+' modèles d’accord)');
     result.textContent='Comparaison multi-IA · '+data.successfulModels+'/3 modèles\n'+rows.join('\n')+'\n'+data.disclaimer;
    }catch(error){
     let message=error?.message||'Erreur de connexion.';
