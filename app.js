@@ -46,7 +46,9 @@ function mergeSportScoreLive(snapshot){
   if(!match.providers.includes('SportScore'))match.providers.push('SportScore');
   if(match.scoreConflict&&hs!==null&&as!==null&&Number(hs)===Number(match.homeScore)&&Number(as)===Number(match.awayScore))delete match.scoreConflict;
   if(hs!==null&&as!==null&&match.homeScore!==null&&match.awayScore!==null&&(Number(hs)!==Number(match.homeScore)||Number(as)!==Number(match.awayScore))){
-   match.scoreConflict={espn:[match.homeScore,match.awayScore],sportScore:[Number(hs),Number(as)],updatedAt};
+   const sameConflict=match.scoreConflict&&match.scoreConflict.espn?.[0]===match.homeScore&&match.scoreConflict.espn?.[1]===match.awayScore&&match.scoreConflict.sportScore?.[0]===Number(hs)&&match.scoreConflict.sportScore?.[1]===Number(as);
+   if(!sameConflict)match.scoreConflict={espn:[match.homeScore,match.awayScore],sportScore:[Number(hs),Number(as)],updatedAt};
+   if(status==='LIVE'&&!match.finished){match.live=true;match.status='LIVE';match.finished=false;match.periodDetail=row.status_text||match.periodDetail||'En direct';}
    conflicts++;if(before!==JSON.stringify([match.homeScore,match.awayScore,match.status,match.live,match.finished,match.scoreConflict]))changed++;continue;
   }
   if(hs!==null&&as!==null&&(match.homeScore===null||match.awayScore===null||status==='LIVE')){
