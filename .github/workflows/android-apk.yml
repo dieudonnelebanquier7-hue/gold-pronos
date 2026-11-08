@@ -161,9 +161,10 @@ jobs:
           EOF
           npm install
           npx cap add android
-          # Le wrapper Gradle utilise 10 s par défaut : les runners CI ont parfois besoin de plus de temps.
-          sed -i '/^distributionUrl=/a networkTimeout=60000' android/gradle/wrapper/gradle-wrapper.properties
           npx cap sync android
+          # Capacitor peut réécrire les propriétés pendant sync : appliquer le délai après cette étape.
+          sed -i '/^distributionUrl=/a networkTimeout=60000' android/gradle/wrapper/gradle-wrapper.properties
+          grep -E '^(distributionUrl|networkTimeout)=' android/gradle/wrapper/gradle-wrapper.properties
 
       - name: Build Android APK
         run: |
