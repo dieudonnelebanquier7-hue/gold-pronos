@@ -66,6 +66,7 @@ const { chromium } = require('playwright');
   await page.locator('.tab[data-page="pronos"]').click();
   await page.locator('#picks .pick-card').first().waitFor({state:'visible',timeout:5000});
   const predictionCards = page.locator('#picks .pick-card');
+  console.log('PREDICTION CARDS', await page.locator('#picks').innerText());
   const predictionText = await predictionCards.first().innerText();
   if (!predictionText.includes('À domicile') || !predictionText.includes('À l’extérieur') || !predictionText.includes('Les deux équipes marquent')) throw new Error('Prediction engine did not use venue-specific samples and BTTS evidence: '+predictionText);
   const insufficientText = await predictionCards.nth(1).innerText();
