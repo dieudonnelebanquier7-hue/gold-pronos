@@ -51,6 +51,9 @@ const { chromium } = require('playwright');
   const statsText = await page.locator('#match-detail [data-md-panel="stats"]').innerText();
   if (!statsText.includes('Fautes') || !statsText.includes('Corners') || statsText.includes('Fouls') || statsText.includes('Corner Kicks')) throw new Error('Match statistics are not displayed in French: '+statsText);
   await page.locator('#close-modal').click();
+  await page.evaluate(() => { const el=document.createElement('div'); el.id='dynamic-translation-check'; el.textContent='Fouls · Corner Kicks · Yellow Cards'; document.body.appendChild(el); });
+  await page.waitForFunction(() => document.querySelector('#dynamic-translation-check')?.textContent === 'Fautes · Corners · Cartons jaunes');
+  await page.locator('#dynamic-translation-check').evaluate(el=>el.remove());
   const pages = await page.locator('.tab[data-page]').evaluateAll(nodes => nodes.map(node => node.dataset.page));
   for (const name of pages) {
     await page.locator('.tab[data-page="'+name+'"]').click();
