@@ -127,13 +127,15 @@ async function loadTeams(){
  const code=$('teams-competition')?.value,box=$('teams-list'),profile=$('team-profile');if(!code||!box)return;
  profile.innerHTML='';box.innerHTML='<div class="loading">Chargement des clubs et sélections…</div>';
  try{
-  const d=await get(API+code+'/teams?limit=100&region=fr&lang=fr',15000);
-  const rows=(d.sports||[]).flatMap(s=>(s.leagues||[]).flatMap(l=>l.teams||[])).map(x=>x.team||x).filter(t=>t.id);
+  const db=window.GoldSupabase;if(!db)throw Error('Service sécurisé des équipes indisponible');
+  const {data:d,error}=await db.functions.invoke('teams-catalog',{body:{competition:code}});
+  if(error)throw error;
+  const rows=d?.teams||[];
   const unique=[...new Map(rows.map(t=>[String(t.id),t])).values()];
   if(!unique.length)throw Error('Aucune équipe fournie pour cette compétition');
   box.innerHTML=unique.map(t=>{const logo=t.logos?.[0]?.href||t.logos?.find(x=>x.rel?.includes('default'))?.href||t.logo||'';return '<article class="team-tile">'+(logo?'<img loading="lazy" src="'+safe(logo)+'" alt="Écusson de '+safe(t.displayName||t.name)+'">':'<span class="team-no-logo">Écusson non fourni</span>')+'<b>'+safe(t.displayName||t.name||'Équipe')+'</b><small>'+safe(t.location||t.country?.name||'')+'</small><button type="button" class="team-open" data-team="'+safe(t.id)+'" data-code="'+safe(code)+'">Voir la fiche</button><button type="button" class="team-fav" data-fav-team="'+safe(t.id)+'" data-name="'+safe(t.displayName||t.name||'Équipe')+'">☆ Ajouter aux favoris</button></article>'}).join('');
   box.querySelectorAll('.team-open').forEach(b=>b.onclick=()=>loadTeamProfile(b.dataset.code,b.dataset.team));box.querySelectorAll('[data-fav-team]').forEach(b=>b.onclick=()=>toggleFavorite('favorite_teams','team_id',b.dataset.favTeam,b.dataset.name));
- }catch(e){box.innerHTML='<div class="notice">Les équipes de cette compétition ne sont pas accessibles actuellement. Essaie une autre compétition. Aucune équipe ni image fictive ne sera affichée.</div>'}
+ }catch(e){box.innerHTML='<div class="notice">Impossible de charger les équipes officielles pour le moment. '+safe(e?.message||'Le fournisseur ne répond pas.')+' Réessaie dans quelques instants. Aucune équipe ni image fictive ne sera affichée.</div>'}
 }
 async function loadTeamProfile(code,id){
  const box=$('team-profile');box.innerHTML='<div class="loading">Chargement de la fiche de l’équipe…</div>';
