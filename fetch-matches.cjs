@@ -17,16 +17,17 @@ const leagues=[
 const today=new Date();today.setUTCHours(0,0,0,0);
 const from=new Date(today);from.setUTCDate(from.getUTCDate()-35);
 const to=new Date(today);to.setUTCDate(to.getUTCDate()+14);
-const dates=[];for(let d=new Date(from);d<=to;d.setUTCDate(d.getUTCDate()+1))dates.push(d.toISOString().slice(0,10).replace(/-/g,''));
+const dateKey=d=>d.toISOString().slice(0,10).replace(/-/g,'');
+const dateRanges=[dateKey(from)+'-'+dateKey(today),dateKey(today)+'-'+dateKey(to)];
 function teamLogo(team){
  const logos=Array.isArray(team?.logos)?team.logos:[];
  const item=logos.find(x=>x?.href&&(/default|full|primary/i.test((x.rel||[]).join(' '))||!x.rel))||logos.find(x=>x?.href);
  const url=item?.href||team?.logo||team?.crest||'';
  try{const parsed=new URL(url);return parsed.protocol==='https:'?parsed.href:''}catch(_){return ''}
 }
-async function fetchLeagueDay(league,day){
+async function fetchLeagueDay(league,dateRange){
  const [code,label]=league;
- const url='https://site.api.espn.com/apis/site/v2/sports/soccer/'+code+'/scoreboard?dates='+day+'&limit=100&region=fr&lang=fr';
+ const url='https://site.api.espn.com/apis/site/v2/sports/soccer/'+code+'/scoreboard?dates='+dateRange+'&limit=100&region=fr&lang=fr';
  for(let attempt=0;attempt<2;attempt++){
   try{
    const response=await fetch(url,{signal:AbortSignal.timeout(12000),headers:{'User-Agent':'GOLD-PRONOS/1.0'}});
@@ -43,14 +44,14 @@ async function fetchLeagueDay(league,day){
      awayTeam:{id:String(away.team?.id||away.id||''),name:away.team?.displayName||away.team?.name||'Équipe extérieure',abbreviation:away.team?.abbreviation||away.team?.shortDisplayName||'',country:{name:away.team?.location||away.team?.displayName||away.team?.name||'',code:away.team?.abbreviation||''},logo:teamLogo(away.team)},
      score:{fullTime:{home:home.score==null?null:Number(home.score),away:away.score==null?null:Number(away.score)}},source:'ESPN'};
    }).filter(Boolean);
-  }catch(e){if(attempt===1)console.log('Source indisponible '+code+' '+day+': '+e.message)}
+  }catch(e){if(attempt===1)console.log('Source indisponible '+code+' '+dateRange+': '+e.message)}
  }
  return [];
 }
 (async()=>{
- const tasks=[];for(const league of leagues)for(const day of dates)tasks.push(()=>fetchLeagueDay(league,day));
+ const tasks=[];for(const league of leagues)for(const range of dateRanges)tasks.push(()=>fetchLeagueDay(league,range));
  const results=new Array(tasks.length);let cursor=0,completed=0,nonEmpty=0;
- const workers=Array.from({length:10},async()=>{while(true){const i=cursor++;if(i>=tasks.length)break;results[i]=await tasks[i]();if(results[i].length)nonEmpty++;completed++;if(completed%100===0)console.log('Collecte '+completed+'/'+tasks.length)}});
+ const workers=Array.from({length:10},async()=>{while(true){const i=cursor++;if(i>=tasks.length)break;results[i]=await tasks[i]();if(results[i].length)nonEmpty++;completed++;if(completed%20===0)console.log('Collecte '+completed+'/'+tasks.length)}});
  await Promise.all(workers);
  const unique=new Map(results.flat().map(m=>[m.id,m]));
  const matches=[...unique.values()].sort((a,b)=>new Date(a.utcDate)-new Date(b.utcDate));
