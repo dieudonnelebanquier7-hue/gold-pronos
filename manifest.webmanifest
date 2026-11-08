@@ -5,8 +5,8 @@
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#e9e8e3",
-  "theme_color": "#e9e8e3",
+  "background_color": "#090a0d",
+  "theme_color": "#090a0d",
   "description": "Football mondial, suivi des matchs et analyses vérifiées.",
   "icons": [
     {
