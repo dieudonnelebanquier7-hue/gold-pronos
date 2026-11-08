@@ -89,6 +89,7 @@ const { chromium } = require('playwright');
   await page.waitForFunction(() => document.querySelector('#picks .pick-card [data-corners] strong')?.textContent === 'Non disponible', {timeout:5000});
   const cornerCallsAfter = await page.evaluate(() => window.__cornerCalls);
   if (cornerCallsBefore!==1 || cornerCallsAfter!==cornerCallsBefore) throw new Error('Unavailable corner statistics should be negatively cached to avoid repeat source calls: '+cornerCallsBefore+' -> '+cornerCallsAfter);
+  await page.evaluate(() => { delete window.GoldSupabase; });
   await page.evaluate(() => { const el=document.createElement('div'); el.id='dynamic-translation-check'; el.textContent='Fouls · Corner Kicks · Yellow Cards'; document.body.appendChild(el); });
   await page.waitForFunction(() => document.querySelector('#dynamic-translation-check')?.textContent === 'Fautes · Corners · Cartons jaunes');
   await page.locator('#dynamic-translation-check').evaluate(el=>el.remove());
