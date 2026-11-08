@@ -32,7 +32,12 @@ const { chromium } = require('playwright');
     boxscore:{teams:[
       {team:{displayName:'Test FC'},statistics:[{name:'fouls',label:'Fouls',displayValue:'4'},{name:'wonCorners',label:'Corner Kicks',displayValue:'3'}]},
       {team:{displayName:'United Test'},statistics:[{name:'fouls',label:'Fouls',displayValue:'2'},{name:'wonCorners',label:'Corner Kicks',displayValue:'1'}]}
-    ]},commentary:{items:[]}
+    ]},
+    lineups:[
+      {team:{name:'Test FC'},formation:'4-3-3',startXI:Array.from({length:11},(_,i)=>({player:{id:'home-'+i,name:'Test FC Player '+(i+1),number:i+1,pos:'MID'}}))},
+      {team:{name:'United Test'},formation:'4-4-2',startXI:Array.from({length:11},(_,i)=>({player:{id:'away-'+i,name:'United Test Player '+(i+1),number:i+1,pos:'DEF'}}))}
+    ],
+    commentary:{items:[]}
   })}));
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('http://127.0.0.1:4173/', {waitUntil:'networkidle'});
@@ -66,6 +71,11 @@ const { chromium } = require('playwright');
   if (!detailScore.includes('1 – 0')) throw new Error('Match detail did not refresh score from official summary: '+detailScore);
   const calendarScore = await clubCard.locator('.score').innerText();
   if (!calendarScore.includes('1 - 0')) throw new Error('Calendar card did not synchronize with the verified match detail score: '+calendarScore);
+  await page.locator('#match-detail [data-md-tab="lineups"]').click();
+  const lineupText = await page.locator('#match-detail [data-md-panel="lineups"]').innerText();
+  if (!lineupText.includes('Compositions officielles') || !lineupText.includes('Test FC Player 1') || !lineupText.includes('United Test Player 11')) throw new Error('Official pre-match starting XIs were not parsed and displayed: '+lineupText);
+  const lineupCardState = await clubCard.locator('.state').innerText();
+  if (!lineupCardState.includes('XI officiels')) throw new Error('Match card did not signal that official starting XIs are available: '+lineupCardState);
   await page.locator('#match-detail [data-md-tab="stats"]').click();
   const statsText = await page.locator('#match-detail [data-md-panel="stats"]').innerText();
   if (!statsText.includes('Fautes') || !statsText.includes('Corners') || statsText.includes('Fouls') || statsText.includes('Corner Kicks')) throw new Error('Match statistics are not displayed in French: '+statsText);
