@@ -90,11 +90,12 @@ jobs:
               }
             }
             const supplemental=[];
-            const todayKey=ymd(today);
             for(let i=0;i<leagues.length;i+=5) {
-              const batch=await Promise.all(leagues.slice(i,i+5).map(league=>fetchLeague(league,todayKey)));
+              const batch=await Promise.all(
+                leagues.slice(i,i+5).flatMap(league=>dateRanges.map(range=>fetchLeague(league,range)))
+              );
               supplemental.push(...batch.flat());
-              await sleep(150);
+              await sleep(200);
             }
             const key=m=>[m.utcDate?.slice(0,16),m.homeTeam?.name?.toLowerCase(),m.awayTeam?.name?.toLowerCase()].join('|');
             const merged=new Map();
@@ -160,6 +161,8 @@ jobs:
           EOF
           npm install
           npx cap add android
+          # Le wrapper Gradle utilise 10 s par défaut : les runners CI ont parfois besoin de plus de temps.
+          sed -i '/^distributionUrl=/a networkTimeout=60000' android/gradle/wrapper/gradle-wrapper.properties
           npx cap sync android
 
       - name: Build Android APK
