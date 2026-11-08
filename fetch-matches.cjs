@@ -39,8 +39,8 @@ async function fetchLeagueDay(league,day){
     const st=comp?.status?.type||event.status?.type||{},state=st.state;
     return {id:'espn-'+event.id,utcDate:event.date,status:st.completed||state==='post'?'FINISHED':state==='in'?'IN_PLAY':'SCHEDULED',
      competition:{name:label,code:'ESPN-'+code},
-     homeTeam:{id:String(home.team?.id||home.id||''),name:home.team?.displayName||home.team?.name||'Équipe domicile',logo:teamLogo(home.team)},
-     awayTeam:{id:String(away.team?.id||away.id||''),name:away.team?.displayName||away.team?.name||'Équipe extérieure',logo:teamLogo(away.team)},
+     homeTeam:{id:String(home.team?.id||home.id||''),name:home.team?.displayName||home.team?.name||'Équipe domicile',abbreviation:home.team?.abbreviation||home.team?.shortDisplayName||'',country:{name:home.team?.location||home.team?.displayName||home.team?.name||'',code:home.team?.abbreviation||''},logo:teamLogo(home.team)},
+     awayTeam:{id:String(away.team?.id||away.id||''),name:away.team?.displayName||away.team?.name||'Équipe extérieure',abbreviation:away.team?.abbreviation||away.team?.shortDisplayName||'',country:{name:away.team?.location||away.team?.displayName||away.team?.name||'',code:away.team?.abbreviation||''},logo:teamLogo(away.team)},
      score:{fullTime:{home:home.score==null?null:Number(home.score),away:away.score==null?null:Number(away.score)}},source:'ESPN'};
    }).filter(Boolean);
   }catch(e){if(attempt===1)console.log('Source indisponible '+code+' '+day+': '+e.message)}
