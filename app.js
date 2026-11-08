@@ -128,6 +128,42 @@ function renderPicks(){
    marketLine('Total de buts · 2,5',goals25,'Fréquence observée : '+Math.round(rate25*100)+'% sur les échantillons disponibles.',goals25.startsWith('+')?'market-positive':'market-neutral')+
    '<div class="pick-market" data-corners><div><b>Total corners · 5,5</b><small>Recherche des statistiques officielles des derniers matchs…</small></div><strong>Vérification</strong></div>'+
    '</div><div class="pick-evidence"><b>Éléments vérifiés</b><p>'+safe(m.home)+' : '+hs.n+' matchs · '+hs.ppg.toFixed(2)+' pts/match · '+hs.scored.toFixed(2)+' but(s) marqués et '+hs.conceded.toFixed(2)+' encaissés en moyenne.</p><p>'+safe(m.away)+' : '+as.n+' matchs · '+as.ppg.toFixed(2)+' pts/match · '+as.scored.toFixed(2)+' but(s) marqués et '+as.conceded.toFixed(2)+' encaissés en moyenne.</p><small>'+sampleLabel+' · Calcul indicatif fondé sur les résultats récents, pas une garantie de gain.</small></div>';
+  const aiBox=document.createElement('div');
+  aiBox.className='pick-ai-check';
+  aiBox.innerHTML='<button type="button" class="ghost" data-ai-check>Comparer avec 3 modèles IA</button><div class="pick-ai-result" data-ai-result aria-live="polite"></div>';
+  el.append(aiBox);
+  aiBox.querySelector('[data-ai-check]').addEventListener('click',async()=>{
+   const button=aiBox.querySelector('[data-ai-check]'),result=aiBox.querySelector('[data-ai-result]');
+   const db=window.GoldSupabase;
+   if(!db){result.textContent='Service de compte indisponible. Actualise l’application.';return}
+   const {data:{session}}=await db.auth.getSession();
+   if(!session){result.textContent='Connecte-toi à ton compte pour lancer la comparaison IA.';$('account-open')?.click();return}
+   button.disabled=true;button.textContent='Comparaison des modèles en cours…';result.textContent='Les modèles analysent les mêmes données vérifiées. Aucun pari n’est garanti.';
+   const payload={
+    fixture:{home:m.home,away:m.away,competition:m.league,kickoff:m.date},
+    evidence:{
+     home:{sample:hs.n,pointsPerMatch:Number(hs.ppg.toFixed(2)),goalsScoredAverage:Number(hs.scored.toFixed(2)),goalsConcededAverage:Number(hs.conceded.toFixed(2)),over15Rate:Number(hs.over15.toFixed(3)),over25Rate:Number(hs.over25.toFixed(3))},
+     away:{sample:as.n,pointsPerMatch:Number(as.ppg.toFixed(2)),goalsScoredAverage:Number(as.scored.toFixed(2)),goalsConcededAverage:Number(as.conceded.toFixed(2)),over15Rate:Number(as.over15.toFixed(3)),over25Rate:Number(as.over25.toFixed(3))}
+    },
+    markets:[
+     {name:'Équipe la plus forte',options:['V1','V2','NO_BET'],current:strong},
+     {name:'Double chance',options:['1X','X2','NO_BET'],current:double.startsWith('1X')?'1X':'X2'},
+     {name:'Total buts 1.5',options:['OVER_1_5','NO_BET'],current:goals15.startsWith('+')?'OVER_1_5':'NO_BET'},
+     {name:'Total buts 2.5',options:['OVER_2_5','NO_BET'],current:goals25.startsWith('+')?'OVER_2_5':'NO_BET'}
+    ]
+   };
+   try{
+    const {data,error}=await db.functions.invoke('ai-crosscheck',{body:payload});
+    if(error)throw error;
+    if(!data?.verified){result.textContent=data?.message||'La comparaison n’a pas pu être validée.';return}
+    const rows=(data.consensus||[]).map(x=>x.market+' : '+x.pick+' ('+x.agreement+', confiance indicative '+x.confidence+'%)');
+    result.textContent='Comparaison multi-IA · '+data.successfulModels+'/3 modèles\n'+rows.join('\n')+'\n'+data.disclaimer;
+   }catch(error){
+    let message=error?.message||'Erreur de connexion.';
+    try{const body=await error.context?.json?.();if(body?.message)message=body.message;if(body?.code==='AI_NOT_CONFIGURED')message='Clé IA non configurée dans Supabase. Ajoute OPENROUTER_API_KEY dans les secrets du projet.'}catch(_){}
+    result.textContent='Comparaison indisponible : '+message;
+   }finally{button.disabled=false;button.textContent='Relancer la comparaison IA'}
+  });
   box.append(el);
   const cornerNode=el.querySelector('[data-corners]');
   Promise.all([cornerHistory(h),cornerHistory(a)]).then(([hc,ac])=>{
