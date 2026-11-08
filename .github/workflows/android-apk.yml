@@ -44,8 +44,8 @@ jobs:
           node <<'NODE'
           const fs = require('fs');
           const today = new Date(); today.setUTCHours(0,0,0,0);
-          const pastFrom = new Date(today); pastFrom.setUTCDate(pastFrom.getUTCDate()-6);
-          const futureTo = new Date(today); futureTo.setUTCDate(futureTo.getUTCDate()+6);
+          const pastFrom = new Date(today); pastFrom.setUTCDate(pastFrom.getUTCDate()-35);
+          const futureTo = new Date(today); futureTo.setUTCDate(futureTo.getUTCDate()+14);
           const ymd = d => d.toISOString().slice(0,10).replace(/-/g,'');
           const dateRanges = [ymd(pastFrom)+'-'+ymd(today), ymd(today)+'-'+ymd(futureTo)];
           const leagues = [
