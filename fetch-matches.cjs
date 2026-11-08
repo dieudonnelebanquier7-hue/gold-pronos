@@ -24,9 +24,9 @@ function teamLogo(team){
  const url=item?.href||team?.logo||team?.crest||'';
  try{const parsed=new URL(url);return parsed.protocol==='https:'?parsed.href:''}catch(_){return ''}
 }
-async function fetchLeague(league){
+async function fetchLeague(league,range){
  const [code,label]=league;
- const url='https://site.api.espn.com/apis/site/v2/sports/soccer/'+code+'/scoreboard?dates='+ymd(from)+'-'+ymd(to)+'&limit=1000&region=fr&lang=fr';
+ const url='https://site.api.espn.com/apis/site/v2/sports/soccer/'+code+'/scoreboard?dates='+range+'&limit=1000&region=fr&lang=fr';
  for(let attempt=0;attempt<2;attempt++){
   try{
    const response=await fetch(url,{signal:AbortSignal.timeout(20000),headers:{'User-Agent':'GOLD-PRONOS/1.0'}});
@@ -47,20 +47,27 @@ async function fetchLeague(league){
  }
  return [];
 }
+const ranges=[];
+for(let cursor=new Date(from);cursor<=to;){
+ const end=new Date(cursor);end.setUTCDate(end.getUTCDate()+6);if(end>to)end.setTime(to.getTime());
+ ranges.push(ymd(cursor)+'-'+ymd(end));
+ cursor=new Date(end);cursor.setUTCDate(cursor.getUTCDate()+1);
+}
 (async()=>{
- const results=new Array(leagues.length);let cursor=0,completed=0,nonEmpty=0;
- const workers=Array.from({length:8},async()=>{while(true){
-  const i=cursor++;if(i>=leagues.length)break;
-  results[i]=await fetchLeague(leagues[i]);
+ const tasks=leagues.flatMap(league=>ranges.map(range=>({league,range})));
+ const results=new Array(tasks.length);let cursor=0,completed=0,nonEmpty=0;
+ const workers=Array.from({length:12},async()=>{while(true){
+  const i=cursor++;if(i>=tasks.length)break;
+  const task=tasks[i];results[i]=await fetchLeague(task.league,task.range);
   if(results[i].length)nonEmpty++;
   completed++;
-  console.log('Collecte '+completed+'/'+leagues.length+' · '+leagues[i][0]+' · '+results[i].length+' rencontres');
+  if(completed%40===0||completed===tasks.length)console.log('Collecte '+completed+'/'+tasks.length+' · '+nonEmpty+' tranches avec rencontres');
  }});
  await Promise.all(workers);
  const unique=new Map(results.flat().map(m=>[m.id,m]));
  const matches=[...unique.values()].sort((a,b)=>new Date(a.utcDate)-new Date(b.utcDate));
- const output={generatedAt:new Date().toISOString(),range:{from:from.toISOString(),to:to.toISOString()},sources:{espn:matches.length,competitions:nonEmpty},matches};
+ if(!matches.length)throw new Error('ESPN n’a fourni aucune rencontre après '+tasks.length+' requêtes par tranches de 7 jours. Le calendrier existant ne sera pas remplacé.');
+ const output={generatedAt:new Date().toISOString(),range:{from:from.toISOString(),to:to.toISOString()},sources:{espn:matches.length,competitions:leagues.length,windows:ranges.length,requests:tasks.length},matches};
  fs.writeFileSync('matches.json',JSON.stringify(output));
- console.log('Calendrier : '+matches.length+' rencontres vérifiées / '+leagues.length+' compétitions · '+nonEmpty+' compétitions avec résultats.');
- if(!matches.length)console.log('AVERTISSEMENT : aucune rencontre fournie par ESPN. Aucune donnée fictive n’a été créée.');
+ console.log('Calendrier : '+matches.length+' rencontres vérifiées / '+leagues.length+' compétitions / '+ranges.length+' tranches · '+tasks.length+' requêtes maximum.');
 })().catch(error=>{console.error(error);process.exit(1)});
