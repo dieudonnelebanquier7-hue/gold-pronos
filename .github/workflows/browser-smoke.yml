@@ -1,0 +1,39 @@
+name: GOLD PRONOS browser smoke test
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'app.js'
+      - 'styles.css'
+      - 'auth.js'
+      - 'i18n.js'
+      - 'sw.js'
+      - 'tests/**'
+      - '.github/workflows/browser-smoke.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright and Chromium
+        run: |
+          mkdir -p /tmp/gold-pronos-browser-test
+          cd /tmp/gold-pronos-browser-test
+          npm init -y
+          npm install playwright
+          ./node_modules/.bin/playwright install --with-deps chromium
+      - name: Start local test server
+        run: python3 -m http.server 4173 --directory . >/tmp/gold-pronos-http.log 2>&1 &
+      - name: Test every page and responsive layout
+        env:
+          NODE_PATH: /tmp/gold-pronos-browser-test/node_modules
+        run: node tests/browser-smoke.cjs
