@@ -36,7 +36,7 @@ const { chromium } = require('playwright');
   await page.goto('http://127.0.0.1:4173/', {waitUntil:'networkidle'});
   await page.locator('#home-matches .match').first().waitFor({state:'visible',timeout:15000});
   if (!(await page.locator('#home-matches .match').count())) throw new Error('Home page did not render match cards');
-  const clubCard = page.locator('#home-matches .match').filter({hasText:'Test FC'}).first();
+  const clubCard = page.locator('#home-matches .match').filter({hasText:'Test FC'}).filter({hasText:'United Test'}).last();
   const clubCrest = clubCard.locator('.match-crest').first();
   await clubCrest.waitFor({state:'visible'});
   const clubBox = await clubCrest.boundingBox();
