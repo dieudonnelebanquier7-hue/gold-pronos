@@ -261,11 +261,12 @@ async function pollLiveScores(){if(!matches.length)return;const now=Date.now(),g
  let changed=false;results.forEach(r=>{if(r.status!=='fulfilled')return;for(const event of r.value.events||[]){const m=matches.find(x=>x.id===String(event.id));if(!m)continue;const before=[m.status,m.homeScore,m.awayScore,m.periodDetail].join('|');updateLiveEvent(m,event);const after=[m.status,m.homeScore,m.awayScore,m.periodDetail].join('|');if(before!==after)changed=true}});
  if(changed){render();renderLive();renderPersonalizedHome();localMatchAlerts()}const active=matches.filter(m=>m.live).length;const el=$('live-indicator');if(el)el.textContent=active?active+' match'+(active>1?'s':'')+' en cours':'Suivi en direct activé';}
 async function loadEspnFixtures(){
- const start=new Date();start.setDate(start.getDate()-7);
- const end=new Date();end.setDate(end.getDate()+14);
- const range=dateKey(start)+'-'+dateKey(end);
- const queue=leagues.slice(),found=[];let cursor=0;
- const workers=Array.from({length:6},async()=>{while(cursor<queue.length){const [code,label]=queue[cursor++];try{const data=await get(API+code+'/scoreboard?dates='+range+'&limit=100&region=fr&lang=fr',14000);for(const event of data.events||[]){const item=mapEvent(event,code,label);if(item.date&&item.home!=='Équipe inconnue'&&item.away!=='Équipe inconnue')found.push(item)}}catch(error){/* Compétition non fournie par ESPN : ignorée sans inventer de données. */}}});
+ const start=new Date();start.setHours(0,0,0,0);start.setDate(start.getDate()-7);
+ const end=new Date(start);end.setDate(end.getDate()+21);
+ const days=[];for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1))days.push(dateKey(d));
+ const tasks=[];for(const [code,label] of leagues)for(const day of days)tasks.push({code,label,day});
+ const found=[];let cursor=0;
+ const workers=Array.from({length:10},async()=>{while(true){const i=cursor++;if(i>=tasks.length)break;const {code,label,day}=tasks[i];try{const data=await get(API+code+'/scoreboard?dates='+day+'&limit=100&region=fr&lang=fr',10000);for(const event of data.events||[]){const item=mapEvent(event,code,label);if(item.date&&item.home!=='Équipe inconnue'&&item.away!=='Équipe inconnue')found.push(item)}}catch(error){/* Source ou journée indisponible : aucune donnée fictive. */}}});
  await Promise.all(workers);
  return [...new Map(found.map(m=>[String(m.id),m])).values()].sort((a,b)=>new Date(a.date)-new Date(b.date));
 }
