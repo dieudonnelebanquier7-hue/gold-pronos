@@ -15,7 +15,7 @@ const leagues=[
  ['caf.nations','CAF · Coupe d’Afrique des nations'],['uefa.wchampions','UEFA · Ligue des championnes']
 ];
 const today=new Date();today.setUTCHours(0,0,0,0);
-const from=new Date(today);from.setUTCDate(from.getUTCDate()-35);
+const from=new Date(today);from.setUTCDate(from.getUTCDate()-7);
 const to=new Date(today);to.setUTCDate(to.getUTCDate()+14);
 const key=d=>d.toISOString().slice(0,10).replace(/-/g,'');
 const dateRange=key(from)+'-'+key(to);
@@ -36,7 +36,7 @@ async function fetchLeague([code,label]){
     awayTeam:{id:String(away.team?.id||away.id||''),name:away.team?.displayName||away.team?.name||'Équipe extérieure'},
     score:{fullTime:{home:home.score==null?null:Number(home.score),away:away.score==null?null:Number(away.score)}},source:'ESPN'};
   }).filter(Boolean);
- }catch(e){if(!String(e.message).includes('HTTP 400'))console.log('Source indisponible '+code+' '+date+': '+e.message);return []}
+ }catch(e){if(!String(e.message).includes('HTTP 400'))console.log('Source indisponible '+code+' '+dateRange+': '+e.message);return []}
 }
 (async()=>{
  const tasks=leagues.map(league=>()=>fetchLeague(league));
