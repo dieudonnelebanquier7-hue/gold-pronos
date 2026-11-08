@@ -759,3 +759,6 @@ footer{color:#8f98a5!important}
 
 /* Validation multi-sources v182 */
 .match .state.score-conflict{color:#ffd27a!important;font-weight:800;white-space:normal;line-height:1.2}.md-source-warning{margin-top:8px;padding:8px 10px;border:1px solid #8c6a2e;border-radius:8px;background:#342817;color:#ffda91;font-size:12px;line-height:1.45}footer a{color:#e4c16d!important;font-weight:700;text-decoration:underline;text-underline-offset:3px}
+
+/* Match sheet standings */
+.md-standing-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}.md-standing-team{display:grid;grid-template-columns:1fr auto;gap:6px 10px;align-items:center;padding:12px;border:1px solid var(--line,#303b49);border-radius:10px;background:rgba(255,255,255,.025);min-width:0}.md-standing-team>b{font-size:13px;overflow-wrap:anywhere}.md-standing-team>strong{color:#e4c16d;font-size:18px}.md-standing-team>span,.md-standing-team>small{grid-column:1/-1;color:var(--muted,#a5a9b2);font-size:12px}.md-match-standings{margin-top:14px}@media(max-width:520px){.md-standing-grid{grid-template-columns:1fr}}
