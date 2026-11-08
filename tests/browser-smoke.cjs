@@ -34,8 +34,8 @@ const { chromium } = require('playwright');
       {team:{displayName:'United Test'},statistics:[{name:'fouls',label:'Fouls',displayValue:'2'},{name:'wonCorners',label:'Corner Kicks',displayValue:'1'}]}
     ]},
     lineups:[
-      {team:{name:'Test FC'},formation:'4-3-3',startXI:Array.from({length:11},(_,i)=>({player:{id:'home-'+i,name:'Test FC Player '+(i+1),number:i+1,pos:'MID'}}))},
-      {team:{name:'United Test'},formation:'4-4-2',startXI:Array.from({length:11},(_,i)=>({player:{id:'away-'+i,name:'United Test Player '+(i+1),number:i+1,pos:'DEF'}}))}
+      {team:{name:'Test FC'},formation:'4-3-3',coach:{name:'Coach Test FC'},startXI:Array.from({length:11},(_,i)=>({player:{id:'home-'+i,name:'Test FC Player '+(i+1),number:i+1,pos:'MID'}})),substitutes:[{player:{id:'home-sub',name:'Test FC Substitute',number:12,pos:'DEF'}}]},
+      {team:{name:'United Test'},formation:'4-4-2',coach:{name:'Coach United Test'},startXI:Array.from({length:11},(_,i)=>({player:{id:'away-'+i,name:'United Test Player '+(i+1),number:i+1,pos:'DEF'}})),substitutes:[{player:{id:'away-sub',name:'United Test Substitute',number:12,pos:'MID'}}]}
     ],
     commentary:{items:[]}
   })}));
@@ -73,7 +73,7 @@ const { chromium } = require('playwright');
   if (!calendarScore.includes('1 - 0')) throw new Error('Calendar card did not synchronize with the verified match detail score: '+calendarScore);
   await page.locator('#match-detail [data-md-tab="lineups"]').click();
   const lineupText = await page.locator('#match-detail [data-md-panel="lineups"]').innerText();
-  if (!lineupText.includes('Compositions officielles') || !lineupText.includes('Test FC') || !lineupText.includes('United Test') || !/(?:Joueur|Player) 11/.test(lineupText)) throw new Error('Official pre-match starting XIs were not parsed and displayed: '+lineupText);
+  if (!lineupText.includes('Compositions officielles') || !lineupText.includes('Test FC') || !lineupText.includes('United Test') || !/(?:Joueur|Player) 11/.test(lineupText) || !lineupText.includes('Remplaçants') || !lineupText.includes('Formation : 4-3-3')) throw new Error('Official pre-match starting XIs were not parsed and displayed: '+lineupText);
   const lineupCardState = await clubCard.locator('.state').innerText();
   if (!lineupCardState.includes('XI officiels')) throw new Error('Match card did not signal that official starting XIs are available: '+lineupCardState);
   await page.locator('#match-detail [data-md-tab="stats"]').click();
