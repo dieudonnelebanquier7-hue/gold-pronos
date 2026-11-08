@@ -49,29 +49,97 @@ function xtext(x){return x.text||x.shortText||x.type?.text||x.type?.name||'Évé
 function recent(team,exclude){return matches.filter(x=>x.finished&&x.id!==exclude&&(x.home===team||x.away===team)&&x.homeScore!==null&&x.awayScore!==null).sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,8)}
 function points(m,team){const home=m.home===team,sc=Number(home?m.homeScore:m.awayScore),op=Number(home?m.awayScore:m.homeScore);return sc>op?3:sc===op?1:0}
 function dateKeyInAppZone(value){const prefs=readAppSettings(),zone=prefs.timezone||Intl.DateTimeFormat().resolvedOptions().timeZone;try{const parts=new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(value));const p=Object.fromEntries(parts.map(x=>[x.type,x.value]));return p.year+p.month+p.day}catch(e){return dateKey(value)}}
+function matchStats(list,team){
+ const sample=list.slice(0,8),n=sample.length;
+ if(!n)return null;
+ let pts=0,wins=0,draws=0,losses=0,scored=0,conceded=0,over15=0,over25=0,btts=0;
+ for(const m of sample){const home=m.home===team,forGoals=Number(home?m.homeScore:m.awayScore),against=Number(home?m.awayScore:m.homeScore);scored+=forGoals;conceded+=against;const p=points(m,team);pts+=p;if(p===3)wins++;else if(p===1)draws++;else losses++;const total=forGoals+against;if(total>=2)over15++;if(total>=3)over25++;if(forGoals>0&&against>0)btts++}
+ return {sample,n,ppg:pts/n,winRate:wins/n,drawRate:draws/n,unbeatenRate:(wins+draws)/n,scored:scored/n,conceded:conceded/n,goals:(scored+conceded)/n,over15:over15/n,over25:over25/n,btts:btts/n};
+}
+function marketLine(label,value,detail,kind){
+ return '<div class="pick-market"><div><b>'+safe(label)+'</b><small>'+safe(detail)+'</small></div><strong class="'+(kind||'')+'">'+safe(value)+'</strong></div>';
+}
+const CORNER_CACHE_KEY='gold-pronos-corner-cache-v1';
+let cornerActive=0,cornerQueue=[];
+function cornerRequest(url){return new Promise(resolve=>{cornerQueue.push({url,resolve});runCornerQueue()})}
+function runCornerQueue(){while(cornerActive<4&&cornerQueue.length){const job=cornerQueue.shift();cornerActive++;get(job.url,10000).then(job.resolve).catch(()=>job.resolve(null)).finally(()=>{cornerActive--;runCornerQueue()})}}
+function readCornerCache(){try{return JSON.parse(localStorage.getItem(CORNER_CACHE_KEY)||'{}')}catch(e){return {}}}
+function saveCornerCache(cache){try{localStorage.setItem(CORNER_CACHE_KEY,JSON.stringify(cache))}catch(e){}}
+function extractTeamCorners(summary){
+ const groups=summary?.boxscore?.teams||[];
+ if(groups.length<2)return null;
+ const values=[];
+ for(const group of groups){
+  const stats=group.statistics||[];
+  const found=stats.find(x=>/corner/i.test(String(x.name||x.label||x.abbreviation||x.displayName||'')));
+  if(!found)return null;
+  const raw=found.value??found.displayValue;
+  const number=typeof raw==='number'?raw:Number(String(raw??'').trim().replace(',','.'));
+  if(!Number.isFinite(number)||number<0||number>40)return null;
+  values.push(number);
+ }
+ return values.length===2?values[0]+values[1]:null;
+}
+async function cornerHistory(teamMatches){
+ const cache=readCornerCache(),now=Date.now(),chosen=teamMatches.slice(0,4),totals=[];
+ for(const m of chosen){
+  const key=String(m.id),entry=cache[key];
+  if(entry&&now-entry.at<7*86400000&&Number.isFinite(entry.total)){totals.push(entry.total);continue}
+  if(entry&&now-entry.at<6*3600000&&entry.total===null)continue;
+  if(!m.code||!m.id)continue;
+  const data=await cornerRequest(API+m.code+'/summary?event='+encodeURIComponent(String(m.id).replace(/^espn-/,''))+'&region=fr&lang=fr');
+  const total=data?extractTeamCorners(data):null;
+  cache[key]={at:now,total};
+  if(total!==null)totals.push(total);
+ }
+ saveCornerCache(cache);
+ return totals;
+}
 function renderPicks(){
  const box=$('picks');if(!box)return;
  const now=Date.now(),today=dateKeyInAppZone(now);
  const dayMatches=matches.filter(m=>!m.live&&!m.finished&&dateKeyInAppZone(m.date)===today&&new Date(m.date).getTime()>now).sort((a,b)=>new Date(a.date)-new Date(b.date));
  box.replaceChildren();
- const heading=document.createElement('div');heading.className='notice';heading.innerHTML='<b>PRONOSTICS DU JOUR · '+safe(appDate(now,{weekday:'long',day:'numeric',month:'long',year:'numeric'}))+'</b><br>'+dayMatches.length+' rencontre(s) à venir · Analyses actualisées avec les derniers résultats vérifiés.';box.append(heading);
+ const heading=document.createElement('div');heading.className='notice';heading.innerHTML='<b>PRONOSTICS DU JOUR · '+safe(appDate(now,{weekday:'long',day:'numeric',month:'long',year:'numeric'}))+'</b><br>'+dayMatches.length+' rencontre(s) à venir · Sélections calculées à partir des résultats vérifiés disponibles.';box.append(heading);
  if(!dayMatches.length){const empty=document.createElement('div');empty.className='notice';empty.textContent='Aucun match à venir confirmé pour aujourd’hui dans les compétitions suivies. Le calendrier sera actualisé automatiquement.';box.append(empty);return}
- let generated=0;
  for(const m of dayMatches){
-  const h=recent(m.home,m.id),a=recent(m.away,m.id);
+  const h=recent(m.home,m.id),a=recent(m.away,m.id),hs=matchStats(h,m.home),as=matchStats(a,m.away);
   const el=document.createElement('article');el.className='pick-card';
-  const base='<span class="eyebrow">'+safe(m.league)+'</span><h3>'+safe(m.home)+' — '+safe(m.away)+'</h3><p><b>Coup d’envoi :</b> '+safe(appDate(m.date,{hour:'2-digit',minute:'2-digit'}))+'</p>';
-  if(h.length<2||a.length<2){el.innerHTML=base+'<strong>Analyse en attente</strong><p>Historique récent insuffisant pour proposer une tendance sérieuse. La rencontre reste visible, sans pronostic inventé.</p><small>Échantillon disponible : '+h.length+' résultat(s) pour '+safe(m.home)+' et '+a.length+' pour '+safe(m.away)+'.</small>';box.append(el);continue}
-  const hp=h.reduce((s,x)=>s+points(x,m.home),0)/h.length,ap=a.reduce((s,x)=>s+points(x,m.away),0)/a.length;
-  let pick='Tendance équilibrée · prudence',why='Les résultats récents ne dégagent pas d’avantage suffisamment net.';
-  if(hp-ap>=0.75){pick='1 · Avantage domicile';why='Points par match récents : '+hp.toFixed(2)+' contre '+ap.toFixed(2)+'.'}
-  else if(ap-hp>=0.75){pick='2 · Avantage extérieur';why='Points par match récents : '+ap.toFixed(2)+' contre '+hp.toFixed(2)+'.'}
-  else if(Math.abs(hp-ap)<0.35){pick='N · Équilibre relatif';why='Les deux équipes présentent des moyennes de points proches.'}
-  const level=Math.min(h.length,a.length)>=5?'Échantillon correct': 'Échantillon limité · prudence';
-  el.innerHTML=base+'<strong>'+pick+'</strong><p>'+why+'</p><small>'+level+' · '+h.length+' résultats récents pour le domicile, '+a.length+' pour l’extérieur. Tendance indicative, jamais une certitude.</small>';
-  box.append(el);generated++;
+  el.innerHTML='<span class="eyebrow">'+safe(m.league)+'</span><h3>'+safe(m.home)+' — '+safe(m.away)+'</h3><p><b>Coup d’envoi :</b> '+safe(appDate(m.date,{hour:'2-digit',minute:'2-digit'}))+'</p>';
+  if(!hs||!as||hs.n<3||as.n<3){
+   el.innerHTML+='<div class="notice"><b>Analyse en attente</b><p>Historique récent insuffisant. Aucun choix ne sera inventé.</p><small>'+h.length+' résultat(s) pour '+safe(m.home)+' · '+a.length+' pour '+safe(m.away)+' (3 minimum par équipe).</small></div>';
+   box.append(el);continue;
+  }
+  const edge=hs.ppg-as.ppg;
+  let strong='Aucun favori net',strongWhy='Écart de forme trop faible pour isoler une victoire.';
+  if(edge>=0.55){strong='V1 · '+m.home;strongWhy='Moyenne de points récente : '+hs.ppg.toFixed(2)+' contre '+as.ppg.toFixed(2)+'.'}
+  else if(edge<=-0.55){strong='V2 · '+m.away;strongWhy='Moyenne de points récente : '+as.ppg.toFixed(2)+' contre '+hs.ppg.toFixed(2)+'.'}
+  const double=hs.ppg>=as.ppg?'1X · '+m.home+' ou nul':'X2 · '+m.away+' ou nul';
+  const doubleWhy=hs.ppg>=as.ppg?'Le domicile présente la meilleure moyenne récente, avec protection du nul.':'L’extérieur présente la meilleure moyenne récente, avec protection du nul.';
+  const avgGoals=(hs.goals+as.goals)/2;
+  const rate15=(hs.over15+as.over15)/2,rate25=(hs.over25+as.over25)/2;
+  const goals15=avgGoals>=2.0&&rate15>=0.65?'+ de 1,5 but':'Non retenu · prudence';
+  const goals25=avgGoals>=2.65&&rate25>=0.55?'+ de 2,5 buts':'Non retenu · prudence';
+  const sampleLabel=Math.min(hs.n,as.n)>=5?'Échantillon correct':'Échantillon limité';
+  el.innerHTML+='<div class="pick-markets">'+
+   marketLine('Équipe la plus forte',strong,strongWhy,strong!=='Aucun favori net'?'market-positive':'market-neutral')+
+   marketLine('Double chance',double,doubleWhy,'market-positive')+
+   marketLine('Total de buts · 1,5',goals15,'Moyenne totale récente : '+avgGoals.toFixed(2)+' but(s) par match · fréquence observée : '+Math.round(rate15*100)+'%.',goals15.startsWith('+')?'market-positive':'market-neutral')+
+   marketLine('Total de buts · 2,5',goals25,'Fréquence observée : '+Math.round(rate25*100)+'% sur les échantillons disponibles.',goals25.startsWith('+')?'market-positive':'market-neutral')+
+   '<div class="pick-market" data-corners><div><b>Total corners · 5,5</b><small>Recherche des statistiques officielles des derniers matchs…</small></div><strong>Vérification</strong></div>'+
+   '</div><div class="pick-evidence"><b>Éléments vérifiés</b><p>'+safe(m.home)+' : '+hs.n+' matchs · '+hs.ppg.toFixed(2)+' pts/match · '+hs.scored.toFixed(2)+' but(s) marqués et '+hs.conceded.toFixed(2)+' encaissés en moyenne.</p><p>'+safe(m.away)+' : '+as.n+' matchs · '+as.ppg.toFixed(2)+' pts/match · '+as.scored.toFixed(2)+' but(s) marqués et '+as.conceded.toFixed(2)+' encaissés en moyenne.</p><small>'+sampleLabel+' · Calcul indicatif fondé sur les résultats récents, pas une garantie de gain.</small></div>';
+  box.append(el);
+  const cornerNode=el.querySelector('[data-corners]');
+  Promise.all([cornerHistory(h),cornerHistory(a)]).then(([hc,ac])=>{
+   if(!cornerNode.isConnected)return;
+   const all=[...hc,...ac];
+   if(all.length<4){cornerNode.innerHTML='<div><b>Total corners · 5,5</b><small>Statistiques de corners non publiées ou échantillon insuffisant par la source pour cette rencontre.</small></div><strong>Non disponible</strong>';return}
+   const avg=all.reduce((sum,v)=>sum+v,0)/all.length;
+   const hit=all.filter(v=>v>=6).length/all.length;
+   const pick=avg>=7&&hit>=0.6?'+ de 5,5 corners':'Non retenu · prudence';
+   cornerNode.innerHTML='<div><b>Total corners · 5,5</b><small>Moyenne observée : '+avg.toFixed(1)+' · '+Math.round(hit*100)+'% des matchs avec 6 corners ou plus · '+all.length+' observations.</small></div><strong class="'+(pick.startsWith('+')?'market-positive':'market-neutral')+'">'+pick+'</strong>';
+  }).catch(()=>{if(cornerNode.isConnected)cornerNode.innerHTML='<div><b>Total corners · 5,5</b><small>Impossible de vérifier cette statistique auprès de la source.</small></div><strong>Non disponible</strong>'});
  }
- if(!generated&&dayMatches.length){const note=document.createElement('div');note.className='notice';note.textContent='Les rencontres du jour sont bien chargées. Les analyses détaillées apparaîtront dès que les résultats récents des équipes seront disponibles.';box.append(note)}
 }
 function findRows(obj,out=[],seen=new Set()){
  if(!obj||typeof obj!=='object'||seen.has(obj))return out;seen.add(obj);
