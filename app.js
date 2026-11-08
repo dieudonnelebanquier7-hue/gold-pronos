@@ -247,12 +247,12 @@ function mdPanel(data,key){
 const matchStandingsCache=new Map();
 function matchTeamStandingRow(rows,m,side){const name=side==='home'?m.home:m.away,id=side==='home'?m.homeId:m.awayId;return rows.find(e=>{const t=e.team||{},tid=t.id||t.uid;return (id&&tid&&String(id)===String(tid))||providerNorm(teamName(e))===providerNorm(name)})||null}
 async function loadMatchStandings(m){
- const panel=$('match-detail')?.querySelector('[data-md-panel="overview"]');if(!panel)return;const code=m.code;if(!code){panel.insertAdjacentHTML('beforeend','<div class="md-empty">Classement indisponible pour cette compétition.</div>');return}
+ const root=$('match-detail'),matchId=m.id,panel=root?.querySelector('[data-md-panel="overview"]');if(!panel)return;const current=()=>root?.dataset.matchId===matchId&&panel.isConnected;const code=m.code;if(!code){panel.insertAdjacentHTML('beforeend','<div class="md-empty">Classement indisponible pour cette compétition.</div>');return}
  let rows=matchStandingsCache.get(code);if(!rows){const urls=['https://site.api.espn.com/apis/v2/sports/soccer/'+encodeURIComponent(code)+'/standings','https://site.web.api.espn.com/apis/v2/sports/soccer/'+encodeURIComponent(code)+'/standings'];for(const url of urls){try{const d=await get(url,12000),found=standingsRows(d);if(found.length){rows=found;matchStandingsCache.set(code,rows);break}}catch(_){}}}
- if(!rows?.length){if(panel.isConnected)panel.insertAdjacentHTML('beforeend','<div class="md-empty">Classement officiel non communiqué pour cette compétition.</div>');return}
+ if(!rows?.length){if(current())panel.insertAdjacentHTML('beforeend','<div class="md-empty">Classement officiel non communiqué pour cette compétition.</div>');return}
  const rank=e=>e?(e.rank??e.position??stat(e,['rank'])):'—';
  const card=(e,name)=>'<article class="md-standing-team"><b>'+safe(name)+'</b><strong>'+(rank(e)==='—'?'—':'#'+safe(rank(e)))+'</strong><span>'+(e?'Pts '+safe(stat(e,['points']))+' · '+safe(stat(e,['gamesplayed']))+' MJ':'Non classé dans la table reçue')+'</span><small>'+(e?'V '+safe(stat(e,['wins']))+' · N '+safe(stat(e,['ties']))+' · D '+safe(stat(e,['losses'])):'')+'</small></article>';
- if(panel.isConnected)panel.insertAdjacentHTML('beforeend','<section class="md-stat-card md-match-standings"><h3>Classement actuel · '+safe(m.competition||m.league)+'</h3><div class="md-standing-grid">'+card(matchTeamStandingRow(rows,m,'home'),m.home)+card(matchTeamStandingRow(rows,m,'away'),m.away)+'</div><p class="md-note">Classement fourni par ESPN. Les positions absentes ne sont pas estimées.</p></section>');
+ if(current())panel.insertAdjacentHTML('beforeend','<section class="md-stat-card md-match-standings"><h3>Classement actuel · '+safe(m.competition||m.league)+'</h3><div class="md-standing-grid">'+card(matchTeamStandingRow(rows,m,'home'),m.home)+card(matchTeamStandingRow(rows,m,'away'),m.away)+'</div><p class="md-note">Classement fourni par ESPN. Les positions absentes ne sont pas estimées.</p></section>');
 }
 async function openMatch(m){
  const box=$('match-detail');box.dataset.matchId=m.id;$('match-modal').hidden=false;
