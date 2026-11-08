@@ -68,12 +68,12 @@ const { chromium } = require('playwright');
   const mismatchedScore = await page.locator('#match-detail .md-score').first().innerText();
   if (mismatchedScore.includes('1 – 0')) throw new Error('Mismatched ESPN summary was incorrectly applied to another fixture: '+mismatchedScore);
   await page.locator('#close-modal').click();
-  await page.locator('.tab[data-page="pronos"]').click();
-  await page.locator('#picks .pick-card').first().waitFor({state:'visible',timeout:5000});
   await page.evaluate(() => {
     window.__cornerCalls = 0;
     window.GoldSupabase = {functions:{invoke:async(name,args)=>{window.__cornerCalls++;return {data:{matches:(args.body.matches||[]).map(m=>({...m,verified:false,reason:'Statistiques non publiées'}))},error:null}}}};
   });
+  await page.locator('.tab[data-page="pronos"]').click();
+  await page.locator('#picks .pick-card').first().waitFor({state:'visible',timeout:5000});
   const predictionCards = page.locator('#picks .pick-card');
   const predictionCard = predictionCards.filter({hasText:'Test FC'}).first();
   const predictionText = await predictionCard.innerText();
