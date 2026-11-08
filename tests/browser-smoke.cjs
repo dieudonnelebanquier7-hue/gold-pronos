@@ -18,6 +18,13 @@ const { chromium } = require('playwright');
   await page.route('**/matches.json', route => route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({generatedAt:new Date().toISOString(),matches:fixtures})}));
   await page.route('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2', route => route.fulfill({status:200,contentType:'application/javascript',body:'/* mocked Supabase CDN */'}));
   await page.route('https://site.api.espn.com/**', route => route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({events:[],articles:[],items:[],leaders:[],children:[],entries:[]})}));
+  await page.route('**/summary?event=*', route => route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({
+    header:{competitions:[{competitors:[{homeAway:'home',score:'1',team:{displayName:'Test FC'}},{homeAway:'away',score:'0',team:{displayName:'United Test'}}],status:{type:{state:'in',displayClock:'12:00',period:1,detail:'1st Half'}}}]},
+    boxscore:{teams:[
+      {team:{displayName:'Test FC'},statistics:[{name:'fouls',label:'Fouls',displayValue:'4'},{name:'wonCorners',label:'Corner Kicks',displayValue:'3'}]},
+      {team:{displayName:'United Test'},statistics:[{name:'fouls',label:'Fouls',displayValue:'2'},{name:'wonCorners',label:'Corner Kicks',displayValue:'1'}]}
+    ]},commentary:{items:[]}
+  })}));
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('http://127.0.0.1:4173/', {waitUntil:'networkidle'});
   await page.locator('#home-matches .match').first().waitFor({state:'visible',timeout:15000});
@@ -38,6 +45,11 @@ const { chromium } = require('playwright');
   await page.locator('#match-modal:not([hidden])').waitFor({state:'visible',timeout:5000});
   const detailCrests = await page.locator('#match-detail .detail-crest').count();
   if (detailCrests!==2) throw new Error('Match detail must show exactly two aligned club crests: '+detailCrests);
+  const detailScore = await page.locator('#match-detail .md-score').first().innerText();
+  if (!detailScore.includes('1 – 0')) throw new Error('Match detail did not refresh score from official summary: '+detailScore);
+  await page.locator('#match-detail [data-md-tab="stats"]').click();
+  const statsText = await page.locator('#match-detail [data-md-panel="stats"]').innerText();
+  if (!statsText.includes('Fautes') || !statsText.includes('Corners') || statsText.includes('Fouls') || statsText.includes('Corner Kicks')) throw new Error('Match statistics are not displayed in French: '+statsText);
   await page.locator('#close-modal').click();
   const pages = await page.locator('.tab[data-page]').evaluateAll(nodes => nodes.map(node => node.dataset.page));
   for (const name of pages) {
