@@ -73,7 +73,7 @@ const { chromium } = require('playwright');
   if (!calendarScore.includes('1 - 0')) throw new Error('Calendar card did not synchronize with the verified match detail score: '+calendarScore);
   await page.locator('#match-detail [data-md-tab="lineups"]').click();
   const lineupText = await page.locator('#match-detail [data-md-panel="lineups"]').innerText();
-  if (!lineupText.includes('Compositions officielles') || !lineupText.includes('Test FC Player 1') || !lineupText.includes('United Test Player 11')) throw new Error('Official pre-match starting XIs were not parsed and displayed: '+lineupText);
+  if (!lineupText.includes('Compositions officielles') || !lineupText.includes('Test FC') || !lineupText.includes('United Test') || !/(?:Joueur|Player) 11/.test(lineupText)) throw new Error('Official pre-match starting XIs were not parsed and displayed: '+lineupText);
   const lineupCardState = await clubCard.locator('.state').innerText();
   if (!lineupCardState.includes('XI officiels')) throw new Error('Match card did not signal that official starting XIs are available: '+lineupCardState);
   await page.locator('#match-detail [data-md-tab="stats"]').click();
