@@ -37,17 +37,12 @@ async function fetchLeague([code,label],date){
  }catch(e){console.log('Source indisponible '+code+': '+e.message);return []}
 }
 (async()=>{
- let all=[];
- for(let i=0;i<leagues.length;i+=5){
-  const batch=await Promise.all(leagues.slice(i,i+5).map(async league=>{
-   const parts=[];
-   for(let day=new Date(from);day<=to;day.setUTCDate(day.getUTCDate()+1)){
-    parts.push(...await fetchLeague(league,key(day)));
-   }
-   return parts;
-  }));
-  all.push(...batch.flat());
- }
+ const dates=[];for(let day=new Date(from);day<=to;day.setUTCDate(day.getUTCDate()+1))dates.push(key(day));
+ const tasks=leagues.flatMap(league=>dates.map(date=>()=>fetchLeague(league,date)));
+ const results=new Array(tasks.length);let cursor=0;
+ const workers=Array.from({length:8},async()=>{while(true){const i=cursor++;if(i>=tasks.length)break;results[i]=await tasks[i]()}});
+ await Promise.all(workers);
+ const all=results.flat();
  const unique=new Map(all.map(m=>[m.id,m]));
  const matches=[...unique.values()].sort((a,b)=>new Date(a.utcDate)-new Date(b.utcDate));
  if(!matches.length)throw Error('Aucun match vérifié reçu : publication annulée.');
