@@ -76,10 +76,15 @@ function renderPicks(){
 function findRows(obj,out=[],seen=new Set()){
  if(!obj||typeof obj!=='object'||seen.has(obj))return out;seen.add(obj);
  if(Array.isArray(obj)){for(const x of obj)findRows(x,out,seen);return out}
- if(obj.team&&(obj.stats||obj.statsSummary||obj.rank||obj.position||obj.team.displayName||obj.team.name)){out.push(obj)}
+ if(obj.team&&(obj.stats||obj.statsSummary||obj.rank||obj.position||obj.team.displayName||obj.team.name))out.push(obj);
  if(Array.isArray(obj.entries))for(const e of obj.entries)if(e?.team)out.push(e);
- for(const [k,v] of Object.entries(obj)){if(v&&typeof v==='object'&&k!=='team'&&k!=='entries')findRows(v,out,seen)}
+ for(const [k,v] of Object.entries(obj)){if(v&&typeof v==='object'&&k!=='team')findRows(v,out,seen)}
  return out;
+}
+function standingsRows(data){
+ const found=findRows(data),map=new Map();
+ for(const e of found){const id=e.team?.id||e.team?.uid||teamName(e);if(id&&!map.has(String(id)))map.set(String(id),e)}
+ return [...map.values()].filter(e=>teamName(e)!=='Club non renseigné');
 }
 function stat(e,names){
  const s=e.stats||e.statsSummary||e.statistics||[];
@@ -99,12 +104,24 @@ async function loadStandings(){
  const code=$('standings-league').value,box=$('standings');activeLeague=code;
  box.innerHTML='<div class="loading">Chargement du classement officiel…</div>';
  try{
-  const d=await get(API+code+'/standings?region=fr&lang=fr',12000);
-  let rows=findRows(d);const uniq=[...new Map(rows.map(e=>[e.team?.id||teamName(e),e])).values()];
-  if(!uniq.length)throw Error('Structure du classement non reconnue');
-  const html='<div class="table-wrap"><table><thead><tr><th>#</th><th>Club</th><th>MJ</th><th>V</th><th>N</th><th>D</th><th>BP</th><th>BC</th><th>Pts</th></tr></thead><tbody>'+uniq.map((e,i)=>'<tr><td>'+(e.rank??e.position??i+1)+'</td><td>'+safe(teamName(e))+'</td><td>'+stat(e,['gamesplayed'])+'</td><td>'+stat(e,['wins'])+'</td><td>'+stat(e,['ties'])+'</td><td>'+stat(e,['losses'])+'</td><td>'+stat(e,['pointsfor'])+'</td><td>'+stat(e,['pointsagainst'])+'</td><td><b>'+stat(e,['points'])+'</b></td></tr>').join('')+'</tbody></table></div>';
+  let data=null,rows=[];
+  const urls=[
+   'https://site.api.espn.com/apis/v2/sports/soccer/'+encodeURIComponent(code)+'/standings',
+   'https://site.web.api.espn.com/apis/v2/sports/soccer/'+encodeURIComponent(code)+'/standings'
+  ];
+  let lastError=null;
+  for(const url of urls){
+   try{data=await get(url,15000);rows=standingsRows(data);if(rows.length)break}
+   catch(error){lastError=error}
+  }
+  if(!rows.length)throw lastError||Error('Aucune table officielle publiée par la source pour cette compétition');
+  rows.sort((a,b)=>{
+   const rank=e=>Number(e.rank??e.position??e.stats?.find?.(x=>/rank|position/i.test(x.name||''))?.value??999);
+   return rank(a)-rank(b);
+  });
+  const html='<div class="table-wrap"><table><thead><tr><th>#</th><th>Club</th><th>MJ</th><th>V</th><th>N</th><th>D</th><th>BP</th><th>BC</th><th>Pts</th></tr></thead><tbody>'+rows.map((e,i)=>'<tr><td>'+(e.rank??e.position??stat(e,['rank'])??i+1)+'</td><td>'+safe(teamName(e))+'</td><td>'+stat(e,['gamesplayed'])+'</td><td>'+stat(e,['wins'])+'</td><td>'+stat(e,['ties'])+'</td><td>'+stat(e,['losses'])+'</td><td>'+stat(e,['pointsfor'])+'</td><td>'+stat(e,['pointsagainst'])+'</td><td><b>'+stat(e,['points'])+'</b></td></tr>').join('')+'</tbody></table></div><p class="muted">Source : ESPN · Classement officiel · '+new Date().toLocaleString(appLocale())+'</p>';
   box.innerHTML=html;
- }catch(e){box.innerHTML='<div class="notice">Le classement officiel n’est pas accessible pour cette compétition pour le moment. Réessaie plus tard ou choisis une autre ligue. Aucun classement estimé ne sera présenté comme officiel.</div>'}
+ }catch(e){box.innerHTML='<div class="notice">Le fournisseur ne publie pas de classement officiel exploitable pour cette compétition actuellement. Choisis une compétition dont la table officielle est disponible. Aucun classement estimé ne sera présenté comme officiel.</div>'}
 }
 async function loadTeams(){
  const code=$('teams-competition')?.value,box=$('teams-list'),profile=$('team-profile');if(!code||!box)return;
