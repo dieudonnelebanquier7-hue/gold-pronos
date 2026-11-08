@@ -77,3 +77,17 @@ footer{color:#716d63}
 .settings-card label{font-size:13px;font-weight:800;color:var(--muted)}
 .settings-card select{width:100%;padding:12px;border:1px solid var(--line);border-radius:9px;background:#101012;color:var(--ink)}
 .settings-actions{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}
+
+/* GOLD PRONOS - marchés détaillés */
+.pick-markets{display:grid;gap:8px;margin:14px 0}
+.pick-market{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#faf9f5}
+.pick-market>div{display:grid;gap:4px;min-width:0}
+.pick-market b{font-size:13px;color:var(--ink)}
+.pick-market small{font-size:11px;line-height:1.4;color:var(--muted)}
+.pick-market>strong{flex:0 0 auto;font-size:12px;text-align:right;max-width:48%;padding:7px 9px;border-radius:7px;background:#eeeae0;color:#625b4b}
+.pick-market .market-positive{background:#e7f3eb;color:#24643d}
+.pick-market .market-neutral{background:#f0eee8;color:#6c6557}
+.pick-evidence{padding:12px;border-radius:10px;background:#f2f0e9;margin-top:10px}
+.pick-evidence p{font-size:12px;line-height:1.5;margin:7px 0;color:var(--ink)}
+.pick-evidence small{font-size:11px;color:var(--muted);line-height:1.4}
+@media(max-width:420px){.pick-market{align-items:flex-start}.pick-market>strong{max-width:42%;font-size:11px}}
