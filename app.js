@@ -138,20 +138,46 @@ async function loadTeams(){
  }catch(e){box.innerHTML='<div class="notice">Impossible de charger les équipes officielles pour le moment. '+safe(e?.message||'Le fournisseur ne répond pas.')+' Réessaie dans quelques instants. Aucune équipe ni image fictive ne sera affichée.</div>'}
 }
 async function loadTeamProfile(code,id){
- const box=$('team-profile');box.innerHTML='<div class="loading">Chargement de la fiche de l’équipe…</div>';
+ const box=$('team-profile');box.innerHTML='<div class="loading">Chargement de la fiche officielle, du stade et de l’effectif…</div>';
  try{
-  const [detail,roster]=await Promise.all([
-   get(API+code+'/teams/'+encodeURIComponent(id)+'?region=fr&lang=fr',12000).catch(()=>({})),
-   get(API+code+'/teams/'+encodeURIComponent(id)+'/roster?region=fr&lang=fr',12000).catch(()=>({}))
-  ]);
-  const team=detail.team||detail.sports?.[0]?.leagues?.[0]?.teams?.[0]?.team||detail.sports?.[0]?.leagues?.[0]?.teams?.[0]||{};
-  const list=roster.athletes||roster.roster||roster.team?.athletes||team.athletes||[];
+  const db=window.GoldSupabase;if(!db)throw Error('Service sécurisé des fiches équipes indisponible');
+  const {data,error}=await db.functions.invoke('team-profile',{body:{competition:code,teamId:String(id)}});
+  if(error)throw error;
+  if(!data)throw Error('La source officielle n’a retourné aucune fiche');
+  const team=data.team||{},list=Array.isArray(data.athletes)?data.athletes:[];
+  const venue=team.franchise?.venue||team.venue||team.homeVenue||{};
   const logo=team.logos?.[0]?.href||team.logos?.find(x=>x.rel?.includes('default'))?.href||team.logo||'';
-  const fields=[['Ville',team.location],['Pays',team.country?.name||team.country?.displayName||team.country],['Surnom',team.nickname],['Fondation',team.foundingDate||team.founded],['Couleurs',team.color],['Bilan',team.record?.summary||team.record?.displayValue],['Stade',team.franchise?.venue?.fullName||team.venue?.fullName||team.venue?.name],['Capacité',team.franchise?.venue?.capacity||team.venue?.capacity],['Entraîneur',team.coach?.fullName||team.coaches?.[0]?.fullName],['Compétition',team.groups?.[0]?.name||team.league?.name]].filter(x=>x[1]);
-  const honours=team.honors||team.achievements||[];
-  box.innerHTML='<article class="team-profile-card"><div class="team-profile-head">'+(logo?'<img src="'+safe(logo)+'" alt="Écusson de '+safe(team.displayName||team.name||'équipe')+'">':'')+'<div><span class="eyebrow">FICHE ÉQUIPE</span><h3>'+safe(team.displayName||team.name||team.shortDisplayName||'Équipe')+'</h3><p>'+safe(team.abbreviation||team.location||'')+'</p></div></div>'+(fields.length?'<div class="team-facts">'+fields.map(x=>'<div><small>'+safe(x[0])+'</small><b>'+safe(x[1])+'</b></div>').join('')+'</div>':'<p class="notice">Les informations historiques et le stade ne sont pas communiqués pour cette équipe.</p>')+(honours.length?'<h4>Palmarès communiqué</h4><ul>'+honours.map(x=>'<li>'+safe(x.name||x.description||x.title||x)+'</li>').join('')+'</ul>':'')+'<h4>Effectif et photos des joueurs</h4>'+(list.length?'<div class="player-grid">'+list.map(p=>{const a=p.athlete||p,photo=a.headshot?.href||a.photo||a.image||'';return '<div class="player-tile">'+(photo?'<img loading="lazy" src="'+safe(photo)+'" alt="Photo de '+safe(a.displayName||a.fullName||'joueur')+'">':'<div class="player-no-photo">Photo non fournie</div>')+'<b>'+safe(a.displayName||a.fullName||a.name||'Joueur')+'</b><small>'+safe(a.position?.displayName||a.position?.name||a.position?.abbreviation||'')+'</small></div>'}).join('')+'</div>':'<div class="notice">La composition détaillée et les photos des joueurs ne sont pas publiées par la source pour cette équipe.</div>')+'</article>';
+  const name=team.displayName||team.name||team.shortDisplayName||'Équipe';
+  const value=(...xs)=>xs.find(x=>x!==undefined&&x!==null&&String(x).trim()!=='');
+  const facts=[
+   ['Ville',value(team.location,team.franchise?.location)],
+   ['Pays',value(team.country?.name,team.country?.displayName,team.country)],
+   ['Surnom',value(team.nickname,team.shortName)],
+   ['Fondation',value(team.foundingDate,team.founded,team.established,team.franchise?.founded)],
+   ['Première saison',value(team.firstYearOfPlay,team.franchise?.firstYearOfPlay)],
+   ['Couleurs',value(team.color&&('#'+team.color),team.alternateColor&&('#'+team.alternateColor))],
+   ['Entraîneur',value(team.coach?.fullName,team.coaches?.[0]?.fullName)],
+   ['Compétition',value(team.groups?.[0]?.name,team.league?.name)]
+  ].filter(x=>x[1]);
+  const stadium=[
+   ['Stade',value(venue.fullName,venue.displayName,venue.name,team.franchise?.venueName)],
+   ['Ville du stade',value(venue.address?.city,venue.city,venue.location)],
+   ['Capacité',value(venue.capacity,venue.seatingCapacity)],
+   ['Surface',value(venue.grass,venue.surface)]
+  ].filter(x=>x[1]);
+  const history=[
+   ['Fondé',value(team.foundingDate,team.founded,team.established,team.franchise?.founded)],
+   ['Première saison',value(team.firstYearOfPlay,team.franchise?.firstYearOfPlay)],
+   ['Palmarès',Array.isArray(team.honors)?team.honors.length+' distinction(s) répertoriée(s)':null]
+  ].filter(x=>x[1]);
+  const honours=Array.isArray(team.honors)?team.honors:(Array.isArray(team.achievements)?team.achievements:[]);
+  const esc=x=>safe(String(x));
+  const factsHtml=facts.length?'<div class="team-facts">'+facts.map(x=>'<div><small>'+esc(x[0])+'</small><b>'+esc(x[1])+'</b></div>').join('')+'</div>':'<p class="notice">Les données biographiques officielles ne sont pas détaillées par le fournisseur pour cette équipe.</p>';
+  const stadiumHtml='<h4>Stade et enceinte</h4>'+(stadium.length?'<div class="team-facts">'+stadium.map(x=>'<div><small>'+esc(x[0])+'</small><b>'+esc(x[1])+'</b></div>').join('')+'</div>':'<p class="notice">Le stade n’est pas renseigné dans la fiche officielle disponible. Nous ne lui attribuons pas de stade supposé.</p>');
+  const historyHtml='<h4>Historique du club</h4>'+(history.length?'<div class="team-facts">'+history.map(x=>'<div><small>'+esc(x[0])+'</small><b>'+esc(x[1])+'</b></div>').join('')+'</div>':'<p class="notice">La date de fondation et les repères historiques ne sont pas publiés dans la fiche fournisseur pour cette équipe.</p>');
+  box.innerHTML='<article class="team-profile-card"><div class="team-profile-head">'+(logo?'<img src="'+esc(logo)+'" alt="Écusson de '+esc(name)+'">':'')+'<div><span class="eyebrow">FICHE ÉQUIPE · SOURCE ESPN</span><h3>'+esc(name)+'</h3><p>'+esc(value(team.abbreviation,team.location,'')||'')+'</p></div></div>'+factsHtml+historyHtml+stadiumHtml+(honours.length?'<h4>Palmarès communiqué</h4><ul>'+honours.map(x=>'<li>'+esc(x.name||x.description||x.title||x)+'</li>').join('')+'</ul>':'')+'<h4>Effectif et photos des joueurs</h4>'+(list.length?'<div class="player-grid">'+list.map(p=>{const a=p.athlete||p,photo=a.headshot?.href||a.photo||a.image||'';return '<div class="player-tile">'+(photo?'<img loading="lazy" src="'+esc(photo)+'" alt="Photo de '+esc(a.displayName||a.fullName||'joueur')+'">':'<div class="player-no-photo">Photo non fournie</div>')+'<b>'+esc(a.displayName||a.fullName||a.name||'Joueur')+'</b><small>'+esc(a.position?.displayName||a.position?.name||a.position?.abbreviation||'')+'</small></div>'}).join('')+'</div>':'<div class="notice">L’effectif détaillé ou les photos ne sont pas publiés par la source pour cette équipe.</div>')+'</article>';
   box.scrollIntoView({behavior:'smooth',block:'start'});
- }catch(e){box.innerHTML='<div class="notice">La fiche détaillée de cette équipe est momentanément indisponible. Réessaie plus tard.</div>'}
+ }catch(e){box.innerHTML='<div class="notice">Impossible de charger la fiche officielle de cette équipe. '+safe(e?.message||'Le fournisseur ne répond pas.')+' Aucune information historique ou de stade ne sera inventée.</div>'}
 }
 function toast(message){const el=$('toast');if(!el)return;el.textContent=message;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2600)}
 async function currentUser(){const db=window.GoldSupabase;if(!db)return null;const r=await db.auth.getUser();return r.data?.user||null}
