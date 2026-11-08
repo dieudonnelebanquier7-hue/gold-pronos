@@ -275,3 +275,40 @@ a{color:#e4bd63}
  .table-wrap{max-width:100%}
 }
 @media(max-width:360px){.team-grid{grid-template-columns:1fr}.match-side .team-name{font-size:12px}}
+
+/* GOLD PRONOS · interface football live-score, identité noir & or */
+:root{color-scheme:dark;--green:#d6ad55;--green2:#f0cc79;--blue:#e8c36d;--ink:#f2f0e9;--muted:#a8a39a;--bg:#090a0d;--line:#2b2b2b;--white:#121316;--gold:#d6ad55}
+html,body{background:#090a0d;color:#f2f0e9}
+body{background:radial-gradient(ellipse at 50% -20%,#252016 0,#0b0c0f 48%,#08090b 100%);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
+.top{background:#0d0e11;border-bottom:1px solid #30291b;box-shadow:0 5px 22px #0008}
+.brand{color:#f5f0e4}.brand b,footer b{color:#d6ad55}.brand small{color:#a89c82}
+.mark{background:linear-gradient(145deg,#f0cf80,#9d742c);color:#17130a;box-shadow:0 0 20px #d6ad5528}
+.top-actions select,.filters input,.filters select,.auth-form input,#profile-name{background:#151619;color:#f2f0e9;border-color:#343434}
+.install{background:linear-gradient(135deg,#e5c16f,#b88a37);color:#17130a;box-shadow:0 4px 14px #d6ad5520}
+.ghost{background:#242016;color:#e4c477;border:1px solid #5c4924}
+.hero{background:linear-gradient(115deg,#17140e,#262016 58%,#101115);border:1px solid #5a4824;box-shadow:0 16px 44px #0007}
+.hero .eyebrow,.eyebrow{color:#d8b96c}.hero h1 em{color:#e8c878}.hero p,.hero-stat span,.hero-stat small{color:#c7c0b1}
+.hero-stat{background:#ffffff09;border-color:#5b4a2b}
+.tabs{scrollbar-color:#8f7137 #141414}.tab{background:#141518;border-color:#333;color:#c8c3b8}.tab.active{background:#d3aa52;border-color:#d3aa52;color:#17130a}.tab.vip{border-color:#80652f;color:#e4c477}
+.page{background:#101114;border-color:#2d2c29;box-shadow:0 12px 35px #0005}
+.section-head h2,h2{color:#f4f0e6}
+.match-list{gap:12px}.match{background:linear-gradient(145deg,#17181b,#111215);border-color:#303033;color:#f3f0e8;box-shadow:0 5px 16px #0004;transition:transform .16s,border-color .16s}
+.match:hover{background:#1b1a16;border-color:#b58a3b;transform:translateY(-1px)}
+.match.is-live{border-left:3px solid #d44b4b}.league{color:#d1ad60}.teams{color:#f3f0e8}.score{color:#e4c477}.state{color:#aaa49a}.live-state,.live-label{color:#ff7777}
+.notice{background:#191915;border-color:#403722;color:#c9c1ad}
+.competition-grid .competition,.competition{background:#17181b;border-color:#333;color:#eee8d9}
+.competition:hover{border-color:#d2aa56;color:#e4c477}
+.table-wrap{background:#111216;border-color:#333}table{color:#e9e5dc}th{background:#262116;color:#e4c477}td{border-color:#292929}
+.stat-card,.pick-card,.news-card,.leader-group,.source-card,.team-tile,.team-profile-card,.community-post{background:#151619;border-color:#333;color:#eee9de}
+.stat-card p,.leader-group li,.community-comments{border-color:#333}
+.pick-card>strong,.method-card>span{background:#302718;color:#e4c477}
+.method-card{background:linear-gradient(145deg,#17181b,#111216);border-color:#39332a}.method-card h3{color:#f0e8d7}
+.team-facts div{background:#211e17}.team-facts small,.team-tile small,.player-tile small{color:#aaa18e}
+.team-profile-head h3,.team-profile-card h4,.news-card h3{color:#f0e8d7}
+.community-compose{background:#191915;border-color:#403722}.community-compose input,.community-compose textarea,.community-comment-form input{background:#101114;border-color:#393939;color:#eee}
+.community-compose button,.community-comment-form button,.community-refresh button{background:#c99d47;color:#17130a}
+footer{color:#a8a39a}
+#toast{background:#d3aa52;color:#17130a}
+.modal{background:#030405e8}.modal-card{background:#141518;color:#eee;border:1px solid #514226}
+.close{background:#2b271d;color:#e6c77e}
+@media(max-width:650px){.hero{background:linear-gradient(145deg,#1a1710,#111216);border-radius:16px}.match{padding:13px}.page{border-radius:15px}}
