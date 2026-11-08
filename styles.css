@@ -652,3 +652,78 @@ footer b{color:#e0b44f!important}
  .hero h1{font-size:24px!important}
  .team-grid,.competition-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
 }
+
+
+/* GOLD PRONOS — système unique et cohérent de logos (correctif 162) */
+.gp-crest{
+  position:relative!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;
+  box-sizing:border-box!important;overflow:hidden!important;flex-shrink:0!important;vertical-align:middle!important;
+  padding:0!important;margin:0!important;line-height:1!important;
+}
+.gp-crest img{position:absolute!important;display:block!important;max-width:none!important;max-height:none!important;margin:0!important;padding:0!important;object-position:center!important}
+.gp-crest .gp-crest-fallback{position:absolute!important;inset:0!important;display:grid!important;place-items:center!important;line-height:1!important}
+.gp-crest.is-fallback img{display:none!important}
+
+/* Matchs : deux lignes propres, logos alignés avec le nom */
+.match .teams{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:8px!important;min-width:0!important}
+.match-side{display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:flex-start!important;gap:9px!important;min-width:0!important}
+.match-side .team-name{display:block!important;min-width:0!important;overflow-wrap:anywhere!important;text-align:left!important}
+.gp-crest.match-crest{width:34px!important;height:34px!important;flex:0 0 34px!important;border-radius:8px!important}
+.gp-crest.match-crest img{inset:3px!important;width:calc(100% - 6px)!important;height:calc(100% - 6px)!important;object-fit:contain!important}
+.gp-crest.match-flag{width:38px!important;height:25px!important;flex:0 0 38px!important;aspect-ratio:3/2!important;border-radius:4px!important}
+.gp-crest.match-flag img{inset:0!important;width:100%!important;height:100%!important;object-fit:cover!important}
+
+/* Pronostics : logos de même taille, placés de part et d'autre */
+.pick-team-heading{display:flex!important;align-items:center!important;justify-content:center!important;gap:12px!important;min-width:0!important}
+.gp-crest.pick-crest{width:42px!important;height:42px!important;flex:0 0 42px!important;border-radius:10px!important}
+.gp-crest.pick-crest img{inset:3px!important;width:calc(100% - 6px)!important;height:calc(100% - 6px)!important;object-fit:contain!important}
+.gp-crest.pick-flag{width:42px!important;height:28px!important;flex:0 0 42px!important;aspect-ratio:3/2!important;border-radius:4px!important}
+.gp-crest.pick-flag img{inset:0!important;width:100%!important;height:100%!important;object-fit:cover!important}
+
+/* Fiche de match */
+.md-scoreboard{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)!important}
+.md-side{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:9px!important;min-width:0!important}
+.gp-crest.detail-crest{width:64px!important;height:64px!important;flex:0 0 64px!important;border-radius:12px!important}
+.gp-crest.detail-crest img{inset:4px!important;width:calc(100% - 8px)!important;height:calc(100% - 8px)!important;object-fit:contain!important}
+.gp-crest.detail-flag{width:66px!important;height:44px!important;flex:0 0 66px!important;aspect-ratio:3/2!important;border-radius:5px!important}
+.gp-crest.detail-flag img{inset:0!important;width:100%!important;height:100%!important;object-fit:cover!important}
+
+/* Catalogue clubs et sélections : une seule enveloppe, dimensions fixes */
+.team-tile{display:flex!important;flex-direction:column!important;align-items:center!important;text-align:center!important;min-width:0!important}
+.team-crest-wrap{display:flex!important;align-items:center!important;justify-content:center!important;flex:0 0 66px!important;width:66px!important;height:66px!important;box-sizing:border-box!important;overflow:hidden!important}
+.team-crest-wrap .gp-crest{width:54px!important;height:54px!important;flex:0 0 54px!important;background:transparent!important;border:0!important;box-shadow:none!important}
+.team-crest-wrap .gp-crest.crest img{inset:3px!important;width:calc(100% - 6px)!important;height:calc(100% - 6px)!important;object-fit:contain!important}
+.team-crest-wrap .gp-crest.flag-crest{width:54px!important;height:36px!important;flex:0 0 54px!important;aspect-ratio:3/2!important}
+.team-crest-wrap .gp-crest.flag-crest img{inset:0!important;width:100%!important;height:100%!important;object-fit:cover!important}
+
+/* Classements, buteurs et favoris : icônes petites mais jamais déformées */
+.gp-crest.standing-crest,.gp-crest.leader-crest,.gp-crest.favorite-crest{width:26px!important;height:26px!important;flex:0 0 26px!important;border-radius:6px!important}
+.gp-crest.standing-crest img,.gp-crest.leader-crest img,.gp-crest.favorite-crest img{inset:2px!important;width:calc(100% - 4px)!important;height:calc(100% - 4px)!important;object-fit:contain!important}
+.gp-crest.standing-flag{width:30px!important;height:20px!important;flex:0 0 30px!important;aspect-ratio:3/2!important;border-radius:3px!important}
+.gp-crest.standing-flag img{inset:0!important;width:100%!important;height:100%!important;object-fit:cover!important}
+.standing-team,.leader-team,.favorite-team-name{display:inline-flex!important;align-items:center!important;gap:8px!important;min-width:0!important;white-space:normal!important}
+
+/* Fiche club / sélection */
+.team-profile-head{display:flex!important;align-items:center!important;gap:16px!important;min-width:0!important}
+.gp-crest.profile-crest{width:88px!important;height:88px!important;flex:0 0 88px!important;border-radius:14px!important}
+.gp-crest.profile-crest img{inset:5px!important;width:calc(100% - 10px)!important;height:calc(100% - 10px)!important;object-fit:contain!important}
+.gp-crest.profile-flag{width:90px!important;height:60px!important;flex:0 0 90px!important;aspect-ratio:3/2!important;border-radius:6px!important}
+.gp-crest.profile-flag img{inset:0!important;width:100%!important;height:100%!important;object-fit:cover!important}
+
+@media(max-width:650px){
+ .gp-crest.match-crest{width:30px!important;height:30px!important;flex-basis:30px!important}
+ .gp-crest.match-flag{width:34px!important;height:23px!important;flex-basis:34px!important}
+ .pick-team-heading{gap:7px!important}
+ .gp-crest.pick-crest{width:34px!important;height:34px!important;flex-basis:34px!important}
+ .gp-crest.pick-flag{width:34px!important;height:23px!important;flex-basis:34px!important}
+ .gp-crest.detail-crest{width:46px!important;height:46px!important;flex-basis:46px!important}
+ .gp-crest.detail-flag{width:48px!important;height:32px!important;flex-basis:48px!important}
+ .team-crest-wrap{width:54px!important;height:54px!important;flex-basis:54px!important}
+ .team-crest-wrap .gp-crest{width:46px!important;height:46px!important;flex-basis:46px!important}
+ .team-crest-wrap .gp-crest.flag-crest{width:48px!important;height:32px!important;flex-basis:48px!important}
+ .gp-crest.standing-crest,.gp-crest.leader-crest,.gp-crest.favorite-crest{width:24px!important;height:24px!important;flex-basis:24px!important}
+ .gp-crest.standing-flag{width:27px!important;height:18px!important;flex-basis:27px!important}
+ .gp-crest.profile-crest{width:62px!important;height:62px!important;flex-basis:62px!important}
+ .gp-crest.profile-flag{width:66px!important;height:44px!important;flex-basis:66px!important}
+ .team-profile-head{gap:10px!important}
+}
