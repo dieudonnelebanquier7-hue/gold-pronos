@@ -18,6 +18,12 @@ const today=new Date();today.setUTCHours(0,0,0,0);
 const from=new Date(today);from.setUTCDate(from.getUTCDate()-35);
 const to=new Date(today);to.setUTCDate(to.getUTCDate()+14);
 const dates=[];for(let d=new Date(from);d<=to;d.setUTCDate(d.getUTCDate()+1))dates.push(d.toISOString().slice(0,10).replace(/-/g,''));
+function teamLogo(team){
+ const logos=Array.isArray(team?.logos)?team.logos:[];
+ const item=logos.find(x=>x?.href&&(/default|full|primary/i.test((x.rel||[]).join(' '))||!x.rel))||logos.find(x=>x?.href);
+ const url=item?.href||team?.logo||team?.crest||'';
+ try{const parsed=new URL(url);return parsed.protocol==='https:'?parsed.href:''}catch(_){return ''}
+}
 async function fetchLeagueDay(league,day){
  const [code,label]=league;
  const url='https://site.api.espn.com/apis/site/v2/sports/soccer/'+code+'/scoreboard?dates='+day+'&limit=100&region=fr&lang=fr';
@@ -33,8 +39,8 @@ async function fetchLeagueDay(league,day){
     const st=comp?.status?.type||event.status?.type||{},state=st.state;
     return {id:'espn-'+event.id,utcDate:event.date,status:st.completed||state==='post'?'FINISHED':state==='in'?'IN_PLAY':'SCHEDULED',
      competition:{name:label,code:'ESPN-'+code},
-     homeTeam:{id:String(home.team?.id||home.id||''),name:home.team?.displayName||home.team?.name||'Équipe domicile'},
-     awayTeam:{id:String(away.team?.id||away.id||''),name:away.team?.displayName||away.team?.name||'Équipe extérieure'},
+     homeTeam:{id:String(home.team?.id||home.id||''),name:home.team?.displayName||home.team?.name||'Équipe domicile',logo:teamLogo(home.team)},
+     awayTeam:{id:String(away.team?.id||away.id||''),name:away.team?.displayName||away.team?.name||'Équipe extérieure',logo:teamLogo(away.team)},
      score:{fullTime:{home:home.score==null?null:Number(home.score),away:away.score==null?null:Number(away.score)}},source:'ESPN'};
    }).filter(Boolean);
   }catch(e){if(attempt===1)console.log('Source indisponible '+code+' '+day+': '+e.message)}
