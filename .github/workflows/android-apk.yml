@@ -77,7 +77,7 @@ jobs:
                 const status=st.completed?'FINISHED':state==='in'?'IN_PLAY':state==='post'?'FINISHED':'SCHEDULED';
                 const homeScore=home.score==null?null:Number(home.score);
                 const awayScore=away.score==null?null:Number(away.score);
-                return {id:'espn-'+event.id,utcDate:event.date,status,competition:{name:event.league?.name||data.leagues?.[0]?.name||label,code:'ESPN-'+code},homeTeam:{name:home.team?.displayName||home.team?.name||'Équipe domicile'},awayTeam:{name:away.team?.displayName||away.team?.name||'Équipe extérieure'},score:{fullTime:{home:homeScore,away:awayScore}},matchday:null,source:'ESPN'};
+                return {id:'espn-'+event.id,utcDate:event.date,status,competition:{name:event.league?.name||data.leagues?.[0]?.name||label,code:'ESPN-'+code},homeTeam:{id:String(home.team?.id||home.id||''),name:home.team?.displayName||home.team?.name||'Équipe domicile',abbreviation:home.team?.abbreviation||home.team?.shortDisplayName||'',country:{name:home.team?.location||home.team?.displayName||home.team?.name||'',code:home.team?.abbreviation||''},logo:(home.team?.logos||[]).find(x=>x?.href)?.href||home.team?.logo||''},awayTeam:{id:String(away.team?.id||away.id||''),name:away.team?.displayName||away.team?.name||'Équipe extérieure',abbreviation:away.team?.abbreviation||away.team?.shortDisplayName||'',country:{name:away.team?.location||away.team?.displayName||away.team?.name||'',code:away.team?.abbreviation||''},logo:(away.team?.logos||[]).find(x=>x?.href)?.href||away.team?.logo||''},score:{fullTime:{home:homeScore,away:awayScore}},matchday:null,source:'ESPN'};
               }).filter(Boolean);
             } catch(e) { console.log('Compétition ignorée '+code+': '+e.message); return []; }
           }
