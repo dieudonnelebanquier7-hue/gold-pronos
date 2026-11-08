@@ -53,6 +53,39 @@ async function pollOfficialLineups(){
  await Promise.allSettled(due.map(async m=>{m.lineupCheckAt=Date.now();try{const d=await get(API+m.code+'/summary?event='+encodeURIComponent(m.id)+'&region=fr&lang=fr',10000);const groups=officialLineups(d);if(groups.length){m.lineups=groups;m.lineupPublishedAt=Date.now();render();renderLive();const box=$('match-detail');if(!$('match-modal').hidden&&box?.dataset.matchId===m.id)box.insertAdjacentHTML('beforeend',lineupHtml(groups));await localMatchAlerts()}}catch(e){}}));
 }
 
+const MATCH_STAT_LABELS={
+ "fouls":"Fautes","foul":"Fautes","yellow cards":"Cartons jaunes","yellowcard":"Cartons jaunes","red cards":"Cartons rouges","redcard":"Cartons rouges","offsides":"Hors-jeu","offside":"Hors-jeu","corner kicks":"Corners","corners":"Corners","saves":"Arrêts","possession":"Possession","possession pct":"Possession","shots":"Tirs","total shots":"Tirs","shots on goal":"Tirs cadrés","shots on target":"Tirs cadrés","on target":"Tirs cadrés","on target %":"Précision des tirs cadrés","shots on target %":"Précision des tirs cadrés","penalty goals":"Buts sur penalty","penalty kicks taken":"Penalties tirés","penalty kick attempts":"Penalties tirés","accurate passes":"Passes réussies","passes":"Passes tentées","total passes":"Passes tentées","pass completion %":"Précision des passes","accurate crosses":"Centres réussis","crosses":"Centres tentés","total crosses":"Centres tentés","cross %":"Précision des centres","long balls":"Longs ballons","accurate long balls":"Longs ballons réussis","long balls %":"Précision des longs ballons","blocked shots":"Tirs bloqués","effective tackles":"Tacles réussis","tackles":"Tacles tentés","total tackles":"Tacles tentés","tackle %":"Réussite des tacles","interceptions":"Interceptions","effective clearances":"Dégagements réussis","clearances":"Dégagements","total clearances":"Dégagements"
+};
+function matchStatLabel(item){
+ const raw=String(item?.label||item?.name||item?.abbreviation||"Statistique").trim();
+ const key=raw.toLowerCase().replace(/[_-]+/g," ").replace(/\s+/g," ");
+ if((window.GoldI18n?.getLanguage?.()||"fr")==="fr")return MATCH_STAT_LABELS[key]||raw;
+ return raw;
+}
+function matchEventLabel(item){
+ const raw=String(xtext(item)||"Événement"),key=raw.toLowerCase();
+ if((window.GoldI18n?.getLanguage?.()||"fr")!=="fr")return raw;
+ const map={"goal":"But","own goal":"But contre son camp","yellow card":"Carton jaune","red card":"Carton rouge","substitution":"Remplacement","penalty":"Penalty","penalty scored":"Penalty transformé","missed penalty":"Penalty manqué","second yellow card":"Deuxième carton jaune","var":"Assistance vidéo (VAR)","offside":"Hors-jeu","start of period":"Début de période","end of period":"Fin de période"};
+ return map[key]||raw;
+}
+function matchFromSummary(data,base){
+ const c=data?.header?.competitions?.[0]||data?.competitions?.[0]||{},ts=c.competitors||[];
+ if(!ts.length)return base;
+ const h=ts.find(x=>x.homeAway==="home")||ts[0],a=ts.find(x=>x.homeAway==="away")||ts[1],st=c.status?.type||data?.header?.status?.type||{};
+ const next={...base};
+ if(h?.score!==undefined&&h?.score!==null)next.homeScore=Number(h.score);
+ if(a?.score!==undefined&&a?.score!==null)next.awayScore=Number(a.score);
+ if(st.state)next.live=st.state==="in";
+ if(st.completed!==undefined)next.finished=!!st.completed||st.state==="post";
+ if(st.detail||st.shortDetail)next.periodDetail=st.detail||st.shortDetail;
+ if(st.displayClock)next.period=st.displayClock;
+ if(c.venue?.fullName)next.venue=c.venue.fullName;
+ next.status=next.live?"LIVE":next.finished?"FINISHED":"SCHEDULED";
+ return next;
+}
+function detailHeader(m){
+ return '<div class="md-head"><span class="eyebrow">'+safe(m.competition||m.league)+'</span><div class="md-scoreboard"><div class="md-side">'+crestMarkup(m.home,m.homeLogo,m.homeNational?'detail-flag':'detail-crest')+'<b>'+safe(m.home)+'</b></div><div class="md-score">'+(m.homeScore!=null&&m.awayScore!=null?m.homeScore+' – '+m.awayScore:'VS')+'<small>'+safe(m.live?liveMinute(m)||"EN DIRECT":m.finished?"TERMINÉ":"À VENIR")+'</small></div><div class="md-side">'+crestMarkup(m.away,m.awayLogo,m.awayNational?'detail-flag':'detail-crest')+'<b>'+safe(m.away)+'</b></div></div><div class="md-meta">'+safe(appDate(m.date,{weekday:"long",day:"numeric",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"}))+' · '+safe(m.venue||"Stade non communiqué")+'</div></div>';
+}
 function mdPanel(data,key){
  const teams=data?.boxscore?.teams||[],groups=data?.boxscore?.players||[],lineups=officialLineups(data),events=data?.commentary?.items||data?.plays||[];
  if(key==="stats"){
@@ -60,18 +93,18 @@ function mdPanel(data,key){
   const left=teams[0].statistics||[],right=teams[1].statistics||[],map=new Map(right.map(x=>[String(x.name||x.abbreviation||x.label||"").toLowerCase(),x]));
   const rows=left.map(x=>({x,y:map.get(String(x.name||x.abbreviation||x.label||"").toLowerCase())})).filter(r=>r.y&&r.x.displayValue!=null&&r.y.displayValue!=null);
   if(!rows.length)return '<div class="md-empty">Aucune statistique comparable publiée par la source.</div>';
-  return '<div class="md-team-labels"><b>'+safe(teams[0].team?.displayName||"Domicile")+'</b><b></b><b>'+safe(teams[1].team?.displayName||"Extérieur")+'</b></div>'+rows.map(({x,y})=>'<div class="md-stat"><div class="md-stat-values"><b>'+safe(x.displayValue)+'</b><span>'+safe(x.label||x.name||x.abbreviation||"Statistique")+'</span><b>'+safe(y.displayValue)+'</b></div></div>').join('');
+  return '<div class="md-team-labels"><b>'+safe(teams[0].team?.displayName||"Domicile")+'</b><b></b><b>'+safe(teams[1].team?.displayName||"Extérieur")+'</b></div>'+rows.map(({x,y})=>'<div class="md-stat"><div class="md-stat-values"><b>'+safe(x.displayValue)+'</b><span>'+safe(matchStatLabel(x))+'</span><b>'+safe(y.displayValue)+'</b></div></div>').join('');
  }
  if(key==="lineups")return lineups.length?lineupHtml(lineups):'<div class="md-empty">Les compositions officielles ne sont pas encore publiées.</div>';
- if(key==="events")return events.length?'<ol class="md-events">'+events.slice(-30).reverse().map(x=>'<li><time>'+safe(x.clock?.displayValue||x.time||"")+'</time><span>'+safe(xtext(x)||x.text||x.type?.text||"Événement")+'</span></li>').join('')+'</ol>':'<div class="md-empty">Aucun événement détaillé communiqué par la source.</div>';
+ if(key==="events")return events.length?'<ol class="md-events">'+events.slice(-30).reverse().map(x=>'<li><time>'+safe(x.clock?.displayValue||x.time||"")+'</time><span>'+safe(matchEventLabel(x))+'</span></li>').join('')+'</ol>':'<div class="md-empty">Aucun événement détaillé communiqué par la source.</div>';
  if(key==="players")return groups.length?groups.map(g=>'<h4>'+safe(g.team?.displayName||"Équipe")+'</h4><div class="table-wrap"><table><thead><tr><th>Joueur</th><th>Poste</th><th>Statistiques</th></tr></thead><tbody>'+((g.statistics||[]).flatMap(gr=>(gr.athletes||[]).map(p=>'<tr><td>'+safe(p.athlete?.displayName||"—")+'</td><td>'+safe(p.athlete?.position?.abbreviation||"—")+'</td><td>'+safe((p.stats||[]).join(" · ")||"—")+'</td></tr>'))).join('')+'</tbody></table></div>').join(''):'<div class="md-empty">Statistiques individuelles non disponibles.</div>';
  return '<div class="md-overview-grid"><article class="md-info-card"><span class="eyebrow">STATUT</span><b>'+safe(status(data.match||{}))+'</b><p>'+safe(data.match?.venue||"Stade non communiqué")+'</p></article><article class="md-info-card"><span class="eyebrow">INFORMATIONS OFFICIELLES</span><b>'+lineups.length+' compositions</b><p>'+events.length+' événements reçus</p></article></div>';
 }
 async function openMatch(m){
  const box=$('match-detail');box.dataset.matchId=m.id;$('match-modal').hidden=false;
- box.innerHTML='<div class="md-head"><span class="eyebrow">'+safe(m.competition||m.league)+'</span><div class="md-scoreboard"><div class="md-side">'+crestMarkup(m.home,m.homeLogo,m.homeNational?'detail-flag':'detail-crest')+'<b>'+safe(m.home)+'</b></div><div class="md-score">'+(m.homeScore!=null?m.homeScore+' – '+m.awayScore:'VS')+'<small>'+safe(m.live?liveMinute(m)||"EN DIRECT":m.finished?"TERMINÉ":"À VENIR")+'</small></div><div class="md-side">'+crestMarkup(m.away,m.awayLogo,m.awayNational?'detail-flag':'detail-crest')+'<b>'+safe(m.away)+'</b></div></div><div class="md-meta">'+safe(appDate(m.date,{weekday:"long",day:"numeric",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"}))+' · '+safe(m.venue||"Stade non communiqué")+'</div></div><nav class="md-tabs"><button class="active" data-md-tab="overview">Résumé</button><button data-md-tab="stats">Statistiques</button><button data-md-tab="lineups">Compositions</button><button data-md-tab="events">Événements</button><button data-md-tab="players">Joueurs</button></nav><div class="md-panel" data-md-panel="overview"><div class="md-loading">Chargement des données officielles…</div></div><div class="md-panel" data-md-panel="stats" hidden></div><div class="md-panel" data-md-panel="lineups" hidden></div><div class="md-panel" data-md-panel="events" hidden></div><div class="md-panel" data-md-panel="players" hidden></div>';
+ box.innerHTML=detailHeader(m)+'<nav class="md-tabs"><button class="active" data-md-tab="overview">Résumé</button><button data-md-tab="stats">Statistiques</button><button data-md-tab="lineups">Compositions</button><button data-md-tab="events">Événements</button><button data-md-tab="players">Joueurs</button></nav><div class="md-panel" data-md-panel="overview"><div class="md-loading">Chargement des données officielles…</div></div><div class="md-panel" data-md-panel="stats" hidden></div><div class="md-panel" data-md-panel="lineups" hidden></div><div class="md-panel" data-md-panel="events" hidden></div><div class="md-panel" data-md-panel="players" hidden></div>';
  const tabs=[...box.querySelectorAll("[data-md-tab]")],panels=[...box.querySelectorAll("[data-md-panel]")];tabs.forEach(b=>b.onclick=()=>{tabs.forEach(t=>t.classList.toggle("active",t===b));panels.forEach(p=>p.hidden=p.dataset.mdPanel!==b.dataset.mdTab)});
- try{const d=await get(API+m.code+'/summary?event='+encodeURIComponent(m.id)+'&region=fr&lang=fr');if(box.dataset.matchId!==m.id)return;const data={...d,match:m};for(const k of ["overview","stats","lineups","events","players"])box.querySelector('[data-md-panel="'+k+'"]').innerHTML=mdPanel(data,k)}
+ try{const d=await get(API+m.code+'/summary?event='+encodeURIComponent(m.id)+'&region=fr&lang=fr');if(box.dataset.matchId!==m.id)return;const latest=matchFromSummary(d,m);Object.assign(m,latest);box.querySelector(".md-head").outerHTML=detailHeader(m);const data={...d,match:m};for(const k of ["overview","stats","lineups","events","players"])box.querySelector('[data-md-panel="'+k+'"]').innerHTML=mdPanel(data,k)}
  catch(e){if(box.dataset.matchId!==m.id)return;for(const k of ["overview","stats","lineups","events","players"])box.querySelector('[data-md-panel="'+k+'"]').innerHTML='<div class="md-empty">Les informations détaillées ne sont pas accessibles auprès de la source pour le moment.</div>'}
 }
 function xtext(x){return x.text||x.shortText||x.type?.text||x.type?.name||'Événement'}
