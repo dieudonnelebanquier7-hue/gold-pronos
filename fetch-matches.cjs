@@ -13,7 +13,7 @@ const leagues = [
  ['afc.champions','AFC · Champions League'],['fifa.world','FIFA · Compétitions internationales']
 ];
 const today=new Date();today.setUTCHours(0,0,0,0);
-const from=new Date(today);from.setUTCDate(from.getUTCDate()-2);
+const from=new Date(today);from.setUTCDate(from.getUTCDate()-7);
 const to=new Date(today);to.setUTCDate(to.getUTCDate()+14);
 const key=d=>d.toISOString().slice(0,10).replace(/-/g,'');
 const range=key(from)+'-'+key(to);
