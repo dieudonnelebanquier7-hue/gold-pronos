@@ -17,19 +17,19 @@ const leagues=[
 const today=new Date();today.setUTCHours(0,0,0,0);
 const from=new Date(today);from.setUTCDate(from.getUTCDate()-35);
 const to=new Date(today);to.setUTCDate(to.getUTCDate()+14);
-const dates=[];for(let d=new Date(from);d<=to;d.setUTCDate(d.getUTCDate()+1))dates.push(d.toISOString().slice(0,10).replace(/-/g,''));
+const ymd=d=>d.toISOString().slice(0,10).replace(/-/g,'');
 function teamLogo(team){
  const logos=Array.isArray(team?.logos)?team.logos:[];
  const item=logos.find(x=>x?.href&&(/default|full|primary/i.test((x.rel||[]).join(' '))||!x.rel))||logos.find(x=>x?.href);
  const url=item?.href||team?.logo||team?.crest||'';
  try{const parsed=new URL(url);return parsed.protocol==='https:'?parsed.href:''}catch(_){return ''}
 }
-async function fetchLeagueDay(league,day){
+async function fetchLeague(league){
  const [code,label]=league;
- const url='https://site.api.espn.com/apis/site/v2/sports/soccer/'+code+'/scoreboard?dates='+day+'&limit=100&region=fr&lang=fr';
+ const url='https://site.api.espn.com/apis/site/v2/sports/soccer/'+code+'/scoreboard?dates='+ymd(from)+'-'+ymd(to)+'&limit=1000&region=fr&lang=fr';
  for(let attempt=0;attempt<2;attempt++){
   try{
-   const response=await fetch(url,{signal:AbortSignal.timeout(12000),headers:{'User-Agent':'GOLD-PRONOS/1.0'}});
+   const response=await fetch(url,{signal:AbortSignal.timeout(20000),headers:{'User-Agent':'GOLD-PRONOS/1.0'}});
    if(!response.ok){if(response.status===400||response.status===404)return [];throw Error('HTTP '+response.status)}
    const data=await response.json();
    return (data.events||[]).map(event=>{
@@ -43,19 +43,24 @@ async function fetchLeagueDay(league,day){
      awayTeam:{id:String(away.team?.id||away.id||''),name:away.team?.displayName||away.team?.name||'Équipe extérieure',abbreviation:away.team?.abbreviation||away.team?.shortDisplayName||'',country:{name:away.team?.location||away.team?.displayName||away.team?.name||'',code:away.team?.abbreviation||''},logo:teamLogo(away.team)},
      score:{fullTime:{home:home.score==null?null:Number(home.score),away:away.score==null?null:Number(away.score)}},source:'ESPN'};
    }).filter(Boolean);
-  }catch(e){if(attempt===1)console.log('Source indisponible '+code+' '+day+': '+e.message)}
+  }catch(e){if(attempt===1)console.log('Source indisponible '+code+': '+e.message)}
  }
  return [];
 }
 (async()=>{
- const tasks=[];for(const league of leagues)for(const day of dates)tasks.push(()=>fetchLeagueDay(league,day));
- const results=new Array(tasks.length);let cursor=0,completed=0,nonEmpty=0;
- const workers=Array.from({length:10},async()=>{while(true){const i=cursor++;if(i>=tasks.length)break;results[i]=await tasks[i]();if(results[i].length)nonEmpty++;completed++;if(completed%100===0)console.log('Collecte '+completed+'/'+tasks.length)}});
+ const results=new Array(leagues.length);let cursor=0,completed=0,nonEmpty=0;
+ const workers=Array.from({length:8},async()=>{while(true){
+  const i=cursor++;if(i>=leagues.length)break;
+  results[i]=await fetchLeague(leagues[i]);
+  if(results[i].length)nonEmpty++;
+  completed++;
+  console.log('Collecte '+completed+'/'+leagues.length+' · '+leagues[i][0]+' · '+results[i].length+' rencontres');
+ }});
  await Promise.all(workers);
  const unique=new Map(results.flat().map(m=>[m.id,m]));
  const matches=[...unique.values()].sort((a,b)=>new Date(a.utcDate)-new Date(b.utcDate));
- const output={generatedAt:new Date().toISOString(),range:{from:from.toISOString(),to:to.toISOString()},matches};
+ const output={generatedAt:new Date().toISOString(),range:{from:from.toISOString(),to:to.toISOString()},sources:{espn:matches.length,competitions:nonEmpty},matches};
  fs.writeFileSync('matches.json',JSON.stringify(output));
- console.log('Calendrier : '+matches.length+' rencontres vérifiées / '+leagues.length+' compétitions / '+dates.length+' dates.');
- if(!matches.length)console.log('AVERTISSEMENT : aucune rencontre fournie par ESPN. Publication de l’application maintenue, sans fabriquer de données.');
-})();
+ console.log('Calendrier : '+matches.length+' rencontres vérifiées / '+leagues.length+' compétitions · '+nonEmpty+' compétitions avec résultats.');
+ if(!matches.length)console.log('AVERTISSEMENT : aucune rencontre fournie par ESPN. Aucune donnée fictive n’a été créée.');
+})().catch(error=>{console.error(error);process.exit(1)});
