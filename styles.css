@@ -729,3 +729,30 @@ footer b{color:#e0b44f!important}
 }
 
 .md-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:10px}.md-form-grid>section{min-width:0;background:#121b26;border:1px solid #303b49;border-radius:12px;padding:12px}.md-form-row{display:grid;grid-template-columns:25px minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:10px 2px;border-bottom:1px solid #293442;font-size:12px}.md-form-result{display:grid;place-items:center;width:23px;height:23px;border-radius:6px;font-weight:900}.md-form-result.win{background:#164b36;color:#9de1bc}.md-form-result.draw{background:#51431f;color:#f3d78c}.md-form-result.loss{background:#542d32;color:#ffb5b5}.md-form-row small,.md-h2h-row small,.md-note{color:#9eabb9;font-size:10px}.md-h2h-list{display:grid;gap:7px}.md-h2h-row{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto;gap:9px;align-items:center;padding:12px;background:#151e29;border:1px solid #303b49;border-radius:10px;font-size:11px}.md-h2h-row span:last-of-type{text-align:right}.md-h2h-row b{color:#edcf83;white-space:nowrap}.md-note{line-height:1.5;margin-top:10px}@media(max-width:600px){.md-form-grid{grid-template-columns:1fr}.md-form-row{grid-template-columns:24px minmax(0,1fr) auto}.md-form-row small{grid-column:2/-1}.md-h2h-row{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)}.md-h2h-row small{grid-column:1/-1;text-align:center}}
+
+/* GOLD PRONOS v174 — identité noir & or unifiée */
+:root{color-scheme:dark;--green:#d4ad55;--green2:#f0ce78;--blue:#e4c16d;--ink:#f2f0e9;--muted:#a5a9b2;--bg:#080b10;--line:#29313d;--white:#111821;--gold:#d4ad55}
+body{background:#080b10!important;color:#f2f0e9!important}
+.top,.page,.modal-card,.match,.tab,.filters input,.filters select,.settings-card,.stat-card,.pick-card,.competition,.news-card,.method-card,.team-card,.leader-card,.table-wrap{background:#101720!important;color:#f2f0e9!important;border-color:#29313d!important}
+.top{background:#0b1017!important;border-bottom-color:#29313d!important}
+.brand,.brand b,footer b{color:#e2bd67!important}
+.mark,.tab.active,.install{background:#c49a42!important;color:#10141b!important;border-color:#c49a42!important}
+.ghost,.tab{background:#151e29!important;color:#e4c16d!important;border-color:#303b49!important}
+.tab.vip{color:#f0cf7b!important;border-color:#9a7938!important}
+.hero{background:linear-gradient(120deg,#101720 0%,#20202a 58%,#4a3820 100%)!important;border:1px solid #5a4828}
+.hero h1 em,.eyebrow,th,.score{color:#e4c16d!important}
+.hero .eyebrow{color:#f0d995!important}
+.hero-stat{background:#ffffff0d!important;border-color:#ffffff25!important}
+.notice{background:#151e29!important;color:#d4d8df!important;border-color:#303b49!important}
+.match:hover,.competition:hover{background:#192431!important;border-color:#9a7938!important}
+.match .league,.muted,.intro,footer,.state{color:#a5a9b2!important}
+.match .score,.detail-score{color:#e4c16d!important}
+table{background:#101720!important;color:#f2f0e9!important}
+th{background:#1b2531!important}
+td,th{border-color:#29313d!important}
+input,select,textarea{background:#111a24!important;color:#f2f0e9!important;border-color:#35404d!important}
+input::placeholder{color:#858e9b!important}
+.modal{background:#05080ddd!important}
+.close{background:#202a36!important;color:#f2f0e9!important}
+#toast{background:#c49a42!important;color:#10141b!important}
+footer{color:#8f98a5!important}
