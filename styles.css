@@ -42,3 +42,23 @@
 .personalized-home{margin:0 0 22px;padding:18px;border:1px solid #d8e8df;border-radius:17px;background:linear-gradient(120deg,#f0f8f3,#fff);color:var(--ink)}
 .personalized-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.personalized-heading h3{margin:5px 0;font-size:20px}.personalized-heading p{margin:5px 0;color:var(--muted);font-size:13px}.personalized-matches{display:grid;gap:8px;margin-top:14px}.personalized-matches>div{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 11px;border-radius:10px;background:#fff;border:1px solid var(--line);font-size:13px}.personalized-matches strong{color:var(--green)}.personalized-matches small{margin-left:auto;color:var(--muted)}
 .onboarding-backdrop{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:16px;background:#07130edb;overflow:auto}.onboarding-backdrop[hidden]{display:none}.onboarding-card{box-sizing:border-box;width:min(100%,540px);max-height:94vh;overflow:auto;padding:24px;border-radius:20px;background:#fff;color:var(--ink);box-shadow:0 24px 90px #0005}.onboarding-top{display:flex;align-items:center;gap:10px}.onboarding-top .mark{display:grid;place-items:center;width:36px;height:36px;border-radius:10px;background:#087b50;color:#fff;font-weight:950}.onboarding-card h2{font-size:27px;line-height:1.15;margin:17px 0 8px}.onboarding-card>p{color:var(--muted);line-height:1.55}.onboarding-card form{display:grid;gap:9px;margin-top:18px}.onboarding-card label{font-size:13px;font-weight:800;margin-top:5px}.onboarding-card input,.onboarding-card select{box-sizing:border-box;width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);font:inherit}.onboarding-card select[multiple]{min-height:130px}.onboarding-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:9px}.onboarding-card form>small{color:var(--muted);line-height:1.5}@media(max-width:520px){.onboarding-card{padding:19px}.onboarding-card h2{font-size:23px}.personalized-heading{flex-direction:column}}
+
+/* Identité GOLD PRONOS : noir et or */
+:root{color-scheme:dark;--green:#d4af37;--green2:#f0cf62;--blue:#e4c45a;--ink:#f5f1e6;--muted:#aaa18b;--bg:#0b0b0d;--line:#34312a;--white:#151517;--gold:#d4af37}
+body{background:#0b0b0d;color:#f5f1e6}
+.top,.page,.match,.competition,.news-card,.leader-group,.team-tile,.team-profile-card,.stat-card,.pick-card,.modal-card{background:#151517;color:#f5f1e6;border-color:#34312a}
+.brand,.brand b,footer b,.method-card h3,.modal-card h3{color:#d4af37}
+.mark,.tab.active,.install,.community-compose button,.community-comment-form button,.community-refresh button{background:#b89124;color:#111}
+.hero,.community-hero{background:linear-gradient(120deg,#090909,#252016 60%,#4a3910)}
+.hero h1 em{color:#f0cf62}
+.tab{background:#171719;color:#e8dfc8;border-color:#39352b}
+.tab.vip{border-color:#b89124;color:#e6c65b}
+.filters input,.filters select,.top-actions select,.auth-form input,#profile-name,.onboarding-card input,.onboarding-card select{background:#101012;color:#f5f1e6;border-color:#494332}
+.notice,.method-card,.personalized-home,.community-compose,.team-facts div{background:#1d1b16;color:#e9dfc8;border-color:#4a4028}
+.personalized-matches>div{background:#121214;color:#eee5cf;border-color:#3c3524}
+th{background:#292315;color:#e8c75c}
+.day-heading{background:#211c10;color:#e8c75c;border-left-color:#d4af37}
+.match.is-live{background:#211719;border-color:#9d3434}
+.score,.detail-score,.live-state{color:#f0cf62}
+.method-card,.source-card{background:#171719;border-color:#3b3526}
+footer{color:#aaa18b}
