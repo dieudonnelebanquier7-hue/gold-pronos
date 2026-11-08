@@ -43,6 +43,7 @@ function mergeSportScoreLive(snapshot){
   match.sportScoreSlug=row.slug||match.sportScoreSlug||'';
   match.sportScoreUpdatedAt=updatedAt;
   if(!match.providers.includes('SportScore'))match.providers.push('SportScore');
+  if(match.scoreConflict&&hs!==null&&as!==null&&Number(hs)===Number(match.homeScore)&&Number(as)===Number(match.awayScore))delete match.scoreConflict;
   if(hs!==null&&as!==null&&match.homeScore!==null&&match.awayScore!==null&&(Number(hs)!==Number(match.homeScore)||Number(as)!==Number(match.awayScore))){
    match.scoreConflict={espn:[match.homeScore,match.awayScore],sportScore:[Number(hs),Number(as)],updatedAt};
    conflicts++;continue;
