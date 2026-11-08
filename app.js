@@ -7,6 +7,7 @@ const safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'
 function appLocale(){return ({fr:'fr-FR',en:'en-GB',es:'es-ES',pt:'pt-PT',de:'de-DE',it:'it-IT',ar:'ar'})[window.GoldI18n?.getLanguage?.()||readAppSettings().language||'fr']||'fr-FR'}
 function appDate(value,options={}){const d=new Date(value);if(Number.isNaN(d.getTime()))return 'Date inconnue';const prefs=readAppSettings();try{return new Intl.DateTimeFormat(appLocale(),{timeZone:prefs.timezone||Intl.DateTimeFormat().resolvedOptions().timeZone,...options}).format(d)}catch(e){return new Intl.DateTimeFormat(appLocale(),options).format(d)}}
 async function get(url,ms=9000){const c=new AbortController(),t=setTimeout(()=>c.abort(),ms);try{const r=await fetch(url,{signal:c.signal,cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);return await r.json()}finally{clearTimeout(t)}}
+async function withTimeout(promise,ms,message){let timer;try{return await Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error(message||'Délai de réponse dépassé')),ms)})])}finally{clearTimeout(timer)}}
 function crestUrl(team){const list=Array.isArray(team?.logos)?team.logos:[];const item=list.find(x=>x?.href&&(/default|full|primary/i.test((x.rel||[]).join(' '))||!x.rel))||list.find(x=>x?.href);const url=item?.href||team?.logo||team?.crest||'';try{const u=new URL(url);return u.protocol==='https:'?u.href:''}catch(_){return ''}}
 function isNationalCompetition(code){return ['fifa.world','caf.nations','uefa.euro','uefa.nations','conmebol.copa','concacaf.gold','afc.asian'].includes(String(code||''))}
 const FIFA_TO_ISO2={ENG:'gb-eng',SCO:'gb-sct',WAL:'gb-wls',NIR:'gb-nir',FRA:'fr',GER:'de',ESP:'es',ITA:'it',POR:'pt',NED:'nl',BEL:'be',SUI:'ch',AUT:'at',DEN:'dk',SWE:'se',NOR:'no',FIN:'fi',POL:'pl',CZE:'cz',SVK:'sk',CRO:'hr',SRB:'rs',BIH:'ba',SVN:'si',HUN:'hu',ROU:'ro',BUL:'bg',GRE:'gr',TUR:'tr',UKR:'ua',RUS:'ru',IRL:'ie',ISL:'is',USA:'us',CAN:'ca',MEX:'mx',BRA:'br',ARG:'ar',URU:'uy',CHI:'cl',COL:'co',ECU:'ec',PER:'pe',PAR:'py',BOL:'bo',JPN:'jp',KOR:'kr',CHN:'cn',AUS:'au',NZL:'nz',IRN:'ir',KSA:'sa',QAT:'qa',UAE:'ae',IRQ:'iq',JOR:'jo',UZB:'uz',IND:'in',SEN:'sn',CIV:'ci',NGA:'ng',GHA:'gh',CMR:'cm',MAR:'ma',ALG:'dz',TUN:'tn',EGY:'eg',RSA:'za',COD:'cd',CGO:'cg',BFA:'bf',MLI:'ml',GNB:'gw',CPV:'cv',GAB:'ga',ANG:'ao',ZAM:'zm',ZIM:'zw',MOZ:'mz',TAN:'tz',UGA:'ug',KEN:'ke',ETH:'et',BEN:'bj',TOG:'tg',GUI:'gn',LBR:'lr',SLE:'sl',MTN:'mr',NAM:'na',BOT:'bw',MAD:'mg',COM:'km',LES:'ls',SWZ:'sz',HAI:'ht',JAM:'jm',CRC:'cr',PAN:'pa',HON:'hn',GUA:'gt',SLV:'sv',TRI:'tt',CUB:'cu',DOM:'do',PUR:'pr',FRO:'fo',LUX:'lu',EST:'ee',LVA:'lv',LTU:'lt',GEO:'ge',ARM:'am',AZE:'az',KAZ:'kz',THA:'th',VIE:'vn',MAS:'my',IDN:'id',PHI:'ph',HKG:'hk',TPE:'tw',GBR:'gb',CHE:'ch',DEU:'de',PRT:'pt',NLD:'nl',DNK:'dk',HRV:'hr',BGR:'bg',GRC:'gr',SVK:'sk',SVN:'si',HUN:'hu',ROU:'ro',AUT:'at',LUX:'lu',CYP:'cy',MLT:'mt',MDA:'md',MNE:'me',MKD:'mk',BLR:'by',LTU:'lt',LVA:'lv',EST:'ee',GEO:'ge',ARM:'am',AZE:'az',KAZ:'kz',KGZ:'kg',TJK:'tj',TKM:'tm',UZB:'uz',AFG:'af',ALB:'al',AND:'ad',ATG:'ag',ARU:'aw',BAH:'bs',BAN:'bd',BAR:'bb',BER:'bm',BLR:'by',BLZ:'bz',BRU:'bn',BDI:'bi',CAM:'kh',CAF:'cf',CHA:'td',CYP:'cy',DMA:'dm',DJI:'dj',ERI:'er',EQG:'gq',FIJ:'fj',GAM:'gm',GRN:'gd',GUY:'gy',ISR:'il',KOS:'xk',KGZ:'kg',LIE:'li',LBA:'ly',LCA:'lc',MAC:'mo',MWI:'mw',MDV:'mv',MLT:'mt',MDA:'md',MNE:'me',MGL:'mn',MYA:'mm',NEP:'np',NCL:'nc',PAK:'pk',PNG:'pg',PRK:'kp',RWA:'rw',SAM:'ws',SEY:'sc',SKN:'kn',SOL:'sb',SOM:'so',SSD:'ss',STP:'st',SUD:'sd',SUR:'sr',SYR:'sy',TJK:'tj',TKM:'tm',TLS:'tl',TAH:'pf',VIN:'vc',VAN:'vu',YEM:'ye'};
@@ -87,10 +88,7 @@ async function cornerHistory(teamMatches){
  const db=window.GoldSupabase;if(!db)return totals;
  try{
   let timer;
-  const request=db.functions.invoke('corner-history',{body:{matches:missing.map(x=>({id:x.id,competition:x.competition}))}});
-  const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('Délai de vérification dépassé')),12000)});
-  const {data,error}=await Promise.race([request,timeout]);
-  clearTimeout(timer);
+  const {data,error}=await withTimeout(db.functions.invoke('corner-history',{body:{matches:missing.map(x=>({id:x.id,competition:x.competition}))}}),10000,'Délai de vérification des corners dépassé');
   if(error)throw error;
   for(const item of data?.matches||[]){
    const request=missing.find(x=>x.id===String(item.id)&&x.competition===item.competition);
@@ -172,14 +170,16 @@ function renderPicks(){
   });
   box.append(el);
   const cornerNode=el.querySelector('[data-corners]');
+  const cornerTimer=setTimeout(()=>{if(cornerNode.isConnected&&cornerNode.querySelector('small')?.textContent.includes('Recherche'))cornerNode.innerHTML='<div><b>Total corners · 5,5</b><small>La source met trop de temps à répondre. Relance les pronostics pour réessayer.</small></div><strong>Vérification interrompue</strong>'},14000);
   cornerHistory([...h.slice(0,4),...a.slice(0,4)]).then(all=>{
+   clearTimeout(cornerTimer);
    if(!cornerNode.isConnected)return;
    if(all.length<4){cornerNode.innerHTML='<div><b>Total corners · 5,5</b><small>Statistiques de corners non publiées ou échantillon insuffisant par la source pour cette rencontre.</small></div><strong>Non disponible</strong>';return}
    const avg=all.reduce((sum,v)=>sum+v,0)/all.length;
    const hit=all.filter(v=>v>=6).length/all.length;
    const pick=avg>=7&&hit>=0.6?'+ de 5,5 corners':'Non retenu · prudence';
    cornerNode.innerHTML='<div><b>Total corners · 5,5</b><small>Moyenne observée : '+avg.toFixed(1)+' · '+Math.round(hit*100)+'% des matchs avec 6 corners ou plus · '+all.length+' observations.</small></div><strong class="'+(pick.startsWith('+')?'market-positive':'market-neutral')+'">'+pick+'</strong>';
-  }).catch(()=>{if(cornerNode.isConnected)cornerNode.innerHTML='<div><b>Total corners · 5,5</b><small>Impossible de vérifier cette statistique auprès de la source.</small></div><strong>Non disponible</strong>'});
+  }).catch(()=>{clearTimeout(cornerTimer);if(cornerNode.isConnected)cornerNode.innerHTML='<div><b>Total corners · 5,5</b><small>Impossible de vérifier cette statistique auprès de la source.</small></div><strong>Non disponible</strong>'});
  }
 }
 function findRows(obj,out=[],seen=new Set()){
@@ -237,7 +237,7 @@ async function loadTeams(){
  profile.innerHTML='';box.innerHTML='<div class="loading">Chargement des clubs et sélections…</div>';
  try{
   const db=window.GoldSupabase;if(!db)throw Error('Service sécurisé des équipes indisponible');
-  const {data:d,error}=await db.functions.invoke('teams-catalog',{body:{competition:code}});
+  const {data:d,error}=await withTimeout(db.functions.invoke('teams-catalog',{body:{competition:code}}),18000,'Le catalogue des équipes ne répond pas dans le délai prévu.');
   if(error)throw error;
   const rows=d?.teams||[];
   const unique=[...new Map(rows.map(t=>[String(t.id),t])).values()];
@@ -250,7 +250,7 @@ async function loadTeamProfile(code,id){
  const box=$('team-profile');box.innerHTML='<div class="loading">Chargement de la fiche officielle, du stade et de l’effectif…</div>';
  try{
   const db=window.GoldSupabase;if(!db)throw Error('Service sécurisé des fiches équipes indisponible');
-  const {data,error}=await db.functions.invoke('team-profile',{body:{competition:code,teamId:String(id)}});
+  const {data,error}=await withTimeout(db.functions.invoke('team-profile',{body:{competition:code,teamId:String(id)}}),22000,'La fiche équipe met trop de temps à répondre.');
   if(error)throw error;
   if(!data)throw Error('La source officielle n’a retourné aucune fiche');
   const team=data.team||{},list=Array.isArray(data.athletes)?data.athletes:[],rejectedRoster=Number(data.rejected_roster_entries||0);
