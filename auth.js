@@ -1,5 +1,6 @@
 (()=>{'use strict';
 const URL='https://tmrizkeigrcqzyzashet.supabase.co';
+const APP_URL='https://dieudonnelebanquier7-hue.github.io/gold-pronos/';
 const KEY='sb_publishable_OELT8InFb3gQIfPE1e-6vw_UI-xBs99';
 const $=id=>document.getElementById(id);
 let client=null,signup=true;
@@ -11,7 +12,7 @@ function init(){
  $('account-open').onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id==='page-account'));window.scrollTo({top:0,behavior:'smooth'});};
  $('auth-toggle').onclick=()=>{signup=!signup;$('auth-submit').textContent=signup?'Créer mon compte':'Se connecter';$('auth-toggle').textContent=signup?'J’ai déjà un compte':'Créer un compte';$('auth-display').hidden=!signup;};
  form.onsubmit=async e=>{e.preventDefault();const email=$('auth-email').value.trim(),password=$('auth-password').value,display=$('auth-display').value.trim();$('auth-submit').disabled=true;
- try{if(signup){const {data,error}=await client.auth.signUp({email,password,options:{emailRedirectTo:window.location.origin+window.location.pathname,data:{display_name:display||email.split('@')[0],preferred_language:document.documentElement.lang||'fr'}}});if(error)throw error;say(data.session?'Compte créé et connecté.':'Compte créé. Vérifie ta boîte e-mail pour confirmer ton adresse avant de te connecter.');if(data.session)await loadProfile();}
+ try{if(signup){const {data,error}=await client.auth.signUp({email,password,options:{emailRedirectTo:APP_URL,data:{display_name:display||email.split('@')[0],preferred_language:document.documentElement.lang||'fr'}}});if(error)throw error;say(data.session?'Compte créé et connecté.':'Compte créé. Vérifie ta boîte e-mail pour confirmer ton adresse avant de te connecter.');if(data.session)await loadProfile();}
  else{const {error}=await client.auth.signInWithPassword({email,password});if(error)throw error;say('Connexion réussie.');await loadProfile();}}
  catch(err){say(err.message||'Impossible de terminer cette opération. Réessaie.')}finally{$('auth-submit').disabled=false}};
  $('auth-signout').onclick=async()=>{await client.auth.signOut();$('account-panel').hidden=true;$('auth-form').hidden=false;say('Tu es déconnecté.');};
