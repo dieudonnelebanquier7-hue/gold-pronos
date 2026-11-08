@@ -168,7 +168,9 @@ function officialLineups(data){
   }
   const starters=explicit.length?entries:entries.filter(p=>p.starter===true||p.isStarter===true||p.athlete?.starter===true||p.athlete?.isStarter===true||String(p.lineupStatus||p.athlete?.lineupStatus||'').toLowerCase()==='starter');
   const uniq=[...new Map(starters.map(p=>{const z=p.athlete||p.player||p;return [z.id||z.displayName||z.fullName||z.name,z]})).values()];
-  if(uniq.length>=11)groups.push({team,teamId:g.team?.id||g.team?.uid||null,players:uniq.slice(0,11).map(p=>({name:p.displayName||p.fullName||p.shortName||p.name||'Joueur',position:p.position?.abbreviation||p.position?.displayName||p.pos||''}))});
+  const mapPlayer=p=>{const z=p.athlete||p.player||p;return {name:z.displayName||z.fullName||z.shortName||z.name||'Joueur',number:z.jersey??z.number??p.number??'',position:z.position?.abbreviation||z.position?.displayName||z.pos||p.position||''}};
+  const substitutes=(Array.isArray(g.substitutes)?g.substitutes:[]).map(mapPlayer);
+  if(uniq.length>=11)groups.push({team,teamId:g.team?.id||g.team?.uid||null,formation:g.formation||'',coach:g.coach?.name||g.coach?.displayName||'',players:uniq.slice(0,11).map(mapPlayer),substitutes});
  }
  const unique=[...new Map(groups.map(g=>[g.team,g])).values()];return unique.length>=2?unique.slice(0,2):[];
 }
@@ -179,7 +181,7 @@ function lineupsMatchFixture(groups,m){
  const away=groups.find(g=>(m.awayId&&g.teamId&&String(m.awayId)===String(g.teamId))||norm(g.team)===norm(m.away));
  return !!home&&!!away&&home!==away;
 }
-function lineupHtml(groups){return '<h3>Compositions officielles</h3><p class="muted">Titulaires publiés par la source de la rencontre.</p><div class="stats-grid">'+groups.map(g=>'<div class="stat-card"><b>'+safe(g.team)+'</b><ol>'+g.players.map(p=>'<li>'+safe(p.name)+(p.position?' · '+safe(p.position):'')+'</li>').join('')+'</ol></div>').join('')+'</div>'}
+function lineupHtml(groups){return '<h3>Compositions officielles</h3><p class="muted">Titulaires publiés par la source de la rencontre.</p><div class="stats-grid">'+groups.map(g=>'<div class="stat-card"><b>'+safe(g.team)+'</b>'+(g.formation?'<p class="muted">Formation : '+safe(g.formation)+'</p>':'')+(g.coach?'<p class="muted">Entraîneur : '+safe(g.coach)+'</p>':'')+'<h4>Titulaires</h4><ol>'+g.players.map(p=>'<li>'+(p.number?safe(p.number)+' · ':'')+safe(p.name)+(p.position?' · '+safe(p.position):'')+'</li>').join('')+'</ol>'+(g.substitutes?.length?'<h4>Remplaçants</h4><ul>'+g.substitutes.map(p=>'<li>'+(p.number?safe(p.number)+' · ':'')+safe(p.name)+(p.position?' · '+safe(p.position):'')+'</li>').join('')+'</ul>':'')+'</div>').join('')+'</div>'}
 async function pollOfficialLineups(){
  const now=Date.now(),due=matches.filter(m=>{
   const kick=new Date(m.date).getTime(),recentFinished=m.finished&&now-kick<=6*3600000,soon=!m.live&&!m.finished&&kick-now<=75*60000&&kick-now>0;
