@@ -130,14 +130,14 @@ async function loadAccountFeatures(){
  if(cf)cf.innerHTML=comps.error?'<p class="muted">Favoris momentanément indisponibles.</p>':(comps.data||[]).length?(comps.data||[]).map(x=>'<div class="favorite-row"><span>'+safe(x.competition_name)+'</span><button type="button" data-remove-comp="'+safe(x.id)+'">Retirer</button></div>').join(''):'<p class="muted">Aucune compétition favorite pour le moment.</p>';
  tf?.querySelectorAll('[data-remove-team]').forEach(b=>b.onclick=async()=>{await db.from('favorite_teams').delete().eq('id',b.dataset.removeTeam);loadAccountFeatures()});
  cf?.querySelectorAll('[data-remove-comp]').forEach(b=>b.onclick=async()=>{await db.from('favorite_competitions').delete().eq('id',b.dataset.removeComp);loadAccountFeatures()});
- const p=pref.data||{};[['pref-notifications','enabled'],['pref-kickoff','kickoff'],['pref-goals','goals'],['pref-redcards','red_cards'],['pref-penalties','penalties'],['pref-halftime','halftime_fulltime'],['pref-lineups','lineups']].forEach(([id,k])=>{const el=$(id);if(el)el.checked=!!p[k]});
+ const p=pref.data||{};[['pref-notifications','enabled'],['pref-kickoff','kickoff'],['pref-goals','goals'],['pref-halftime','halftime'],['pref-fulltime','fulltime'],['pref-lineups','lineups']].forEach(([id,k])=>{const el=$(id);if(el)el.checked=!!p[k]});
 }
 async function saveNotificationPrefs(){
  const db=window.GoldSupabase,user=await currentUser();if(!db||!user){toast('Connecte-toi pour enregistrer ces réglages.');return}
  const enabled=$('pref-notifications').checked;
  if(enabled&&'Notification'in window&&Notification.permission==='default'){const permission=await Notification.requestPermission();if(permission!=='granted'){toast('Autorisation de notification refusée.');$('pref-notifications').checked=false;return}}
  if(enabled&&(!('Notification'in window)||Notification.permission!=='granted')){toast('Les notifications ne sont pas autorisées sur cet appareil.');$('pref-notifications').checked=false;return}
- const payload={user_id:user.id,enabled,kickoff:$('pref-kickoff').checked,goals:$('pref-goals').checked,red_cards:false,penalties:false,halftime_fulltime:$('pref-halftime').checked,lineups:$('pref-lineups').checked,favorite_teams_only:true,timezone:'Africa/Porto-Novo',updated_at:new Date().toISOString()};
+ const payload={user_id:user.id,enabled,kickoff:$('pref-kickoff').checked,goals:$('pref-goals').checked,red_cards:false,penalties:false,halftime:$('pref-halftime').checked,fulltime:$('pref-fulltime').checked,halftime_fulltime:$('pref-halftime').checked||$('pref-fulltime').checked,lineups:$('pref-lineups').checked,favorite_teams_only:true,timezone:'Africa/Porto-Novo',updated_at:new Date().toISOString()};
  const {error}=await db.from('notification_preferences').upsert(payload,{onConflict:'user_id'});toast(error?'Impossible d’enregistrer les alertes.':'Préférences d’alertes enregistrées.');
 }
 function renderVIP(){const box=$('vip-list');if(!box)return;const cards=[...$('picks').querySelectorAll('.pick-card')];box.innerHTML=cards.length?cards.slice(0,5).map(x=>x.outerHTML).join(''):'<div class="notice">Aucune analyse vérifiée ne peut être proposée pour le moment. Reviens lorsque davantage de résultats seront disponibles.</div>'}
