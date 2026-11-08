@@ -10,6 +10,55 @@ function appDate(value,options={}){const d=new Date(value);if(Number.isNaN(d.get
 async function get(url,ms=9000){const c=new AbortController(),t=setTimeout(()=>c.abort(),ms);try{const r=await fetch(url,{signal:c.signal,cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);return await r.json()}finally{clearTimeout(t)}}
 async function withTimeout(promise,ms,message){let timer;try{return await Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error(message||'Délai de réponse dépassé')),ms)})])}finally{clearTimeout(timer)}}
 const API_FOOTBALL_CACHE_KEY='gold-pronos-api-football-fixtures-v1';
+const SPORT_SCORE_URL='https://sportscore.com/api/widget/matches/?sport=football&limit=50&src=gold-pronos';
+const SPORT_SCORE_CACHE_KEY='gold-pronos-sportscore-live-v1';
+function sportScoreStatus(value){
+ const v=String(value||'').toLowerCase();
+ if(/live|in.?play|1st half|2nd half|half.?time|extra time|penalt/.test(v))return 'LIVE';
+ if(/finish|full.?time|ended|after.?extra/.test(v))return 'FINISHED';
+ return 'SCHEDULED';
+}
+async function loadSportScoreLive(force=false){
+ const now=Date.now();
+ if(!force){try{const cache=JSON.parse(localStorage.getItem(SPORT_SCORE_CACHE_KEY)||'null');if(cache&&now-cache.at<90000&&Array.isArray(cache.matches))return cache}catch(_){}}
+ const data=await get(SPORT_SCORE_URL,10000);
+ const rows=Array.isArray(data?.matches)?data.matches:[];
+ const result={at:now,updated:data?.updated||new Date(now).toISOString(),matches:rows};
+ try{localStorage.setItem(SPORT_SCORE_CACHE_KEY,JSON.stringify(result))}catch(_){}
+ return result;
+}
+function mergeSportScoreLive(snapshot){
+ if(!snapshot||!Array.isArray(snapshot.matches))return {confirmed:0,conflicts:0};
+ let confirmed=0,conflicts=0;
+ const updatedAt=Date.parse(snapshot.updated||'')||snapshot.at||Date.now();
+ for(const row of snapshot.matches){
+  const home=String(row.home||row.home_team?.name||'').trim(),away=String(row.away||row.away_team?.name||'').trim();
+  const when=Date.parse(row.time||row.date||row.kickoff||'');
+  if(!home||!away)continue;
+  const candidates=matches.filter(m=>providerNorm(m.home)===providerNorm(home)&&providerNorm(m.away)===providerNorm(away));
+  const match=candidates.find(m=>!Number.isNaN(when)&&Math.abs(new Date(m.date).getTime()-when)<5*3600000)|| (candidates.length===1?candidates[0]:null);
+  if(!match)continue;
+  const status=sportScoreStatus(row.status||row.status_text),hs=row.home_score??row.score?.home??null,as=row.away_score??row.score?.away??null;
+  if(!match.providers)match.providers=['ESPN'];
+  match.sportScoreSlug=row.slug||match.sportScoreSlug||'';
+  match.sportScoreUpdatedAt=updatedAt;
+  if(!match.providers.includes('SportScore'))match.providers.push('SportScore');
+  if(hs!==null&&as!==null&&match.homeScore!==null&&match.awayScore!==null&&(Number(hs)!==Number(match.homeScore)||Number(as)!==Number(match.awayScore))){
+   match.scoreConflict={espn:[match.homeScore,match.awayScore],sportScore:[Number(hs),Number(as)],updatedAt};
+   conflicts++;continue;
+  }
+  if(hs!==null&&as!==null&&(match.homeScore===null||match.awayScore===null||status==='LIVE')){
+   match.homeScore=Number(hs);match.awayScore=Number(as);
+  }
+  if(status==='LIVE'&&!match.finished){match.live=true;match.status='LIVE';match.finished=false;match.periodDetail=row.status_text||match.periodDetail||'En direct';}
+  if(status==='FINISHED'&&match.homeScore!==null&&match.awayScore!==null){match.live=false;match.finished=true;match.status='FINISHED';}
+  if(row.home_logo&&!match.homeLogo)match.homeLogo=row.home_logo;
+  if(row.away_logo&&!match.awayLogo)match.awayLogo=row.away_logo;
+  confirmed++;
+ }
+ return {confirmed,conflicts};
+}
+
 const API_LEAGUE_CODES={'premier league':'eng.1','championship':'eng.2','la liga':'esp.1','laliga':'esp.1','la liga 2':'esp.2','bundesliga':'ger.1','serie a':'ita.1','ligue 1':'fra.1','eredivisie':'ned.1','primeira liga':'por.1','super lig':'tur.1','eliteserien':'nor.1','allsvenskan':'swe.1','super league':'sui.1','saudi pro league':'ksa.1','pro league':'ksa.1','czech liga':'cze.1','fortuna liga':'cze.1','major league soccer':'usa.1','liga i':'rou.1','russian premier league':'rus.1','premier league':'eng.1','chinese super league':'chn.1','j1 league':'jpn.1','brasileirao serie a':'bra.1','serie a':'ita.1','liga profesional argentina':'arg.1','liga profesional':'arg.1','liga mx':'mex.1','uefa champions league':'uefa.champions','uefa europa league':'uefa.europa','uefa conference league':'uefa.europa.conf','afc champions league':'afc.champions','afc champions league elite':'afc.champions','africa cup of nations':'caf.nations','fifa world cup':'fifa.world','world cup':'fifa.world','european championship':'uefa.euro','uefa nations league':'uefa.nations'};
 function providerNorm(v){return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'')}
 async function apiFootballRequest(body,ms=22000){
@@ -617,7 +666,7 @@ function updateLiveEvent(m,event){const comp=event.competitions?.[0]||{},teams=c
 async function pollLiveScores(){if(!matches.length)return;const now=Date.now(),groups=new Map();for(const m of matches){if(m.apiFootballId||String(m.code||'').startsWith('api-football:'))continue;const kick=new Date(m.date).getTime();if(!m.code||m.finished||kick>now+8*3600000||kick<now-4*3600000)continue;const day=new Date(m.date).toISOString().slice(0,10).replace(/-/g,'');const key=m.code+'|'+day;if(!groups.has(key))groups.set(key,{code:m.code,day})}
  const requests=[...groups.values()];let cursor=0;const settled=[];const workers=Array.from({length:5},async()=>{while(true){const i=cursor++;if(i>=requests.length)break;const g=requests[i];try{settled[i]={status:'fulfilled',value:await get(API+g.code+'/scoreboard?dates='+g.day+'&limit=100&region=fr&lang=fr',11000)}}catch(error){settled[i]={status:'rejected',reason:error}}}});await Promise.all(workers);const results=settled;
  let changed=false;results.forEach(r=>{if(r.status!=='fulfilled')return;for(const event of r.value.events||[]){const m=matches.find(x=>x.id===String(event.id));if(!m)continue;const before=[m.status,m.homeScore,m.awayScore,m.periodDetail].join('|');updateLiveEvent(m,event);const after=[m.status,m.homeScore,m.awayScore,m.periodDetail].join('|');if(before!==after)changed=true}});
- if(changed){render();renderLive();renderPersonalizedHome();localMatchAlerts()}const active=matches.filter(m=>m.live).length;const el=$('live-indicator');if(el)el.textContent=active?active+' match'+(active>1?'s':'')+' en cours':'Suivi en direct activé';}
+ const sportScore=await loadSportScoreLive().catch(error=>{console.warn('SportScore live indisponible',error?.message||error);return null});const crossCheck=mergeSportScoreLive(sportScore);if(crossCheck.confirmed)changed=true;if(changed){render();renderLive();renderPersonalizedHome();localMatchAlerts()}const active=matches.filter(m=>m.live).length;const el=$('live-indicator');if(el)el.textContent=active?active+' match'+(active>1?'s':'')+' en cours':'Suivi en direct activé';}
 async function loadEspnFixtures(){
  const today=new Date();today.setUTCHours(0,0,0,0);
  const pastFrom=new Date(today);pastFrom.setUTCDate(pastFrom.getUTCDate()-7);
@@ -634,8 +683,8 @@ async function refresh(){if(busy)return;busy=true;$('home-matches').innerHTML='<
  let loaded=false;
  try{const d=await get('./matches.json',9000);const source=(d.matches||[]).map(m=>{const c=m.competition?.code||'';const code=c.startsWith('ESPN-')?c.slice(5):(m.source==='ESPN'?'eng.1':'');const st=m.status||'SCHEDULED';const live=st==='IN_PLAY'||st==='LIVE';const finished=st==='FINISHED';const national=isNationalCompetition(code);return{id:String(m.id).replace(/^espn-/,''),code,league:m.competition?.name||'Compétition',competition:m.competition?.name||'',home:m.homeTeam?.name||'Équipe domicile',away:m.awayTeam?.name||'Équipe extérieure',homeLogo:national?(teamFlagUrl(m.homeTeam)||m.homeTeam?.logo||m.homeTeam?.crest||''):(m.homeTeam?.logo||m.homeTeam?.crest||''),awayLogo:national?(teamFlagUrl(m.awayTeam)||m.awayTeam?.logo||m.awayTeam?.crest||''):(m.awayTeam?.logo||m.awayTeam?.crest||''),homeNational:national,awayNational:national,homeId:m.homeTeam?.id||null,awayId:m.awayTeam?.id||null,homeScore:m.score?.fullTime?.home??null,awayScore:m.score?.fullTime?.away??null,date:m.utcDate,status:live?'LIVE':finished?'FINISHED':'SCHEDULED',live,finished,periodDetail:'',periodNumber:0,clockBaseSeconds:null,clockUpdatedAt:Date.now(),clockRunning:false,venue:'',raw:m}}).filter(m=>m.date&&m.home&&m.away);if(source.length){matches=source;loaded=true}}catch(error){/* Le flux pré-généré n'est pas toujours publié. */ }
  if(!loaded){matches=await loadEspnFixtures();if(!matches.length)throw Error('Aucun calendrier retourné par les sources');}
- const apiRows=await loadApiFootballFixtures().catch(error=>{console.warn('API-Football gratuit non disponible',error?.message||error);return []});const extras=mergeApiFootballFixtures(apiRows);matches=[...matches,...extras];
- render();renderLive();renderPicks();renderVIP();renderPersonalizedHome();localMatchAlerts();$('updated').textContent='Données actualisées · '+matches.length+' rencontres · '+appDate(new Date(),{dateStyle:'medium',timeStyle:'short'});
+ const apiRows=await loadApiFootballFixtures().catch(error=>{console.warn('API-Football gratuit non disponible',error?.message||error);return []});const extras=mergeApiFootballFixtures(apiRows);matches=[...matches,...extras];const sportScore=await loadSportScoreLive().catch(error=>{console.warn('SportScore indisponible, ESPN conservé',error?.message||error);return null});const sportScoreCheck=mergeSportScoreLive(sportScore);
+ render();renderLive();renderPicks();renderVIP();renderPersonalizedHome();localMatchAlerts();$('updated').textContent='Données actualisées · '+matches.length+' rencontres · '+(sportScoreCheck.confirmed?'ESPN + SportScore':'ESPN')+' · '+appDate(new Date(),{dateStyle:'medium',timeStyle:'short'});
  }catch(e){matches=[];render();renderLive();renderPicks();$('updated').textContent='Sources temporairement indisponibles';$('home-matches').innerHTML='<div class="notice">Les calendriers ne répondent pas actuellement. Vérifie ta connexion puis actualise. Aucun match ni score fictif ne sera affiché.</div>'}finally{busy=false}}
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id==='page-'+b.dataset.page));if(b.dataset.page==='competitions')loadStandings();if(b.dataset.page==='teams')loadTeams();if(b.dataset.page==='pronos')renderPicks();if(b.dataset.page==='news')loadNews();if(b.dataset.page==='leaders')loadLeaders();if(b.dataset.page==='community')loadCommunity();if(b.dataset.page==='settings')loadSettings();if(b.dataset.page==='vip'){renderVIP();}});
 $('search').oninput=render;$('refresh-live')?.addEventListener('click',refresh);$('vip-open-pronos')?.addEventListener('click',()=>document.querySelector('[data-page="pronos"]')?.click());$('save-notifications')?.addEventListener('click',saveNotificationPrefs);$('enable-background-push')?.addEventListener('click',enableBackgroundPush);$('settings-save')?.addEventListener('click',saveSettings);$('settings-edit-favorites')?.addEventListener('click',()=>$('account-open').click());$('settings-edit-alerts')?.addEventListener('click',()=>$('account-open').click());$('settings-reset-onboarding')?.addEventListener('click',()=>{localStorage.removeItem(PREF_KEY);showOnboarding(true)});$('date-filter').onchange=render;$('refresh').onclick=refresh;$('close-modal').onclick=()=>$('match-modal').hidden=true;$('match-modal').onclick=e=>{if(e.target===$('match-modal'))$('match-modal').hidden=true};
