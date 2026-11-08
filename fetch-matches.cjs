@@ -15,11 +15,12 @@ const leagues=[
  ['caf.nations','CAF · Coupe d’Afrique des nations'],['uefa.wchampions','UEFA · Ligue des championnes']
 ];
 const today=new Date();today.setUTCHours(0,0,0,0);
-const from=new Date(today);from.setUTCDate(from.getUTCDate()-7);
+const from=new Date(today);from.setUTCDate(from.getUTCDate()-35);
 const to=new Date(today);to.setUTCDate(to.getUTCDate()+14);
 const key=d=>d.toISOString().slice(0,10).replace(/-/g,'');
-async function fetchLeague([code,label],date){
- const url='https://site.api.espn.com/apis/site/v2/sports/soccer/'+code+'/scoreboard?dates='+date+'&limit=100&region=fr&lang=fr';
+const dateRange=key(from)+'-'+key(to);
+async function fetchLeague([code,label]){
+ const url='https://site.api.espn.com/apis/site/v2/sports/soccer/'+code+'/scoreboard?dates='+dateRange+'&limit=100&region=fr&lang=fr';
  try{
   const response=await fetch(url,{signal:AbortSignal.timeout(15000),headers:{'User-Agent':'GOLD-PRONOS/1.0'}});
   if(!response.ok)throw Error('HTTP '+response.status);
@@ -38,8 +39,7 @@ async function fetchLeague([code,label],date){
  }catch(e){if(!String(e.message).includes('HTTP 400'))console.log('Source indisponible '+code+' '+date+': '+e.message);return []}
 }
 (async()=>{
- const dates=[];for(let d=new Date(from);d<=to;d.setUTCDate(d.getUTCDate()+1))dates.push(key(d));
- const tasks=leagues.flatMap(league=>dates.map(date=>()=>fetchLeague(league,date)));
+ const tasks=leagues.map(league=>()=>fetchLeague(league));
  const results=new Array(tasks.length);let cursor=0,completed=0;
  const workers=Array.from({length:8},async()=>{while(true){const i=cursor++;if(i>=tasks.length)break;results[i]=await tasks[i]();completed++;if(completed%100===0)console.log('Collecte '+completed+'/'+tasks.length)}});
  await Promise.all(workers);
@@ -48,5 +48,5 @@ async function fetchLeague([code,label],date){
  if(!matches.length)throw Error('Aucun match vérifié reçu : publication annulée.');
  const output={generatedAt:new Date().toISOString(),range:{from:from.toISOString(),to:to.toISOString()},matches};
  fs.writeFileSync('matches.json',JSON.stringify(output));
- console.log('Calendrier vérifié : '+matches.length+' rencontres / '+leagues.length+' compétitions / '+dates.length+' jours.');
+ console.log('Calendrier vérifié : '+matches.length+' rencontres / '+leagues.length+' compétitions / période '+key(from)+' à '+key(to)+'.');
 })();
