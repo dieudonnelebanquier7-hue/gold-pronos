@@ -11,7 +11,14 @@ const { chromium } = require('playwright');
   const fixtures = [
     {id:'old-1',utcDate:new Date(now-3*86400000).toISOString(),status:'FINISHED',competition:{name:'Premier League',code:'ESPN-eng.1'},homeTeam:{id:'101',name:'Test FC'},awayTeam:{id:'102',name:'United Test'},score:{fullTime:{home:2,away:0}}},
     {id:'old-2',utcDate:new Date(now-2*86400000).toISOString(),status:'FINISHED',competition:{name:'Premier League',code:'ESPN-eng.1'},homeTeam:{id:'102',name:'United Test'},awayTeam:{id:'103',name:'City Test'},score:{fullTime:{home:1,away:1}}},
-    {id:'old-3',utcDate:new Date(now-86400000).toISOString(),status:'FINISHED',competition:{name:'Premier League',code:'ESPN-eng.1'},homeTeam:{id:'103',name:'City Test'},awayTeam:{id:'101',name:'Test FC'},score:{fullTime:{home:0,away:1}}},
+    {id:'old-3',utcDate:new Date(now-3*86400000).toISOString(),status:'FINISHED',competition:{name:'Premier League',code:'ESPN-eng.1'},homeTeam:{id:'103',name:'City Test'},awayTeam:{id:'101',name:'Test FC'},score:{fullTime:{home:0,away:1}}},
+    {id:'old-4',utcDate:new Date(now-4*86400000).toISOString(),status:'FINISHED',competition:{name:'Premier League',code:'ESPN-eng.1'},homeTeam:{id:'101',name:'Test FC'},awayTeam:{id:'103',name:'City Test'},score:{fullTime:{home:1,away:0}}},
+    {id:'old-5',utcDate:new Date(now-5*86400000).toISOString(),status:'FINISHED',competition:{name:'Premier League',code:'ESPN-eng.1'},homeTeam:{id:'103',name:'City Test'},awayTeam:{id:'102',name:'United Test'},score:{fullTime:{home:0,away:2}}},
+    {id:'old-6',utcDate:new Date(now-6*86400000).toISOString(),status:'FINISHED',competition:{name:'Premier League',code:'ESPN-eng.1'},homeTeam:{id:'101',name:'Test FC'},awayTeam:{id:'103',name:'City Test'},score:{fullTime:{home:2,away:1}}},
+    {id:'old-7',utcDate:new Date(now-7*86400000).toISOString(),status:'FINISHED',competition:{name:'Premier League',code:'ESPN-eng.1'},homeTeam:{id:'102',name:'United Test'},awayTeam:{id:'103',name:'City Test'},score:{fullTime:{home:2,away:0}}},
+    {id:'old-8',utcDate:new Date(now-8*86400000).toISOString(),status:'FINISHED',competition:{name:'Premier League',code:'ESPN-eng.1'},homeTeam:{id:'103',name:'City Test'},awayTeam:{id:'101',name:'Test FC'},score:{fullTime:{home:1,away:1}}},
+    {id:'old-9',utcDate:new Date(now-9*86400000).toISOString(),status:'FINISHED',competition:{name:'Premier League',code:'ESPN-eng.1'},homeTeam:{id:'103',name:'City Test'},awayTeam:{id:'102',name:'United Test'},score:{fullTime:{home:1,away:1}}},
+    {id:'old-10',utcDate:new Date(now-10*86400000).toISOString(),status:'FINISHED',competition:{name:'Premier League',code:'ESPN-eng.1'},homeTeam:{id:'101',name:'Test FC'},awayTeam:{id:'103',name:'City Test'},score:{fullTime:{home:1,away:2}}},
     {id:'future-1',utcDate:new Date(now+3*3600000).toISOString(),status:'SCHEDULED',competition:{name:'Premier League',code:'ESPN-eng.1'},homeTeam:{id:'101',name:'Test FC',logo:'https://example.com/test-fc.png'},awayTeam:{id:'102',name:'United Test',logo:'https://example.com/united-test.png'},score:{fullTime:{home:null,away:null}}},
     {id:'national-1',utcDate:new Date(now+4*3600000).toISOString(),status:'SCHEDULED',competition:{name:'Coupe d’Afrique',code:'ESPN-caf.nations'},homeTeam:{id:'201',name:'Bénin',abbreviation:'BEN'},awayTeam:{id:'202',name:'Nigeria',abbreviation:'NGA'},score:{fullTime:{home:null,away:null}}}
   ];
@@ -58,8 +65,11 @@ const { chromium } = require('playwright');
   await page.locator('#close-modal').click();
   await page.locator('.tab[data-page="pronos"]').click();
   await page.locator('#picks .pick-card').first().waitFor({state:'visible',timeout:5000});
-  const predictionText = await page.locator('#picks .pick-card').first().innerText();
-  if (!predictionText.includes('Analyse en attente') || predictionText.includes('Double chance')) throw new Error('Prediction engine must refuse to generate picks from insufficient history: '+predictionText);
+  const predictionCards = page.locator('#picks .pick-card');
+  const predictionText = await predictionCards.first().innerText();
+  if (!predictionText.includes('À domicile') || !predictionText.includes('À l’extérieur') || !predictionText.includes('Les deux équipes marquent')) throw new Error('Prediction engine did not use venue-specific samples and BTTS evidence: '+predictionText);
+  const insufficientText = await predictionCards.nth(1).innerText();
+  if (!insufficientText.includes('Analyse en attente') || insufficientText.includes('Double chance')) throw new Error('Prediction engine must refuse to generate picks from insufficient history: '+insufficientText);
   await page.evaluate(() => { const el=document.createElement('div'); el.id='dynamic-translation-check'; el.textContent='Fouls · Corner Kicks · Yellow Cards'; document.body.appendChild(el); });
   await page.waitForFunction(() => document.querySelector('#dynamic-translation-check')?.textContent === 'Fautes · Corners · Cartons jaunes');
   await page.locator('#dynamic-translation-check').evaluate(el=>el.remove());
