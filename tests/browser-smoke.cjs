@@ -26,7 +26,7 @@ const { chromium } = require('playwright');
   await page.route('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2', route => route.fulfill({status:200,contentType:'application/javascript',body:'/* mocked Supabase CDN */'}));
   await page.route('https://site.api.espn.com/**', route => route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({events:[],articles:[],items:[],leaders:[],children:[],entries:[]})}));
   await page.route('**/summary?event=*', route => route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({
-    header:{competitions:[{competitors:[{homeAway:'home',score:'1',team:{displayName:'Test FC'}},{homeAway:'away',score:'0',team:{displayName:'United Test'}}],status:{type:{state:'in',displayClock:'12:00',period:1,detail:'1st Half'}}}]},
+    header:{competitions:[{competitors:[{homeAway:'home',score:'1',team:{displayName:'Test FC'}},{homeAway:'away',score:'0',team:{displayName:'United Test'}}],status:{type:{state:'pre',detail:'Scheduled'}}}]},
     boxscore:{teams:[
       {team:{displayName:'Test FC'},statistics:[{name:'fouls',label:'Fouls',displayValue:'4'},{name:'wonCorners',label:'Corner Kicks',displayValue:'3'}]},
       {team:{displayName:'United Test'},statistics:[{name:'fouls',label:'Fouls',displayValue:'2'},{name:'wonCorners',label:'Corner Kicks',displayValue:'1'}]}
