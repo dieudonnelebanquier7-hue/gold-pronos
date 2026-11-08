@@ -478,3 +478,31 @@ footer b{color:#e0b44f!important}
  .team-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
  .competition-grid{grid-template-columns:1fr!important}
 }
+
+
+/* GOLD PRONOS — écussons compacts et hiérarchie visuelle maîtrisée */
+.gp-crest{width:28px!important;height:28px!important;flex:0 0 28px!important;border-radius:7px!important;box-shadow:none!important;background:#f4f1e8!important;border:1px solid #d8d0bd!important}
+.gp-crest img{inset:3px!important;width:calc(100% - 6px)!important;height:calc(100% - 6px)!important;object-fit:contain!important}
+.gp-crest .gp-crest-fallback{font-size:9px!important;letter-spacing:0!important}
+.gp-crest.match-crest,.gp-crest.standing-crest,.gp-crest.leader-crest,.gp-crest.favorite-crest{width:22px!important;height:22px!important;flex-basis:22px!important;border-radius:5px!important}
+.gp-crest.pick-crest{width:26px!important;height:26px!important;flex-basis:26px!important;border-radius:6px!important}
+.gp-crest.detail-crest{width:36px!important;height:36px!important;flex-basis:36px!important;border-radius:8px!important}
+.gp-crest.profile-crest,.team-profile-head .gp-crest{width:54px!important;height:54px!important;flex-basis:54px!important;border-radius:10px!important}
+.gp-crest.flag-crest,.gp-crest.match-flag,.gp-crest.pick-flag,.gp-crest.detail-flag,.gp-crest.profile-flag,.gp-crest.standing-flag{height:auto!important;aspect-ratio:3/2!important;border-radius:4px!important;box-shadow:none!important;flex-basis:auto!important}
+.gp-crest.match-flag,.gp-crest.standing-flag{width:25px!important}
+.gp-crest.pick-flag{width:29px!important}
+.gp-crest.detail-flag{width:42px!important}
+.gp-crest.profile-flag,.team-profile-head .gp-crest.profile-flag{width:54px!important;height:36px!important;flex-basis:54px!important}
+.gp-crest.flag-crest img,.gp-crest.match-flag img,.gp-crest.pick-flag img,.gp-crest.detail-flag img,.gp-crest.profile-flag img,.gp-crest.standing-flag img{inset:0!important;width:100%!important;height:100%!important;object-fit:cover!important}
+.team-crest-wrap{width:42px!important;height:42px!important;border-radius:9px!important;box-shadow:none!important}
+.team-crest-wrap .gp-crest{width:34px!important;height:34px!important;flex-basis:34px!important;border:0!important;background:transparent!important}
+.team-crest-wrap .gp-crest.flag-crest{width:38px!important;height:25px!important}
+.team-tile{min-height:126px!important;padding:9px 7px!important;gap:5px!important;border-radius:11px!important;box-shadow:none!important}
+.team-tile b{font-size:12px!important;min-height:28px!important;line-height:1.2!important}
+.team-profile-head{gap:10px!important;align-items:center!important}
+.team-profile-head .gp-crest img{inset:3px!important;width:calc(100% - 6px)!important;height:calc(100% - 6px)!important}
+.match .teams{gap:5px!important}
+.match-side .team-name{font-size:12px!important;line-height:1.2!important}
+.pick-team-heading,.detail-team-heading{gap:7px!important}
+.pick-team-heading h3,.detail-team-heading h2{font-size:15px!important}
+@media(max-width:650px){.team-tile{min-height:118px!important;padding:8px 6px!important}.team-crest-wrap{width:40px!important;height:40px!important}.team-crest-wrap .gp-crest{width:32px!important;height:32px!important;flex-basis:32px!important}.gp-crest.match-crest{width:21px!important;height:21px!important;flex-basis:21px!important}.gp-crest.match-flag{width:24px!important}.gp-crest.pick-crest{width:24px!important;height:24px!important;flex-basis:24px!important}.gp-crest.detail-crest{width:32px!important;height:32px!important;flex-basis:32px!important}.gp-crest.profile-crest,.team-profile-head .gp-crest{width:48px!important;height:48px!important;flex-basis:48px!important}.gp-crest.profile-flag,.team-profile-head .gp-crest.profile-flag{width:50px!important;height:33px!important;flex-basis:50px!important}}
