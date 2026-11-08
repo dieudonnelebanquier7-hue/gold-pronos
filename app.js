@@ -111,17 +111,25 @@ async function saveNotificationPrefs(){
  const enabled=$('pref-notifications').checked;
  if(enabled&&'Notification'in window&&Notification.permission==='default'){const permission=await Notification.requestPermission();if(permission!=='granted'){toast('Autorisation de notification refusée.');$('pref-notifications').checked=false;return}}
  if(enabled&&(!('Notification'in window)||Notification.permission!=='granted')){toast('Les notifications ne sont pas autorisées sur cet appareil.');$('pref-notifications').checked=false;return}
- const payload={user_id:user.id,enabled,kickoff:$('pref-kickoff').checked,goals:$('pref-goals').checked,red_cards:$('pref-redcards').checked,penalties:$('pref-penalties').checked,halftime_fulltime:$('pref-halftime').checked,favorite_teams_only:true,timezone:'Africa/Porto-Novo',updated_at:new Date().toISOString()};
+ const payload={user_id:user.id,enabled,kickoff:$('pref-kickoff').checked,goals:$('pref-goals').checked,red_cards:false,penalties:false,halftime_fulltime:$('pref-halftime').checked,favorite_teams_only:true,timezone:'Africa/Porto-Novo',updated_at:new Date().toISOString()};
  const {error}=await db.from('notification_preferences').upsert(payload,{onConflict:'user_id'});toast(error?'Impossible d’enregistrer les alertes.':'Préférences d’alertes enregistrées.');
 }
 function renderVIP(){const box=$('vip-list');if(!box)return;const cards=[...$('picks').querySelectorAll('.pick-card')];box.innerHTML=cards.length?cards.slice(0,5).map(x=>x.outerHTML).join(''):'<div class="notice">Aucune analyse vérifiée ne peut être proposée pour le moment. Reviens lorsque davantage de résultats seront disponibles.</div>'}
-let previousScores=new Map();
+let previousScores=new Map(),previousStatuses=new Map();
 async function localMatchAlerts(){
  const db=window.GoldSupabase,user=await currentUser();if(!db||!user||!('Notification'in window)||Notification.permission!=='granted')return;
  const {data:p}=await db.from('notification_preferences').select('*').eq('user_id',user.id).maybeSingle();if(!p?.enabled)return;
- for(const m of matches){const old=previousScores.get(m.id);const score=m.homeScore+'-'+m.awayScore;
-  if(old&&old!==score&&p.goals&&m.homeScore!==null&&m.awayScore!==null){const reg=await navigator.serviceWorker?.getRegistration();const title='But · '+m.home+' – '+m.away;const options={body:'Nouveau score : '+score,icon:'./icon.svg',tag:'gold-pronos-'+m.id};if(reg?.showNotification)reg.showNotification(title,options);else new Notification(title,options)}
-  previousScores.set(m.id,score);
+ let favIds=[];
+ if(p.favorite_teams_only){const fav=await db.from('favorite_teams').select('team_id').eq('user_id',user.id);favIds=(fav.data||[]).map(x=>String(x.team_id));if(!favIds.length)return}
+ const registration=await navigator.serviceWorker?.getRegistration();
+ const send=(title,body,tag)=>{const options={body,icon:'./icon.svg',tag:'gold-pronos-'+tag};if(registration?.showNotification)registration.showNotification(title,options);else new Notification(title,options)};
+ for(const m of matches){
+  if(p.favorite_teams_only&&!favIds.includes(String(m.homeId))&&!favIds.includes(String(m.awayId))&&!favIds.includes(m.home)&&!favIds.includes(m.away))continue;
+  const oldScore=previousScores.get(m.id),score=m.homeScore+'-'+m.awayScore,oldStatus=previousStatuses.get(m.id);
+  if(oldScore&&oldScore!==score&&p.goals&&m.homeScore!==null&&m.awayScore!==null)send('But · '+m.home+' – '+m.away,'Nouveau score : '+score,m.id+'-but-'+score);
+  if(oldStatus==='SCHEDULED'&&m.live&&p.kickoff)send('Coup d’envoi · '+m.home+' – '+m.away,'Le match vient de commencer.',m.id+'-debut');
+  if(oldStatus==='LIVE'&&m.finished&&p.halftime_fulltime)send('Fin du match · '+m.home+' – '+m.away,'Score final : '+score,m.id+'-fin');
+  previousScores.set(m.id,score);previousStatuses.set(m.id,m.status);
  }
 }
 async function loadCommunity(){
