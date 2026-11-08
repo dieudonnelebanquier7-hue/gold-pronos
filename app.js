@@ -143,7 +143,7 @@ function renderPersonalizedHome(){
  if(!p.completed||!(p.player||p.club||p.country||(p.competitions||[]).length)){box.hidden=true;return}
  box.hidden=false;const fav=[p.club,p.country].filter(Boolean);
  const norm=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
- const related=matches.filter(m=>fav.some(n=>norm(m.home+' '+m.away).includes(norm(n)))||(p.competitions||[]).includes(m.code))
+ const related=matches.filter(m=>fav.some(n=>norm(m.home)===norm(n)||norm(m.away)===norm(n))||(p.competitions||[]).includes(m.code))
   .sort((a,b)=>{
    const priority=m=>m.live?0:!m.finished&&new Date(m.date).getTime()>=Date.now()?1:2;
    const pa=priority(a),pb=priority(b);if(pa!==pb)return pa-pb;
