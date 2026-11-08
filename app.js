@@ -35,70 +35,6 @@ function mergeApiFootballFixtures(rows){
  }
  return extras;
 }
-const SPORTMONKS_CACHE_KEY='gold-pronos-sportmonks-fixtures-v1';
-async function sportmonksRequest(action,payload={},ms=22000){return apiFootballRequest({action:'sportmonks-'+action,...payload},ms)}
-function mapSportmonksFixture(x){
- const participants=Array.isArray(x.participants)?x.participants:[],home=participants.find(p=>p.meta?.location==='home')||participants[0]||{},away=participants.find(p=>p.meta?.location==='away')||participants[1]||{};
- const scores=Array.isArray(x.scores)?x.scores:[],current=scores.filter(v=>/current|2nd half|1st half/i.test(String(v.description||'')));
- const scoreFor=(team)=>{const item=[...current,...scores].find(v=>String(v.participant_id)===String(team.id));return item?.score?.goals??item?.score?.score??null};
- const state=String(x.state?.short_name||x.state?.name||'').toLowerCase(),live=/live|in.?play|half.?time|1st half|2nd half|extra time|penalt/.test(state),finished=/finished|full.?time|after.?extra|ended/.test(state);
- const leagueName=String(x.league?.name||'Compétition'),code=API_LEAGUE_CODES[leagueName.toLowerCase()]||('sportmonks:'+String(x.league_id||'unknown'));
- const national=['fifa.world','caf.nations','uefa.euro','uefa.nations','conmebol.copa','concacaf.gold','afc.asian'].includes(code);
- return{id:'sm-'+String(x.id),sportmonksId:String(x.id),provider:'Sportmonks',providers:['Sportmonks'],code,league:leagueName,competition:leagueName,home:home.name||home.display_name||'Équipe inconnue',away:away.name||away.display_name||'Équipe inconnue',homeLogo:national?(home.image_path||''):(home.image_path||''),awayLogo:away.image_path||'',homeNational:national,awayNational:national,homeId:home.id||null,awayId:away.id||null,homeScore:scoreFor(home),awayScore:scoreFor(away),date:x.starting_at?new Date(x.starting_at.replace(' ','T')+'Z').toISOString():null,status:live?'LIVE':finished?'FINISHED':'SCHEDULED',live,finished,periodDetail:x.state?.name||'',periodNumber:0,clockBaseSeconds:null,clockUpdatedAt:Date.now(),clockRunning:false,venue:x.venue?.name||'',raw:x};
-}
-function mergeSportmonksFixtures(rows){
- const extras=[];for(const raw of rows||[]){const item=mapSportmonksFixture(raw);if(!item.date||item.home==='Équipe inconnue'||item.away==='Équipe inconnue')continue;
- const match=matches.find(m=>providerNorm(m.home)===providerNorm(item.home)&&providerNorm(m.away)===providerNorm(item.away)&&Math.abs(new Date(m.date)-new Date(item.date))<5*3600000);
- if(match){match.sportmonksId=item.sportmonksId;match.providers=[...new Set([...(match.providers||['ESPN']),'Sportmonks'])];if(!match.homeLogo)match.homeLogo=item.homeLogo;if(!match.awayLogo)match.awayLogo=item.awayLogo;if(item.live||item.finished){match.homeScore=item.homeScore;match.awayScore=item.awayScore;match.live=item.live;match.finished=item.finished;match.status=item.status;match.periodDetail=item.periodDetail}continue}
- if(!matches.some(m=>m.sportmonksId===item.sportmonksId)&&!extras.some(m=>m.sportmonksId===item.sportmonksId))extras.push(item);
- }return extras;
-}
-async function loadSportmonksFixtures(force=false){
- const now=Date.now();if(!force){try{const cache=JSON.parse(localStorage.getItem(SPORTMONKS_CACHE_KEY)||'null');if(cache&&now-cache.at<24*60*60*1000&&Array.isArray(cache.fixtures))return cache.fixtures}catch(_){}}
- const start=new Date();start.setUTCDate(start.getUTCDate()-7);const end=new Date();end.setUTCDate(end.getUTCDate()+14);
- const data=await sportmonksRequest('fixtures',{from:start.toISOString().slice(0,10),to:end.toISOString().slice(0,10)});
- if(!data?.configured||!Array.isArray(data.fixtures))return [];
- try{localStorage.setItem(SPORTMONKS_CACHE_KEY,JSON.stringify({at:now,fixtures:data.fixtures}))}catch(_){}
- return data.fixtures;
-}
-async function pollSportmonksLive(){
- if(!matches.some(m=>m.sportmonksId))return;
- try{const data=await sportmonksRequest('live',{},18000);if(!data?.configured||!Array.isArray(data.fixtures))return;let changed=false;
- for(const raw of data.fixtures){const item=mapSportmonksFixture(raw);let m=matches.find(x=>x.sportmonksId===item.sportmonksId);if(!m){m=matches.find(x=>providerNorm(x.home)===providerNorm(item.home)&&providerNorm(x.away)===providerNorm(item.away)&&Math.abs(new Date(x.date)-new Date(item.date))<5*3600000)||null}
- if(!m){matches.push(item);changed=true;continue}const before=[m.homeScore,m.awayScore,m.status,m.periodDetail].join('|');m.sportmonksId=item.sportmonksId;m.providers=[...new Set([...(m.providers||['ESPN']),'Sportmonks'])];if(item.homeScore!==null)m.homeScore=item.homeScore;if(item.awayScore!==null)m.awayScore=item.awayScore;m.live=item.live;m.finished=item.finished;m.status=item.status;m.periodDetail=item.periodDetail;if(before!==[m.homeScore,m.awayScore,m.status,m.periodDetail].join('|'))changed=true}
- if(changed){render();renderLive();renderPersonalizedHome();renderPicks();renderVIP()}
- }catch(error){console.warn('Sportmonks live indisponible',error?.message||error)}
-}
-function renderSportmonksDetail(m,data){
- const f=data.fixture||{},panels=$('match-detail').querySelectorAll('[data-md-panel]'),venue=f.venue||{},participants=f.participants||[],scores=f.scores||[];
- const scoreHtml=participants.map(team=>{const score=scores.filter(x=>String(x.participant_id)===String(team.id)).map(x=>x.score?.goals??x.score?.score).filter(x=>x!==null&&x!==undefined).slice(-1)[0];return '<div class="md-form-row"><b>'+safe(team.name||team.display_name||'Équipe')+'</b><span>'+safe(score??'—')+'</span></div>'}).join('');
- const overview='<section class="md-stat-card"><h3>Informations du match</h3>'+scoreHtml+'<p class="md-note">Stade : '+safe(venue.name||'Non communiqué')+'</p><p class="md-note">Compétition : '+safe(f.league?.name||m.league)+'</p><p class="md-note">Source : Sportmonks</p></section>';
- const stats=(f.statistics||[]).map(st=>'<div class="md-form-row"><span>'+safe(st.participant?.name||'Équipe')+' · '+safe(st.type?.name||st.type?.developer_name||'Statistique')+'</span><b>'+safe(st.data?.value??'—')+'</b></div>').join('')||'<p class="md-note">Statistiques non communiquées.</p>';
- const lineups=(f.lineups||[]).map(p=>'<div class="md-form-row"><b>'+safe(p.player_name||p.player?.display_name||p.player?.name||'Joueur')+'</b><span>'+safe(p.formation_field||p.position?.name||'')+'</span><small>'+safe(p.type?.name||'')+'</small></div>').join('')||'<p class="md-note">Compositions non communiquées.</p>';
- const events=(f.events||[]).map(e=>'<div class="md-form-row"><b>'+safe((e.minute??'')+(e.extra_minute?'+ '+e.extra_minute:'')+'′')+'</b><span>'+safe(e.participant?.name||'')+' · '+safe(e.player_name||e.player?.display_name||'')+'</span><small>'+safe(e.type?.name||e.type?.developer_name||e.result||'')+'</small></div>').join('')||'<p class="md-note">Aucun événement détaillé transmis par le fournisseur.</p>';
- const content={overview,stats,lineups,events,players:'<p class="md-note">Les statistiques individuelles ne sont pas incluses dans cette fiche.</p>',form:'<p class="md-note">La forme récente sera ajoutée via l’historique du fournisseur.</p>',h2h:'<p class="md-note">Les confrontations directes ne sont pas incluses dans cette réponse.</p>'};
- for(const p of panels)p.innerHTML=content[p.dataset.mdPanel]||'';
-}
-
-async function loadApiFootballFixtures(force=false){
- const now=Date.now();if(!force){try{const cache=JSON.parse(localStorage.getItem(API_FOOTBALL_CACHE_KEY)||'null');if(cache&&now-cache.at<5*60*1000&&Array.isArray(cache.fixtures))return cache.fixtures}catch(_){}}
- const start=new Date();start.setUTCDate(start.getUTCDate()-7);const end=new Date();end.setUTCDate(end.getUTCDate()+14);
- const from=start.toISOString().slice(0,10),to=end.toISOString().slice(0,10);
- const data=await apiFootballRequest({action:'fixtures',from,to,timezone:'Africa/Porto-Novo'});
- if(!data?.configured||!Array.isArray(data.fixtures))return [];
- try{localStorage.setItem(API_FOOTBALL_CACHE_KEY,JSON.stringify({at:now,fixtures:data.fixtures}))}catch(_){}
- return data.fixtures;
-}
-async function pollApiFootballLive(){
- if(!matches.some(m=>m.apiFootballId))return;
- try{const data=await apiFootballRequest({action:'live'},18000);if(!data?.configured||!Array.isArray(data.fixtures))return;let changed=false;
-  for(const raw of data.fixtures){const item=mapApiFootballFixture(raw);let m=matches.find(x=>x.apiFootballId===item.apiFootballId);if(!m){const found=matches.find(x=>providerNorm(x.home)===providerNorm(item.home)&&providerNorm(x.away)===providerNorm(item.away)&&Math.abs(new Date(x.date)-new Date(item.date))<5*3600000);m=found||null}
-   if(!m){matches.push(item);changed=true;continue}
-   const before=[m.homeScore,m.awayScore,m.status,m.periodDetail].join('|');m.apiFootballId=item.apiFootballId;m.providers=[...new Set([...(m.providers||['ESPN']),'API-Football'])];m.homeScore=item.homeScore;m.awayScore=item.awayScore;m.live=item.live;m.finished=item.finished;m.status=item.status;m.periodDetail=item.periodDetail;m.clockBaseSeconds=item.clockBaseSeconds;m.clockUpdatedAt=Date.now();m.clockRunning=item.clockRunning;if(before!==[m.homeScore,m.awayScore,m.status,m.periodDetail].join('|'))changed=true;
-  }
-  if(changed){render();renderLive();renderPersonalizedHome();renderPicks();renderVIP()}
- }catch(error){console.warn('API-Football live indisponible',error?.message||error)}
-}
 function renderApiFootballDetail(m,data){
  const panels=$('match-detail').querySelectorAll('[data-md-panel]');
  const f=data.fixture?.[0]||{},venue=f.fixture?.venue||{},referee=f.fixture?.referee||'';
@@ -248,7 +184,7 @@ async function openMatch(m){
  const box=$('match-detail');box.dataset.matchId=m.id;$('match-modal').hidden=false;
  box.innerHTML=detailHeader(m)+'<nav class="md-tabs"><button class="active" data-md-tab="overview">Résumé</button><button data-md-tab="stats">Statistiques</button><button data-md-tab="lineups">Compositions</button><button data-md-tab="events">Événements</button><button data-md-tab="players">Joueurs</button><button data-md-tab="form">Forme</button><button data-md-tab="h2h">Face-à-face</button></nav><div class="md-panel" data-md-panel="overview"><div class="md-loading">Chargement des données officielles…</div></div><div class="md-panel" data-md-panel="stats" hidden></div><div class="md-panel" data-md-panel="lineups" hidden></div><div class="md-panel" data-md-panel="events" hidden></div><div class="md-panel" data-md-panel="players" hidden></div><div class="md-panel" data-md-panel="form" hidden></div><div class="md-panel" data-md-panel="h2h" hidden></div>';
  const tabs=[...box.querySelectorAll("[data-md-tab]")],panels=[...box.querySelectorAll("[data-md-panel]")];tabs.forEach(b=>b.onclick=()=>{tabs.forEach(t=>t.classList.toggle("active",t===b));panels.forEach(p=>p.hidden=p.dataset.mdPanel!==b.dataset.mdTab)});
- try{if(m.apiFootballId){try{const providerData=await apiFootballRequest({action:'fixture',fixtureId:m.apiFootballId},30000);if(box.dataset.matchId!==m.id)return;if(providerData?.configured){renderApiFootballDetail(m,providerData);return;}}catch(providerError){if(!m.sportmonksId)throw providerError;}}if(m.sportmonksId){const providerData=await sportmonksRequest('fixture',{fixtureId:m.sportmonksId},30000);if(box.dataset.matchId!==m.id)return;if(!providerData?.configured)throw Error(providerData?.error||'Sportmonks non configuré');renderSportmonksDetail(m,providerData);return;}const d=await get(API+m.code+'/summary?event='+encodeURIComponent(m.id)+'&region=fr&lang=fr');if(box.dataset.matchId!==m.id)return;const latest=matchFromSummary(d,m);Object.assign(m,latest);render();renderLive();renderPicks();renderVIP();renderPersonalizedHome();box.querySelector(".md-head").outerHTML=detailHeader(m);const data={...d,match:m};for(const k of ["overview","stats","lineups","events","players","form","h2h"])box.querySelector('[data-md-panel="'+k+'"]').innerHTML=mdPanel(data,k)}
+ try{if(m.apiFootballId){try{const providerData=await apiFootballRequest({action:'fixture',fixtureId:m.apiFootballId},30000);if(box.dataset.matchId!==m.id)return;if(providerData?.configured){renderApiFootballDetail(m,providerData);return;}}catch(providerError){console.warn('Détails API-Football indisponibles, retour ESPN',providerError?.message||providerError)}}const d=await get(API+m.code+'/summary?event='+encodeURIComponent(m.id)+'&region=fr&lang=fr');if(box.dataset.matchId!==m.id)return;const latest=matchFromSummary(d,m);Object.assign(m,latest);render();renderLive();renderPicks();renderVIP();renderPersonalizedHome();box.querySelector(".md-head").outerHTML=detailHeader(m);const data={...d,match:m};for(const k of ["overview","stats","lineups","events","players","form","h2h"])box.querySelector('[data-md-panel="'+k+'"]').innerHTML=mdPanel(data,k)}
  catch(e){if(box.dataset.matchId!==m.id)return;const local={match:m};for(const k of ["overview","stats","lineups","events","players","form","h2h"]){const panel=box.querySelector('[data-md-panel="'+k+'"]');if(panel)panel.innerHTML=mdPanel(local,k)}const overview=box.querySelector('[data-md-panel="overview"]');if(overview)overview.insertAdjacentHTML('beforeend','<p class="md-note">La source détaillée ne répond pas actuellement. La forme et les confrontations affichées proviennent uniquement des résultats déjà chargés.</p>')}
 }
 function xtext(x){return x.text||x.shortText||x.type?.text||x.type?.name||'Événement'}
