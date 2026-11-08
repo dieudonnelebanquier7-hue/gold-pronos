@@ -86,7 +86,11 @@ async function cornerHistory(teamMatches){
  if(!missing.length)return totals;
  const db=window.GoldSupabase;if(!db)return totals;
  try{
-  const {data,error}=await db.functions.invoke('corner-history',{body:{matches:missing.map(x=>({id:x.id,competition:x.competition}))}});
+  let timer;
+  const request=db.functions.invoke('corner-history',{body:{matches:missing.map(x=>({id:x.id,competition:x.competition}))}});
+  const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('Délai de vérification dépassé')),12000)});
+  const {data,error}=await Promise.race([request,timeout]);
+  clearTimeout(timer);
   if(error)throw error;
   for(const item of data?.matches||[]){
    const request=missing.find(x=>x.id===String(item.id)&&x.competition===item.competition);
