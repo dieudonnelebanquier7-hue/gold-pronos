@@ -312,3 +312,166 @@ footer{color:#a8a39a}
 .modal{background:#030405e8}.modal-card{background:#141518;color:#eee;border:1px solid #514226}
 .close{background:#2b271d;color:#e6c77e}
 @media(max-width:650px){.hero{background:linear-gradient(145deg,#1a1710,#111216);border-radius:16px}.match{padding:13px}.page{border-radius:15px}}
+
+
+
+/* GOLD PRONOS 2.0 — vraie refonte de l'interface, desktop + mobile */
+:root{
+ --gp-bg:#080a0e;--gp-panel:#11151c;--gp-panel2:#171d26;--gp-line:#29313d;
+ --gp-gold:#e0b44f;--gp-gold2:#f5d889;--gp-text:#f3f5f8;--gp-muted:#98a3b3;
+ --gp-green:#31bd83;--gp-red:#f16c72;
+}
+html,body{background:var(--gp-bg)!important;color:var(--gp-text)!important}
+body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif!important;padding-bottom:24px}
+.top{height:72px!important;padding:0 max(22px,calc((100% - 1440px)/2))!important;background:#0b0f15!important;border-bottom:1px solid var(--gp-line)!important;box-shadow:0 8px 28px #0005!important}
+.brand{font-size:16px!important;letter-spacing:1.5px!important}.brand small{font-size:9px!important;letter-spacing:1.8px!important;color:#9ba6b6!important}
+.mark{width:42px!important;height:42px!important;border-radius:13px!important;background:linear-gradient(145deg,#ffe29a,#bd8827)!important;color:#16120a!important;font-weight:900!important}
+.top-actions select{background:#151b24!important;border:1px solid #303b49!important;color:#e7ebf1!important;border-radius:10px!important}
+.top-actions .install{border-radius:10px!important;padding:10px 16px!important;background:linear-gradient(135deg,#f3d17b,#c28f2e)!important;color:#17130a!important;font-weight:900!important}
+main{max-width:1440px!important;margin:0 auto!important;padding:22px 24px 12px!important;display:grid!important;grid-template-columns:232px minmax(0,1fr)!important;grid-template-rows:auto auto 1fr!important;column-gap:22px!important;row-gap:18px!important;align-items:start!important}
+.hero{grid-column:1/-1!important;grid-row:1!important;min-height:132px!important;padding:22px 28px!important;border-radius:18px!important;background:linear-gradient(110deg,#171b22 0%,#171b22 54%,#282114 100%)!important;border:1px solid #3b3425!important;box-shadow:0 12px 36px #0005!important;align-items:center!important}
+.hero .eyebrow{font-size:10px!important;letter-spacing:2px!important;color:var(--gp-gold)!important}
+.hero h1{font-size:clamp(25px,3vw,38px)!important;line-height:1.06!important;margin:8px 0!important;letter-spacing:-1px!important}
+.hero h1 em{color:var(--gp-gold2)!important}
+.hero p{color:#aeb7c4!important;font-size:13px!important}
+.hero-stat{min-width:170px!important;display:grid!important;grid-template-columns:auto 1fr!important;column-gap:13px!important;align-items:center!important;padding:13px 17px!important;background:#0c1118!important;border:1px solid #3a414b!important;border-radius:13px!important}
+.hero-stat strong{grid-row:span 2!important;font-size:30px!important;color:var(--gp-gold2)!important}
+.hero-stat span{font-size:12px!important;color:#e4e9ef!important}.hero-stat small{font-size:10px!important;color:var(--gp-muted)!important}
+.tabs{grid-column:1!important;grid-row:2!important;position:sticky!important;top:88px!important;z-index:7!important;display:flex!important;flex-direction:column!important;gap:5px!important;overflow:visible!important;padding:10px!important;margin:0!important;background:#10151d!important;border:1px solid var(--gp-line)!important;border-radius:15px!important;box-shadow:0 10px 26px #0003!important}
+.tabs:before{content:"MENU PRINCIPAL";display:block;padding:8px 10px 10px;color:#7f8a99;font-size:9px;font-weight:900;letter-spacing:1.8px}
+.tab{width:100%!important;min-height:43px!important;display:flex!important;align-items:center!important;text-align:left!important;white-space:normal!important;padding:11px 12px!important;border:1px solid transparent!important;border-radius:9px!important;background:transparent!important;color:#aeb8c6!important;font-size:12px!important;font-weight:750!important;transition:background .15s,border-color .15s,color .15s!important}
+.tab:before{content:"";display:block;width:6px;height:6px;border-radius:50%;background:#586475;margin-right:11px;flex:0 0 auto}
+.tab:hover{background:#1b222d!important;color:#fff!important}
+.tab.active{background:linear-gradient(100deg,#3a2e17,#292317)!important;border-color:#69532b!important;color:#f4d78f!important;box-shadow:inset 3px 0 #e0b44f!important}
+.tab.active:before{background:var(--gp-gold);box-shadow:0 0 10px #e0b44f88}
+.tab.vip{margin-top:8px!important;border:1px solid #59451f!important;color:#e8c36c!important}
+.page{grid-column:2!important;grid-row:2!important;min-width:0!important;margin:0!important;padding:25px!important;min-height:520px!important;border:1px solid var(--gp-line)!important;border-radius:16px!important;background:var(--gp-panel)!important;box-shadow:0 14px 36px #0004!important}
+.page.active{display:block!important}
+.page .eyebrow,.eyebrow{color:var(--gp-gold)!important;letter-spacing:1.7px!important}
+.page h2,.section-head h2,h2{font-size:25px!important;letter-spacing:-.45px!important;color:#f4f6f9!important}
+.intro{max-width:900px!important;color:var(--gp-muted)!important;font-size:13px!important;line-height:1.7!important}
+.section-head{padding-bottom:15px!important;border-bottom:1px solid #252d38!important;margin-bottom:16px!important}
+.section-head h2{margin:5px 0 0!important}
+.ghost{background:#1b2430!important;color:#e4c675!important;border:1px solid #394556!important;border-radius:9px!important;font-size:12px!important}
+.install{border-radius:9px!important}
+.filters{gap:9px!important;margin:16px 0 20px!important}
+.filters input,.filters select,.settings-card select,.auth-form input,#profile-name,.community-compose input,.community-compose textarea,.community-comment-form input{background:#0c1118!important;color:#edf1f6!important;border:1px solid #303b49!important;border-radius:9px!important}
+.filters input,.filters select{padding:12px 14px!important;font-size:12px!important}
+.filters input:focus,.filters select:focus,input:focus,textarea:focus{outline:1px solid #c99b3c!important;border-color:#c99b3c!important}
+.match-list{display:grid!important;grid-template-columns:1fr!important;gap:8px!important}
+.match{position:relative!important;display:grid!important;grid-template-columns:minmax(110px,1fr) minmax(180px,1.25fr) minmax(90px,.55fr)!important;grid-template-rows:auto!important;align-items:center!important;gap:10px 16px!important;min-height:90px!important;padding:13px 16px!important;background:#151b24!important;border:1px solid #2a3441!important;border-radius:12px!important;color:#f2f4f7!important;box-shadow:none!important;text-align:left!important}
+.match:hover{background:#1b2430!important;border-color:#80652e!important;transform:translateY(-1px)!important}
+.match .league{grid-column:1!important;grid-row:1!important;align-self:end!important;font-size:10px!important;letter-spacing:.3px!important;color:#c7a75b!important}
+.match .teams{grid-column:2!important;grid-row:1/3!important;display:grid!important;gap:8px!important;font-size:13px!important;font-weight:750!important}
+.match-side{display:flex!important;align-items:center!important;gap:9px!important}
+.match-side .team-name{font-size:13px!important;color:#e8edf3!important}
+.match .match-result{grid-column:3!important;grid-row:1/3!important;display:flex!important;align-items:flex-end!important;justify-content:center!important;flex-direction:column!important;gap:6px!important}
+.match .score{font-size:18px!important;font-weight:900!important;color:#f0d17f!important;letter-spacing:.4px!important}
+.match .state{font-size:10px!important;color:#96a2b2!important}
+.match.is-live{border-color:#743b42!important;background:linear-gradient(90deg,#21171b,#151b24 45%)!important}
+.match.is-live .state,.match.is-live .score{color:#ff8589!important}
+.gp-crest.match-crest{width:30px!important;height:30px!important;border-radius:8px!important;background:#f1eee6!important}
+.gp-crest.match-flag{width:34px!important;height:23px!important}
+.day-heading{margin:22px 0 5px!important;padding:10px 13px!important;background:#1b222b!important;border:1px solid #303b49!important;border-left:3px solid var(--gp-gold)!important;color:#e6c879!important;border-radius:8px!important;font-size:11px!important;letter-spacing:1px!important}
+.notice,.loading{background:#151b24!important;border:1px solid #303b49!important;color:#aeb8c6!important;border-radius:11px!important;padding:16px!important}
+.competition-grid{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))!important;gap:10px!important}
+.competition{background:#151b24!important;border:1px solid #303b49!important;border-radius:11px!important;color:#e8edf3!important;padding:14px!important}
+.competition:hover{border-color:#a17c34!important;color:#f1d17d!important}
+.table-wrap{background:#111720!important;border:1px solid #303b49!important;border-radius:12px!important}
+table{font-size:12px!important;color:#e9edf3!important}
+th{background:#202a36!important;color:#e6c879!important;font-size:10px!important;letter-spacing:.8px!important}
+td{border-color:#27313d!important;padding:12px!important}
+.stats-grid{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))!important;gap:10px!important}
+.stat-card,.pick-card,.news-card,.leader-group,.source-card,.team-tile,.team-profile-card,.community-post,.method-card,.settings-card{background:#151b24!important;border:1px solid #303b49!important;border-radius:12px!important;color:#edf1f6!important;box-shadow:none!important}
+.stat-card p,.leader-group li,.community-comments{border-color:#2d3744!important}
+.pick-list{grid-template-columns:repeat(auto-fit,minmax(270px,1fr))!important;gap:12px!important}
+.pick-card{padding:17px!important;margin:0!important}
+.pick-card h3,.news-card h3,.team-profile-card h3,.team-profile-card h4,.method-card h3,.source-card h3{color:#f1f3f6!important}
+.pick-card>strong{background:#352b18!important;color:#f0d17f!important}
+.pick-market{background:#101720!important;border-color:#303b49!important}
+.pick-market b,.pick-evidence p{color:#edf1f6!important}
+.pick-market>strong{background:#29313d!important;color:#e9d18f!important}
+.pick-evidence{background:#101720!important}
+.pick-evidence small,.pick-card small,.news-card p,.method-card p,.source-card p{color:#9da8b7!important}
+.team-grid{grid-template-columns:repeat(auto-fill,minmax(145px,1fr))!important;gap:11px!important}
+.team-tile{min-height:168px!important;padding:14px!important}
+.team-tile b{color:#f0f3f7!important}
+.team-crest-wrap{background:#f1eee6!important;border-color:#d7c89e!important}
+.team-profile-card{padding:22px!important}
+.team-facts div{background:#101720!important;border:1px solid #2e3946!important}
+.team-facts small,.team-tile small,.player-tile small{color:#9ba6b5!important}
+.player-tile{background:#101720!important;border-color:#303b49!important}
+.player-tile b{color:#eef1f5!important}
+.news-card{padding:17px!important}
+.news-card a{color:#e4c16b!important}
+.leader-group li strong{color:#e7c46e!important}
+.method-card>span{background:#342b1a!important;color:#e6c575!important}
+.community-compose{background:#151b24!important;border-color:#303b49!important}
+.community-compose button,.community-comment-form button,.community-refresh button{background:#c79a3e!important;color:#17130a!important}
+.settings-grid{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))!important}
+.settings-card{padding:16px!important}
+.settings-card label,.auth-form label,#account-panel label{color:#aeb8c6!important}
+.account-favorites .favorite-row{border-color:#303b49!important;background:#101720!important}
+.favorite-row button,.team-fav,.team-open,.favorite-competition{background:#29311f!important;border-color:#66552c!important;color:#e9ca7b!important}
+.modal-card{background:#111720!important;border:1px solid #4b4029!important;color:#edf1f6!important}
+.modal-card h3{color:#e8c774!important}
+.close{background:#242d38!important;color:#f0d17f!important}
+footer{max-width:1440px!important;padding:18px 24px!important;color:#8591a0!important;border-top:1px solid #222c38!important}
+footer b{color:#e0b44f!important}
+#toast{background:#e0b44f!important;color:#17130a!important;border:0!important;font-weight:850!important}
+::selection{background:#d5aa4b!important;color:#15120a!important}
+@media(min-width:761px){
+ body{padding-bottom:20px!important}
+ .page#page-home{padding:24px!important}
+ .page#page-home .section-head,.page#page-home .filters,.page#page-home #home-matches{width:100%!important}
+ .page#page-home .filters{display:grid!important;grid-template-columns:minmax(0,1fr) 270px!important}
+}
+@media(max-width:760px){
+ .top{height:60px!important;padding:0 11px!important}
+ .brand{font-size:12px!important;gap:7px!important}.brand small{font-size:7px!important}
+ .mark{width:34px!important;height:34px!important}
+ .top-actions{gap:5px!important}.top-actions select{max-width:86px!important;padding:7px 4px!important;font-size:10px!important}
+ .top-actions .install{padding:8px 9px!important;font-size:10px!important}
+ main{display:flex!important;flex-direction:column!important;gap:10px!important;padding:11px 10px 8px!important}
+ .hero{order:0!important;width:100%!important;min-height:0!important;padding:15px!important;border-radius:13px!important;gap:10px!important}
+ .hero h1{font-size:25px!important;margin:6px 0!important}.hero p{font-size:11px!important}
+ .hero-stat{min-width:0!important;width:100%!important;padding:9px 12px!important;grid-template-columns:auto 1fr!important}
+ .hero-stat strong{font-size:22px!important}
+ .tabs{order:1!important;position:sticky!important;top:60px!important;display:flex!important;flex-direction:row!important;overflow-x:auto!important;overflow-y:hidden!important;width:calc(100% + 20px)!important;margin:0 -10px!important;padding:8px 10px!important;border-radius:0!important;border-left:0!important;border-right:0!important;gap:6px!important;white-space:nowrap!important}
+ .tabs:before{display:none!important}
+ .tab{flex:0 0 auto!important;width:auto!important;min-height:36px!important;padding:8px 11px!important;font-size:11px!important}
+ .tab:before{display:none!important}
+ .tab.vip{margin-top:0!important}
+ .page{order:2!important;width:100%!important;min-height:460px!important;padding:16px 12px!important;border-radius:12px!important}
+ .page h2,.section-head h2,h2{font-size:21px!important}
+ .section-head{gap:8px!important;align-items:flex-start!important}
+ .section-head .ghost{padding:9px 10px!important;font-size:10px!important}
+ .filters{display:flex!important;flex-direction:column!important;gap:8px!important}
+ .filters input,.filters select{width:100%!important;min-height:42px!important}
+ .match{grid-template-columns:minmax(0,1fr) auto!important;grid-template-rows:auto auto!important;gap:7px 10px!important;padding:11px!important;min-height:0!important}
+ .match .league{grid-column:1/-1!important;grid-row:1!important}
+ .match .teams{grid-column:1!important;grid-row:2!important;gap:7px!important}
+ .match .match-result{grid-column:2!important;grid-row:2!important}
+ .match-side .team-name{font-size:12px!important}
+ .match .score{font-size:16px!important}
+ .match .state{font-size:9px!important;text-align:right!important}
+ .gp-crest.match-crest{width:27px!important;height:27px!important}
+ .gp-crest.match-flag{width:30px!important;height:20px!important}
+ .competition-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .pick-list,.stats-grid{grid-template-columns:1fr!important}
+ .team-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .team-tile{min-height:148px!important;padding:10px 7px!important}
+ .team-crest-wrap{width:50px!important;height:50px!important}
+ .team-profile-head{align-items:flex-start!important;gap:10px!important}
+ .team-profile-head .gp-crest{width:62px!important;height:62px!important;flex-basis:62px!important}
+ .team-profile-head .gp-crest.profile-flag{width:70px!important;height:47px!important;flex-basis:70px!important}
+ .table-wrap{max-width:100%!important}
+ footer{padding:14px 12px!important;flex-direction:column!important;gap:6px!important}
+}
+@media(max-width:380px){
+ .brand small{letter-spacing:1px!important}
+ .top-actions select{max-width:72px!important}
+ .hero h1{font-size:22px!important}
+ .team-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .competition-grid{grid-template-columns:1fr!important}
+}
