@@ -100,7 +100,7 @@ async function loadApiFootballFixtures(force=false){
  return data.fixtures;
 }
 function renderApiFootballDetail(m,data){
- m.apiFootballLineupsLoaded=Array.isArray(data.lineups)&&data.lineups.length>0;
+ const apiLineupGroups=officialLineups({lineups:data.lineups});const validApiLineups=lineupsMatchFixture(apiLineupGroups,m)?apiLineupGroups:[];m.apiFootballLineupsLoaded=validApiLineups.length>0;if(validApiLineups.length)m.lineups=validApiLineups;
  const panels=$('match-detail').querySelectorAll('[data-md-panel]');
  const f=data.fixture?.[0]||{},venue=f.fixture?.venue||{},referee=f.fixture?.referee||'';
  if(venue.name)m.venue=venue.name;if(venue.city)m.venueCity=venue.city;
@@ -109,7 +109,7 @@ function renderApiFootballDetail(m,data){
  const rows=info.filter(x=>x[1]).map(x=>'<div class="md-note"><b>'+safe(x[0])+' :</b> '+safe(x[1])+'</div>').join('');
  const overview='<section class="md-stat-card"><h3>Informations du match</h3>'+rows+'<p class="md-note">Source complémentaire : API-Football. Les informations absentes ne sont pas estimées.</p></section>';
  const stats=(data.statistics||[]).map(team=>'<section class="md-stat-card"><h3>'+safe(team.team?.name||'Équipe')+'</h3>'+((team.statistics||[]).map(stat=>'<div class="md-form-row"><span>'+safe(stat.type||'Statistique')+'</span><b>'+safe(stat.value??'—')+'</b></div>').join('')||'<p class="md-note">Statistiques non publiées.</p>')+'</section>').join('')||'<p class="md-note">Aucune statistique détaillée transmise par le fournisseur.</p>';
- const lineups=(data.lineups||[]).map(team=>'<section class="md-stat-card"><h3>'+safe(team.team?.name||'Équipe')+' · '+safe(team.formation||'Formation non communiquée')+'</h3><p class="md-note">Entraîneur : '+safe(team.coach?.name||'Non communiqué')+'</p><h4>Titulaires</h4><div>'+((team.startXI||[]).map(p=>'<div class="md-form-row">'+safe(p.player?.number??'')+' · '+safe(p.player?.name||'Joueur')+' <small>'+safe(p.player?.pos||'')+'</small></div>').join(''))+'</div><h4>Remplaçants</h4><div>'+((team.substitutes||[]).map(p=>'<div class="md-form-row">'+safe(p.player?.number??'')+' · '+safe(p.player?.name||'Joueur')+'</div>').join(''))+'</div></section>').join('')||'<p class="md-note">Compositions non communiquées par le fournisseur.</p>';
+ const lineups=validApiLineups.length?lineupHtml(validApiLineups):'<p class="md-note">Compositions non communiquées par le fournisseur pour ces deux équipes.</p>';
  const events=(data.events||[]).map(e=>'<div class="md-form-row"><b>'+safe((e.time?.elapsed??'')+(e.time?.extra?'+ '+e.time.extra:'')+'′')+'</b><span>'+safe(e.team?.name||'')+' · '+safe(e.player?.name||'')+'</span><small>'+safe(e.type||'')+' · '+safe(e.detail||'')+'</small></div>').join('')||'<p class="md-note">Aucun événement détaillé transmis par le fournisseur.</p>';
  const players=(data.players||[]).flatMap(t=>(t.players||[]).map(p=>'<div class="md-form-row"><b>'+safe(p.player?.name||'Joueur')+'</b><span>'+safe(p.statistics?.[0]?.games?.position||'')+'</span><small>'+safe(p.statistics?.[0]?.games?.rating||'')+'</small></div>')).join('')||'<p class="md-note">Statistiques individuelles non communiquées.</p>';
  const content={overview,stats,lineups,events,players,form:'<p class="md-note">La forme récente sera ajoutée lorsque le fournisseur publiera l’historique correspondant.</p>',h2h:'<p class="md-note">Les confrontations directes ne sont pas disponibles dans cette réponse fournisseur.</p>'};
@@ -168,9 +168,16 @@ function officialLineups(data){
   }
   const starters=explicit.length?entries:entries.filter(p=>p.starter===true||p.isStarter===true||p.athlete?.starter===true||p.athlete?.isStarter===true||String(p.lineupStatus||p.athlete?.lineupStatus||'').toLowerCase()==='starter');
   const uniq=[...new Map(starters.map(p=>{const z=p.athlete||p.player||p;return [z.id||z.displayName||z.fullName||z.name,z]})).values()];
-  if(uniq.length>=11)groups.push({team,players:uniq.slice(0,11).map(p=>({name:p.displayName||p.fullName||p.shortName||p.name||'Joueur',position:p.position?.abbreviation||p.position?.displayName||p.pos||''}))});
+  if(uniq.length>=11)groups.push({team,teamId:g.team?.id||g.team?.uid||null,players:uniq.slice(0,11).map(p=>({name:p.displayName||p.fullName||p.shortName||p.name||'Joueur',position:p.position?.abbreviation||p.position?.displayName||p.pos||''}))});
  }
  const unique=[...new Map(groups.map(g=>[g.team,g])).values()];return unique.length>=2?unique.slice(0,2):[];
+}
+function lineupsMatchFixture(groups,m){
+ if(!m||!Array.isArray(groups)||groups.length<2)return false;
+ const norm=providerNorm;
+ const home=groups.find(g=>(m.homeId&&g.teamId&&String(m.homeId)===String(g.teamId))||norm(g.team)===norm(m.home));
+ const away=groups.find(g=>(m.awayId&&g.teamId&&String(m.awayId)===String(g.teamId))||norm(g.team)===norm(m.away));
+ return !!home&&!!away&&home!==away;
 }
 function lineupHtml(groups){return '<h3>Compositions officielles</h3><p class="muted">Titulaires publiés par la source de la rencontre.</p><div class="stats-grid">'+groups.map(g=>'<div class="stat-card"><b>'+safe(g.team)+'</b><ol>'+g.players.map(p=>'<li>'+safe(p.name)+(p.position?' · '+safe(p.position):'')+'</li>').join('')+'</ol></div>').join('')+'</div>'}
 async function pollOfficialLineups(){
@@ -185,7 +192,7 @@ async function pollOfficialLineups(){
   try{
    const d=await get(API+m.code+'/summary?event='+encodeURIComponent(m.espnEventId||m.id)+'&region=fr&lang=fr',12000);
    const groups=officialLineups(d);
-   if(groups.length){
+   if(lineupsMatchFixture(groups,m)){
     m.lineups=groups;m.lineupPublishedAt=Date.now();render();renderLive();
     const box=$('match-detail');
     if(!$('match-modal').hidden&&box?.dataset.matchId===m.id){const panel=box.querySelector('[data-md-panel="lineups"]');if(panel)panel.innerHTML=lineupHtml(groups);}
@@ -253,7 +260,7 @@ function headToHead(m){
  return '<h3>Confrontations disponibles</h3><div class="md-h2h-list">'+list.map(x=>'<article class="md-h2h-row"><span>'+safe(x.home)+'</span><b>'+x.homeScore+' – '+x.awayScore+'</b><span>'+safe(x.away)+'</span><small>'+safe(appDate(x.date,{day:'2-digit',month:'short',year:'numeric'}))+'</small></article>').join('')+'</div><p class="md-note">Historique limité aux résultats vérifiés déjà chargés dans l’application.</p>';
 }
 function mdPanel(data,key){
- const teams=data?.boxscore?.teams||[],groups=data?.boxscore?.players||[],lineups=officialLineups(data),events=data?.commentary?.items||data?.plays||[];
+ const teams=data?.boxscore?.teams||[],groups=data?.boxscore?.players||[],parsedLineups=officialLineups(data),lineups=lineupsMatchFixture(parsedLineups,data?.match)?parsedLineups:[],events=data?.commentary?.items||data?.plays||[];
  if(key==="stats"){
   if(teams.length<2)return '<div class="md-empty">Statistiques officielles non communiquées pour ce match.</div>';
   const left=teams[0].statistics||[],right=teams[1].statistics||[],map=new Map(right.map(x=>[String(x.name||x.abbreviation||x.label||"").toLowerCase(),x]));
@@ -305,7 +312,7 @@ async function openMatch(m){
  }
  const updatedHead=box.querySelector('.md-head');if(updatedHead)updatedHead.outerHTML=detailHeader(m);
  return;
-}}catch(providerError){console.warn('Détails API-Football indisponibles, retour ESPN',providerError?.message||providerError)}}const d=await get(API+m.code+'/summary?event='+encodeURIComponent(m.espnEventId||m.id)+'&region=fr&lang=fr');if(box.dataset.matchId!==m.id)return;const latest=matchFromSummary(d,m);Object.assign(m,latest);const publishedLineups=officialLineups(d);if(publishedLineups.length){m.lineups=publishedLineups;m.lineupPublishedAt=Date.now()}render();renderLive();renderPicks();renderVIP();renderPersonalizedHome();box.querySelector(".md-head").outerHTML=detailHeader(m);const data={...d,match:m};for(const k of ["overview","stats","lineups","events","players","form","h2h"])box.querySelector('[data-md-panel="'+k+'"]').innerHTML=mdPanel(data,k);loadMatchStandings(m)}
+}}catch(providerError){console.warn('Détails API-Football indisponibles, retour ESPN',providerError?.message||providerError)}}const d=await get(API+m.code+'/summary?event='+encodeURIComponent(m.espnEventId||m.id)+'&region=fr&lang=fr');if(box.dataset.matchId!==m.id)return;const latest=matchFromSummary(d,m);Object.assign(m,latest);const publishedLineups=officialLineups(d);if(lineupsMatchFixture(publishedLineups,m)){m.lineups=publishedLineups;m.lineupPublishedAt=Date.now()}render();renderLive();renderPicks();renderVIP();renderPersonalizedHome();box.querySelector(".md-head").outerHTML=detailHeader(m);const data={...d,match:m};for(const k of ["overview","stats","lineups","events","players","form","h2h"])box.querySelector('[data-md-panel="'+k+'"]').innerHTML=mdPanel(data,k);loadMatchStandings(m)}
  catch(e){if(box.dataset.matchId!==m.id)return;const local={match:m};for(const k of ["overview","stats","lineups","events","players","form","h2h"]){const panel=box.querySelector('[data-md-panel="'+k+'"]');if(panel)panel.innerHTML=mdPanel(local,k)}const overview=box.querySelector('[data-md-panel="overview"]');if(overview)overview.insertAdjacentHTML('beforeend','<p class="md-note">La source détaillée ne répond pas actuellement. La forme et les confrontations affichées proviennent uniquement des résultats déjà chargés.</p>')}
 }
 
@@ -326,7 +333,7 @@ async function refreshOpenMatchDetail(){
    const panel=box.querySelector('[data-md-panel="events"]');
    if(panel)panel.innerHTML=mdPanel({...d,match:m},'events')+'<p class="md-note">Source ESPN · Actualisé à '+safe(appDate(new Date(),{hour:'2-digit',minute:'2-digit',second:'2-digit'}))+'</p>';
   }
-  const published=officialLineups(d);if(published.length){m.lineups=published;const p=box.querySelector('[data-md-panel="lineups"]');if(p)p.innerHTML=lineupHtml(published)}
+  const published=officialLineups(d);if(lineupsMatchFixture(published,m)){m.lineups=published;const p=box.querySelector('[data-md-panel="lineups"]');if(p)p.innerHTML=lineupHtml(published);render();}
   for(const key of ['stats','players','form','h2h']){const p=box.querySelector('[data-md-panel="'+key+'"]');if(p)p.innerHTML=mdPanel({...d,match:m},key)}
   const head=box.querySelector('.md-head');if(head)head.outerHTML=detailHeader(m);
   renderLive();
