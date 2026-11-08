@@ -58,6 +58,8 @@ const { chromium } = require('playwright');
   if (detailCrests!==2) throw new Error('Match detail must show exactly two aligned club crests: '+detailCrests);
   const detailScore = await page.locator('#match-detail .md-score').first().innerText();
   if (!detailScore.includes('1 – 0')) throw new Error('Match detail did not refresh score from official summary: '+detailScore);
+  const calendarScore = await clubCard.locator('.score').innerText();
+  if (!calendarScore.includes('1 - 0')) throw new Error('Calendar card did not synchronize with the verified match detail score: '+calendarScore);
   await page.locator('#match-detail [data-md-tab="stats"]').click();
   const statsText = await page.locator('#match-detail [data-md-panel="stats"]').innerText();
   if (!statsText.includes('Fautes') || !statsText.includes('Corners') || statsText.includes('Fouls') || statsText.includes('Corner Kicks')) throw new Error('Match statistics are not displayed in French: '+statsText);
