@@ -91,7 +91,7 @@ function mergeApiFootballFixtures(rows){
 }
 async function loadApiFootballFixtures(force=false){
  const now=Date.now();
- if(!force){try{const cache=JSON.parse(localStorage.getItem(API_FOOTBALL_CACHE_KEY)||'null');if(cache&&now-cache.at<24*60*60*1000&&Array.isArray(cache.fixtures))return cache.fixtures}catch(_){}}
+ if(!force){try{const cache=JSON.parse(localStorage.getItem(API_FOOTBALL_CACHE_KEY)||'null');if(cache&&now-cache.at<10*60*1000&&Array.isArray(cache.fixtures))return cache.fixtures}catch(_){}}
  const start=new Date();start.setUTCDate(start.getUTCDate()-7);
  const end=new Date();end.setUTCDate(end.getUTCDate()+14);
  const data=await apiFootballRequest({action:'fixtures',from:start.toISOString().slice(0,10),to:end.toISOString().slice(0,10),timezone:'Africa/Porto-Novo'});
@@ -100,6 +100,7 @@ async function loadApiFootballFixtures(force=false){
  return data.fixtures;
 }
 function renderApiFootballDetail(m,data){
+ m.apiFootballLineupsLoaded=Array.isArray(data.lineups)&&data.lineups.length>0;
  const panels=$('match-detail').querySelectorAll('[data-md-panel]');
  const f=data.fixture?.[0]||{},venue=f.fixture?.venue||{},referee=f.fixture?.referee||'';
  const info=[['Compétition',f.league?.name],['Journée',f.league?.round],['Stade',venue.name],['Ville',venue.city],['Arbitre',referee],['Date',f.fixture?.date?appDate(f.fixture.date,{dateStyle:'full',timeStyle:'short'}):'']];
@@ -166,7 +167,7 @@ function officialLineups(data){
 }
 function lineupHtml(groups){return '<h3>Compositions officielles</h3><p class="muted">Titulaires publiés par la source de la rencontre.</p><div class="stats-grid">'+groups.map(g=>'<div class="stat-card"><b>'+safe(g.team)+'</b><ol>'+g.players.map(p=>'<li>'+safe(p.name)+(p.position?' · '+safe(p.position):'')+'</li>').join('')+'</ol></div>').join('')+'</div>'}
 async function pollOfficialLineups(){
- const now=Date.now(),due=matches.filter(m=>{const kick=new Date(m.date).getTime(),recentFinished=m.finished&&now-kick<=72*3600000,soon=!m.live&&!m.finished&&kick-now<=180*60000&&kick-now>0;return (m.live||recentFinished||soon)&&!m.lineups?.length&&(!m.lineupCheckAt||now-m.lineupCheckAt>180000)}).slice(0,18);
+ const now=Date.now(),due=matches.filter(m=>{const kick=new Date(m.date).getTime(),recentFinished=m.finished&&now-kick<=72*3600000,soon=!m.live&&!m.finished&&kick-now<=180*60000&&kick-now>0;return (m.live||recentFinished||soon)&&!m.lineups?.length&&!m.apiFootballLineupsLoaded&&(!m.lineupCheckAt||now-m.lineupCheckAt>180000)}).slice(0,18);
  if(!due.length)return;
  await Promise.allSettled(due.map(async m=>{m.lineupCheckAt=Date.now();try{const d=await get(API+m.code+'/summary?event='+encodeURIComponent(m.id)+'&region=fr&lang=fr',10000);const groups=officialLineups(d);if(groups.length){m.lineups=groups;m.lineupPublishedAt=Date.now();render();renderLive();const box=$('match-detail');if(!$('match-modal').hidden&&box?.dataset.matchId===m.id){const panel=box.querySelector('[data-md-panel="lineups"]');if(panel)panel.innerHTML=lineupHtml(groups);}await localMatchAlerts()}}catch(e){}}));
 }
@@ -255,12 +256,54 @@ async function loadMatchStandings(m){
  if(current())panel.insertAdjacentHTML('beforeend','<section class="md-stat-card md-match-standings"><h3>Classement actuel · '+safe(m.competition||m.league)+'</h3><div class="md-standing-grid">'+card(matchTeamStandingRow(rows,m,'home'),m.home)+card(matchTeamStandingRow(rows,m,'away'),m.away)+'</div><p class="md-note">Classement fourni par ESPN. Les positions absentes ne sont pas estimées.</p></section>');
 }
 async function openMatch(m){
+ if(window.goldPronosDetailTimer)clearInterval(window.goldPronosDetailTimer);
  const box=$('match-detail');box.dataset.matchId=m.id;$('match-modal').hidden=false;
+ window.goldPronosDetailTimer=setInterval(refreshOpenMatchDetail,45000);
  box.innerHTML=detailHeader(m)+'<nav class="md-tabs"><button class="active" data-md-tab="overview">Résumé</button><button data-md-tab="stats">Statistiques</button><button data-md-tab="lineups">Compositions</button><button data-md-tab="events">Événements</button><button data-md-tab="players">Joueurs</button><button data-md-tab="form">Forme</button><button data-md-tab="h2h">Face-à-face</button></nav><div class="md-panel" data-md-panel="overview"><div class="md-loading">Chargement des données officielles…</div></div><div class="md-panel" data-md-panel="stats" hidden></div><div class="md-panel" data-md-panel="lineups" hidden></div><div class="md-panel" data-md-panel="events" hidden></div><div class="md-panel" data-md-panel="players" hidden></div><div class="md-panel" data-md-panel="form" hidden></div><div class="md-panel" data-md-panel="h2h" hidden></div>';
  const tabs=[...box.querySelectorAll("[data-md-tab]")],panels=[...box.querySelectorAll("[data-md-panel]")];tabs.forEach(b=>b.onclick=()=>{tabs.forEach(t=>t.classList.toggle("active",t===b));panels.forEach(p=>p.hidden=p.dataset.mdPanel!==b.dataset.mdTab)});
- try{if(m.apiFootballId){try{const providerData=await apiFootballRequest({action:'fixture',fixtureId:m.apiFootballId},30000);if(box.dataset.matchId!==m.id)return;if(providerData?.configured){renderApiFootballDetail(m,providerData);return;}}catch(providerError){console.warn('Détails API-Football indisponibles, retour ESPN',providerError?.message||providerError)}}const d=await get(API+m.code+'/summary?event='+encodeURIComponent(m.id)+'&region=fr&lang=fr');if(box.dataset.matchId!==m.id)return;const latest=matchFromSummary(d,m);Object.assign(m,latest);const publishedLineups=officialLineups(d);if(publishedLineups.length){m.lineups=publishedLineups;m.lineupPublishedAt=Date.now()}render();renderLive();renderPicks();renderVIP();renderPersonalizedHome();box.querySelector(".md-head").outerHTML=detailHeader(m);const data={...d,match:m};for(const k of ["overview","stats","lineups","events","players","form","h2h"])box.querySelector('[data-md-panel="'+k+'"]').innerHTML=mdPanel(data,k);loadMatchStandings(m)}
+ try{if(m.apiFootballId){try{const providerData=await apiFootballRequest({action:'fixture',fixtureId:m.apiFootballId,sections:['fixture','events','lineups']},30000);if(box.dataset.matchId!==m.id)return;if(providerData?.configured){
+ renderApiFootballDetail(m,providerData);
+ if(m.code&&!String(m.code).startsWith('api-football:')){
+  try{
+   const supplement=await get(API+m.code+'/summary?event='+encodeURIComponent(m.id)+'&region=fr&lang=fr',10000);
+   if(box.dataset.matchId!==m.id)return;
+   Object.assign(m,matchFromSummary(supplement,m));
+   const head=box.querySelector('.md-head');if(head)head.outerHTML=detailHeader(m);
+   const view={...supplement,match:m};
+   for(const key of ['stats','players','form','h2h']){const panel=box.querySelector('[data-md-panel="'+key+'"]');if(panel)panel.innerHTML=mdPanel(view,key);}
+   if(!(providerData.events||[]).length){const panel=box.querySelector('[data-md-panel="events"]');if(panel)panel.innerHTML=mdPanel(view,'events');}
+   if(!(providerData.lineups||[]).length){const panel=box.querySelector('[data-md-panel="lineups"]');if(panel)panel.innerHTML=mdPanel(view,'lineups');}
+   loadMatchStandings(m);
+  }catch(supplementError){console.warn('Compléments ESPN indisponibles',supplementError?.message||supplementError)}
+ }
+ return;
+}}catch(providerError){console.warn('Détails API-Football indisponibles, retour ESPN',providerError?.message||providerError)}}const d=await get(API+m.code+'/summary?event='+encodeURIComponent(m.id)+'&region=fr&lang=fr');if(box.dataset.matchId!==m.id)return;const latest=matchFromSummary(d,m);Object.assign(m,latest);const publishedLineups=officialLineups(d);if(publishedLineups.length){m.lineups=publishedLineups;m.lineupPublishedAt=Date.now()}render();renderLive();renderPicks();renderVIP();renderPersonalizedHome();box.querySelector(".md-head").outerHTML=detailHeader(m);const data={...d,match:m};for(const k of ["overview","stats","lineups","events","players","form","h2h"])box.querySelector('[data-md-panel="'+k+'"]').innerHTML=mdPanel(data,k);loadMatchStandings(m)}
  catch(e){if(box.dataset.matchId!==m.id)return;const local={match:m};for(const k of ["overview","stats","lineups","events","players","form","h2h"]){const panel=box.querySelector('[data-md-panel="'+k+'"]');if(panel)panel.innerHTML=mdPanel(local,k)}const overview=box.querySelector('[data-md-panel="overview"]');if(overview)overview.insertAdjacentHTML('beforeend','<p class="md-note">La source détaillée ne répond pas actuellement. La forme et les confrontations affichées proviennent uniquement des résultats déjà chargés.</p>')}
 }
+
+async function refreshOpenMatchDetail(){
+ const modal=$('match-modal'),box=$('match-detail');
+ if(!modal||modal.hidden||!box?.dataset.matchId||box.dataset.liveRefreshBusy==='1')return;
+ const m=matches.find(x=>String(x.id)===String(box.dataset.matchId));
+ if(!m||!m.live||m.finished||!m.code||String(m.code).startsWith('api-football:'))return;
+ box.dataset.liveRefreshBusy='1';
+ try{
+  const d=await get(API+m.code+'/summary?event='+encodeURIComponent(m.id)+'&region=fr&lang=fr',10000);
+  if(modal.hidden||box.dataset.matchId!==m.id)return;
+  const c=d?.header?.competitions?.[0]||d?.competitions?.[0];
+  if(c?.competitors?.length)updateLiveEvent(m,{date:m.date,competitions:[c]});
+  Object.assign(m,matchFromSummary(d,m));
+  const plays=d?.commentary?.items||d?.plays||[];
+  if(plays.length){
+   const panel=box.querySelector('[data-md-panel="events"]');
+   if(panel)panel.innerHTML=mdPanel({...d,match:m},'events')+'<p class="md-note">Source ESPN · Actualisé à '+safe(appDate(new Date(),{hour:'2-digit',minute:'2-digit',second:'2-digit'}))+'</p>';
+  }
+  const head=box.querySelector('.md-head');if(head)head.outerHTML=detailHeader(m);
+  renderLive();
+ }catch(error){console.warn('Actualisation des événements du match indisponible',error?.message||error)}
+ finally{delete box.dataset.liveRefreshBusy}
+}
+
 function xtext(x){return x.text||x.shortText||x.type?.text||x.type?.name||'Événement'}
 function recent(team,exclude,venue=null,teamId=null){
  return matches.filter(x=>{
@@ -678,7 +721,7 @@ function updateLiveEvent(m,event){const comp=event.competitions?.[0]||{},teams=c
  const raw=st.displayClock||comp.status?.displayClock||st.shortDetail||'';if(raw&&/\d/.test(String(raw))){m.clockBaseSeconds=clockSeconds(raw);if(m.periodNumber===2&&m.clockBaseSeconds<2700)m.clockBaseSeconds+=2700;if(m.periodNumber===3&&m.clockBaseSeconds<5400)m.clockBaseSeconds+=5400;if(m.periodNumber===4&&m.clockBaseSeconds<6300)m.clockBaseSeconds+=6300;m.clockUpdatedAt=Date.now();}else if(m.live&&(m.clockBaseSeconds===null||m.clockBaseSeconds===undefined)){m.clockUpdatedAt=Date.now();}
  m.clockRunning=m.live&&!/half.?time|mi-temps|break|suspended/i.test(m.periodDetail);m.date=event.date||m.date;m.raw=event;
 }
-async function pollLiveScores(){if(!matches.length)return;const now=Date.now(),groups=new Map();for(const m of matches){if(m.apiFootballId||String(m.code||'').startsWith('api-football:'))continue;const kick=new Date(m.date).getTime();if(!m.code||m.finished||!Number.isFinite(kick)||kick>now+90*60000||kick<now-14*3600000)continue;const day=new Date(m.date).toISOString().slice(0,10).replace(/-/g,'');const key=m.code+'|'+day;if(!groups.has(key))groups.set(key,{code:m.code,day})}
+async function pollLiveScores(){if(!matches.length)return;const now=Date.now(),groups=new Map();for(const m of matches){if(String(m.code||'').startsWith('api-football:'))continue;const kick=new Date(m.date).getTime();if(!m.code||m.finished||!Number.isFinite(kick)||kick>now+90*60000||kick<now-14*3600000)continue;const day=new Date(m.date).toISOString().slice(0,10).replace(/-/g,'');const key=m.code+'|'+day;if(!groups.has(key))groups.set(key,{code:m.code,day})}
  const requests=[...groups.values()];let cursor=0;const settled=[];const workers=Array.from({length:5},async()=>{while(true){const i=cursor++;if(i>=requests.length)break;const g=requests[i];try{settled[i]={status:'fulfilled',value:await get(API+g.code+'/scoreboard?dates='+g.day+'&limit=100&region=fr&lang=fr',11000)}}catch(error){settled[i]={status:'rejected',reason:error}}}});await Promise.all(workers);const results=settled;
  let changed=false;results.forEach(r=>{if(r.status!=='fulfilled')return;for(const event of r.value.events||[]){const m=matches.find(x=>x.id===String(event.id));if(!m)continue;const before=[m.status,m.homeScore,m.awayScore,m.periodDetail].join('|');updateLiveEvent(m,event);const after=[m.status,m.homeScore,m.awayScore,m.periodDetail].join('|');if(before!==after)changed=true}});
  const sportScore=await loadSportScoreLive().catch(error=>{console.warn('SportScore live indisponible',error?.message||error);return null});const crossCheck=mergeSportScoreLive(sportScore);if(crossCheck.changed)changed=true;if(changed){render();renderLive();renderPersonalizedHome();localMatchAlerts()}const active=matches.filter(m=>m.live).length;const el=$('live-indicator');if(el)el.textContent=active?active+' match'+(active>1?'s':'')+' en cours':'Suivi en direct activé';}
@@ -702,7 +745,7 @@ async function refresh(){if(busy)return;busy=true;$('home-matches').innerHTML='<
  render();renderLive();renderPicks();renderVIP();renderPersonalizedHome();localMatchAlerts();$('updated').textContent='Données actualisées · '+matches.length+' rencontres · '+(sportScoreCheck.confirmed?'ESPN + SportScore':'ESPN')+' · '+appDate(new Date(),{dateStyle:'medium',timeStyle:'short'});
  }catch(e){matches=[];render();renderLive();renderPicks();$('updated').textContent='Sources temporairement indisponibles';$('home-matches').innerHTML='<div class="notice">Les calendriers ne répondent pas actuellement. Vérifie ta connexion puis actualise. Aucun match ni score fictif ne sera affiché.</div>'}finally{busy=false}}
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id==='page-'+b.dataset.page));if(b.dataset.page==='competitions')loadStandings();if(b.dataset.page==='teams')loadTeams();if(b.dataset.page==='pronos')renderPicks();if(b.dataset.page==='news')loadNews();if(b.dataset.page==='leaders')loadLeaders();if(b.dataset.page==='community')loadCommunity();if(b.dataset.page==='settings')loadSettings();if(b.dataset.page==='vip'){renderVIP();}});
-$('search').oninput=render;$('refresh-live')?.addEventListener('click',refresh);$('vip-open-pronos')?.addEventListener('click',()=>document.querySelector('[data-page="pronos"]')?.click());$('save-notifications')?.addEventListener('click',saveNotificationPrefs);$('enable-background-push')?.addEventListener('click',enableBackgroundPush);$('settings-save')?.addEventListener('click',saveSettings);$('settings-edit-favorites')?.addEventListener('click',()=>$('account-open').click());$('settings-edit-alerts')?.addEventListener('click',()=>$('account-open').click());$('settings-reset-onboarding')?.addEventListener('click',()=>{localStorage.removeItem(PREF_KEY);showOnboarding(true)});$('date-filter').onchange=render;$('refresh').onclick=refresh;$('close-modal').onclick=()=>$('match-modal').hidden=true;$('match-modal').onclick=e=>{if(e.target===$('match-modal'))$('match-modal').hidden=true};
+$('search').oninput=render;$('refresh-live')?.addEventListener('click',refresh);$('vip-open-pronos')?.addEventListener('click',()=>document.querySelector('[data-page="pronos"]')?.click());$('save-notifications')?.addEventListener('click',saveNotificationPrefs);$('enable-background-push')?.addEventListener('click',enableBackgroundPush);$('settings-save')?.addEventListener('click',saveSettings);$('settings-edit-favorites')?.addEventListener('click',()=>$('account-open').click());$('settings-edit-alerts')?.addEventListener('click',()=>$('account-open').click());$('settings-reset-onboarding')?.addEventListener('click',()=>{localStorage.removeItem(PREF_KEY);showOnboarding(true)});$('date-filter').onchange=render;$('refresh').onclick=refresh;$('close-modal').onclick=()=>{if(window.goldPronosDetailTimer)clearInterval(window.goldPronosDetailTimer);$('match-modal').hidden=true};$('match-modal').onclick=e=>{if(e.target===$('match-modal')){if(window.goldPronosDetailTimer)clearInterval(window.goldPronosDetailTimer);$('match-modal').hidden=true}};
 const teamCatalogLeagues=leagues.filter(([c])=>!['uefa.champions','uefa.europa','uefa.europa.conf','afc.champions','fifa.world','caf.nations','uefa.wchampions'].includes(c));
 $('teams-competition').innerHTML=teamCatalogLeagues.map(([c,n])=>'<option value="'+c+'">'+safe(n)+'</option>').join('')+'<option value="fifa.world">Sélections nationales · Coupe du monde</option><option value="caf.nations">Sélections nationales · Coupe d’Afrique des nations</option><option value="uefa.euro">Sélections nationales · Euro</option><option value="uefa.nations">Sélections nationales · Ligue des nations</option><option value="conmebol.copa">Sélections nationales · Copa América</option><option value="concacaf.gold">Sélections nationales · Gold Cup</option><option value="afc.asian">Sélections nationales · Coupe d’Asie</option>';$('load-teams').onclick=loadTeams;$('teams-competition').onchange=loadTeams;$('competition-list').innerHTML=standingsLeagues.map(([c,n])=>'<div class="competition-item"><button class="competition" data-code="'+c+'">'+safe(n)+'</button><button class="favorite-competition" type="button" data-fav-comp="'+c+'" data-name="'+safe(n)+'">☆</button></div>').join('');$('standings-league').innerHTML=standingsLeagues.map(([c,n])=>'<option value="'+c+'">'+safe(n)+'</option>').join('');if($('leaders-league'))$('leaders-league').innerHTML=leagues.filter(([code])=>!['caf.nations','uefa.wchampions'].includes(code)).map(([code,name])=>'<option value="'+code+'">'+safe(name)+'</option>').join('');$('competition-list').querySelectorAll('.competition').forEach(b=>b.onclick=()=>{$('standings-league').value=b.dataset.code;loadStandings()});$('competition-list').querySelectorAll('[data-fav-comp]').forEach(b=>b.onclick=()=>toggleFavorite('favorite_competitions','competition_id',b.dataset.favComp,b.dataset.name));$('load-standings').onclick=loadStandings;if($('leaders-league'))$('leaders-league').onchange=loadLeaders;
 let promptEvent=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvent=e;$('install').hidden=false});$('install').onclick=async()=>{if(promptEvent){promptEvent.prompt();await promptEvent.userChoice;promptEvent=null}else alert('Menu Chrome ⋮ puis Installer l’application.');};
