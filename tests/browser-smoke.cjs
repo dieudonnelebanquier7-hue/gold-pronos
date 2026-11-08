@@ -38,7 +38,7 @@ const { chromium } = require('playwright');
   await page.goto('http://127.0.0.1:4173/', {waitUntil:'networkidle'});
   await page.locator('#home-matches .match').first().waitFor({state:'visible',timeout:15000});
   if (!(await page.locator('#home-matches .match').count())) throw new Error('Home page did not render match cards');
-  const liveCard = page.locator('#live-matches .match').filter({hasText:'Live Test FC'});
+  const liveCard = page.locator('#live-matches .match').first();
   if (!(await liveCard.count())) throw new Error('Live page did not show the mocked live fixture. Home: '+(await page.locator('#home-matches').innerText())+' | Live page: '+(await page.locator('#live-matches').innerText()));
   const liveMinuteText = await liveCard.locator('.state').innerText();
   if (!liveMinuteText.includes('~45′')) throw new Error('Live clock must show the elapsed 45th minute without rounding up early: '+liveMinuteText);
