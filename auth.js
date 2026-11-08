@@ -6,7 +6,7 @@ let client=null,signup=true;
 const say=msg=>{const el=$('account-status');if(el)el.textContent=msg};
 function init(){
  if(!window.supabase?.createClient){say('Le service de compte ne s’est pas chargé. Vérifie ta connexion puis actualise.');return}
- client=window.supabase.createClient(URL,KEY);
+ client=window.supabase.createClient(URL,KEY);window.GoldSupabase=client;
  const form=$('auth-form');if(!form)return;
  $('account-open').onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id==='page-account'));window.scrollTo({top:0,behavior:'smooth'});};
  $('auth-toggle').onclick=()=>{signup=!signup;$('auth-submit').textContent=signup?'Créer mon compte':'Se connecter';$('auth-toggle').textContent=signup?'J’ai déjà un compte':'Créer un compte';$('auth-display').hidden=!signup;};
