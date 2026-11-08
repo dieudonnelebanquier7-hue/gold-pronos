@@ -564,17 +564,18 @@ function updateLiveEvent(m,event){const comp=event.competitions?.[0]||{},teams=c
  m.clockRunning=m.live&&!/half.?time|mi-temps|break|suspended/i.test(m.periodDetail);m.date=event.date||m.date;m.raw=event;
 }
 async function pollLiveScores(){if(!matches.length)return;const now=Date.now(),groups=new Map();for(const m of matches){const kick=new Date(m.date).getTime();if(!m.code||m.finished||kick>now+8*3600000||kick<now-4*3600000)continue;const day=new Date(m.date).toISOString().slice(0,10).replace(/-/g,'');const key=m.code+'|'+day;if(!groups.has(key))groups.set(key,{code:m.code,day})}
- const requests=[...groups.values()];const results=await Promise.allSettled(requests.map(g=>get(API+g.code+'/scoreboard?dates='+g.day+'&limit=100&region=fr&lang=fr',11000)));
+ const requests=[...groups.values()];let cursor=0;const settled=[];const workers=Array.from({length:5},async()=>{while(true){const i=cursor++;if(i>=requests.length)break;const g=requests[i];try{settled[i]={status:'fulfilled',value:await get(API+g.code+'/scoreboard?dates='+g.day+'&limit=100&region=fr&lang=fr',11000)}}catch(error){settled[i]={status:'rejected',reason:error}}}});await Promise.all(workers);const results=settled;
  let changed=false;results.forEach(r=>{if(r.status!=='fulfilled')return;for(const event of r.value.events||[]){const m=matches.find(x=>x.id===String(event.id));if(!m)continue;const before=[m.status,m.homeScore,m.awayScore,m.periodDetail].join('|');updateLiveEvent(m,event);const after=[m.status,m.homeScore,m.awayScore,m.periodDetail].join('|');if(before!==after)changed=true}});
  if(changed){render();renderLive();renderPersonalizedHome();localMatchAlerts()}const active=matches.filter(m=>m.live).length;const el=$('live-indicator');if(el)el.textContent=active?active+' match'+(active>1?'s':'')+' en cours':'Suivi en direct activé';}
 async function loadEspnFixtures(){
  const today=new Date();today.setUTCHours(0,0,0,0);
- const pastFrom=new Date(today);pastFrom.setUTCDate(pastFrom.getUTCDate()-35);
+ const pastFrom=new Date(today);pastFrom.setUTCDate(pastFrom.getUTCDate()-7);
  const futureTo=new Date(today);futureTo.setUTCDate(futureTo.getUTCDate()+14);
- const dates=[];for(let d=new Date(pastFrom);d<=futureTo;d.setUTCDate(d.getUTCDate()+1))dates.push(d.toISOString().slice(0,10).replace(/-/g,''));
- const tasks=[];for(const [code,label] of leagues)for(const day of dates)tasks.push({code,label,day});
+ const from=pastFrom.toISOString().slice(0,10).replace(/-/g,'');
+ const to=futureTo.toISOString().slice(0,10).replace(/-/g,'');
+ const tasks=leagues.map(([code,label])=>({code,label}));
  const found=[];let cursor=0;
- const workers=Array.from({length:10},async()=>{while(true){const i=cursor++;if(i>=tasks.length)break;const {code,label,day}=tasks[i];try{const data=await get(API+code+'/scoreboard?dates='+day+'&limit=100&region=fr&lang=fr',15000);for(const event of data.events||[]){const item=mapEvent(event,code,label);if(item.date&&item.home!=='Équipe inconnue'&&item.away!=='Équipe inconnue')found.push(item)}}catch(error){console.warn('Calendrier de secours indisponible',code,day,error?.message||error)}}});
+ const workers=Array.from({length:4},async()=>{while(true){const i=cursor++;if(i>=tasks.length)break;const {code,label}=tasks[i];try{const data=await get(API+code+'/scoreboard?dates='+from+'-'+to+'&limit=1000&region=fr&lang=fr',20000);for(const event of data.events||[]){const item=mapEvent(event,code,label);if(item.date&&item.home!=='Équipe inconnue'&&item.away!=='Équipe inconnue')found.push(item)}}catch(error){console.warn('Calendrier de secours indisponible',code,error?.message||error)}}});
  await Promise.all(workers);
  return [...new Map(found.map(m=>[String(m.id),m])).values()].sort((x,y)=>new Date(x.date)-new Date(y.date));
 }
