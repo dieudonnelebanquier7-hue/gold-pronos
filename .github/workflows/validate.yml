@@ -17,6 +17,27 @@ jobs:
           node --check auth.js
           node --check i18n.js
           node --check sw.js
+          node --check fetch-matches.cjs
+      - name: Smoke-check every navigation page and static element
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const html = fs.readFileSync('index.html', 'utf8');
+          const app = fs.readFileSync('app.js', 'utf8');
+          const tabs = [...html.matchAll(/data-page="([^"]+)"/g)].map(x => x[1]);
+          const pages = new Set([...html.matchAll(/id="page-([^"]+)"/g)].map(x => x[1]));
+          const missingPages = [...new Set(tabs)].filter(name => !pages.has(name));
+          if (missingPages.length) throw new Error('Navigation without page: ' + missingPages.join(', '));
+          const ids = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(x => x[1]));
+          const dynamic = new Set(['edit-football-prefs','community-login','community-post-form','community-title','community-body','community-refresh']);
+          const refs = [...app.matchAll(/\$\(['"]([^'"]+)['"]\)/g)].map(x => x[1]);
+          const missingIds = [...new Set(refs)].filter(id => !ids.has(id) && !dynamic.has(id));
+          if (missingIds.length) throw new Error('Missing static element IDs: ' + missingIds.join(', '));
+          for (const required of ['home','drama','pronos','competitions','teams','leaders','news','settings','method','community','vip','account']) {
+            if (!pages.has(required)) throw new Error('Missing application page: ' + required);
+          }
+          console.log('Navigation OK: ' + new Set(tabs).size + ' tabs, ' + pages.size + ' pages; static selectors OK.');
+          NODE
       - name: Check required app files
         run: |
           test -s index.html
