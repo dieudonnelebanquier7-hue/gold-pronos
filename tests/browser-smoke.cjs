@@ -91,6 +91,9 @@ const { chromium } = require('playwright');
   await page.waitForFunction(() => !document.querySelector('[data-md-panel="overview"] .md-loading'), {timeout:10000});
   const mismatchedScore = await page.locator('#match-detail .md-score').first().innerText();
   if (mismatchedScore.includes('1 – 0')) throw new Error('Mismatched ESPN summary was incorrectly applied to another fixture: '+mismatchedScore);
+  await page.locator('#match-detail [data-md-tab="lineups"]').click();
+  const mismatchedLineups = await page.locator('#match-detail [data-md-panel="lineups"]').innerText();
+  if (mismatchedLineups.includes('Test FC Player') || mismatchedLineups.includes('United Test Player')) throw new Error('Lineups from another fixture were incorrectly attached to the national match: '+mismatchedLineups);
   await page.locator('#close-modal').click();
   await page.evaluate(() => {
     window.__cornerCalls = 0;
