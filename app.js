@@ -169,7 +169,7 @@ function lineupHtml(groups){return '<h3>Compositions officielles</h3><p class="m
 async function pollOfficialLineups(){
  const now=Date.now(),due=matches.filter(m=>{const kick=new Date(m.date).getTime(),recentFinished=m.finished&&now-kick<=72*3600000,soon=!m.live&&!m.finished&&kick-now<=180*60000&&kick-now>0;return (m.live||recentFinished||soon)&&!m.lineups?.length&&!m.apiFootballLineupsLoaded&&(!m.lineupCheckAt||now-m.lineupCheckAt>180000)}).slice(0,18);
  if(!due.length)return;
- await Promise.allSettled(due.map(async m=>{m.lineupCheckAt=Date.now();try{const d=await get(API+m.code+'/summary?event='+encodeURIComponent(m.id)+'&region=fr&lang=fr',10000);const groups=officialLineups(d);if(groups.length){m.lineups=groups;m.lineupPublishedAt=Date.now();render();renderLive();const box=$('match-detail');if(!$('match-modal').hidden&&box?.dataset.matchId===m.id){const panel=box.querySelector('[data-md-panel="lineups"]');if(panel)panel.innerHTML=lineupHtml(groups);}await localMatchAlerts()}}catch(e){}}));
+ await Promise.allSettled(due.map(async m=>{m.lineupCheckAt=Date.now();try{const d=await get(API+m.code+'/summary?event='+encodeURIComponent(m.espnEventId||m.id)+'&region=fr&lang=fr',10000);const groups=officialLineups(d);if(groups.length){m.lineups=groups;m.lineupPublishedAt=Date.now();render();renderLive();const box=$('match-detail');if(!$('match-modal').hidden&&box?.dataset.matchId===m.id){const panel=box.querySelector('[data-md-panel="lineups"]');if(panel)panel.innerHTML=lineupHtml(groups);}await localMatchAlerts()}}catch(e){}}));
 }
 
 const MATCH_STAT_LABELS={
@@ -265,7 +265,7 @@ async function openMatch(m){
  renderApiFootballDetail(m,providerData);
  if(m.code&&!String(m.code).startsWith('api-football:')){
   try{
-   const supplement=await get(API+m.code+'/summary?event='+encodeURIComponent(m.id)+'&region=fr&lang=fr',10000);
+   const supplement=await get(API+m.code+'/summary?event='+encodeURIComponent(m.espnEventId||m.id)+'&region=fr&lang=fr',10000);
    if(box.dataset.matchId!==m.id)return;
    Object.assign(m,matchFromSummary(supplement,m));
    const head=box.querySelector('.md-head');if(head)head.outerHTML=detailHeader(m);
@@ -277,7 +277,7 @@ async function openMatch(m){
   }catch(supplementError){console.warn('Compléments ESPN indisponibles',supplementError?.message||supplementError)}
  }
  return;
-}}catch(providerError){console.warn('Détails API-Football indisponibles, retour ESPN',providerError?.message||providerError)}}const d=await get(API+m.code+'/summary?event='+encodeURIComponent(m.id)+'&region=fr&lang=fr');if(box.dataset.matchId!==m.id)return;const latest=matchFromSummary(d,m);Object.assign(m,latest);const publishedLineups=officialLineups(d);if(publishedLineups.length){m.lineups=publishedLineups;m.lineupPublishedAt=Date.now()}render();renderLive();renderPicks();renderVIP();renderPersonalizedHome();box.querySelector(".md-head").outerHTML=detailHeader(m);const data={...d,match:m};for(const k of ["overview","stats","lineups","events","players","form","h2h"])box.querySelector('[data-md-panel="'+k+'"]').innerHTML=mdPanel(data,k);loadMatchStandings(m)}
+}}catch(providerError){console.warn('Détails API-Football indisponibles, retour ESPN',providerError?.message||providerError)}}const d=await get(API+m.code+'/summary?event='+encodeURIComponent(m.espnEventId||m.id)+'&region=fr&lang=fr');if(box.dataset.matchId!==m.id)return;const latest=matchFromSummary(d,m);Object.assign(m,latest);const publishedLineups=officialLineups(d);if(publishedLineups.length){m.lineups=publishedLineups;m.lineupPublishedAt=Date.now()}render();renderLive();renderPicks();renderVIP();renderPersonalizedHome();box.querySelector(".md-head").outerHTML=detailHeader(m);const data={...d,match:m};for(const k of ["overview","stats","lineups","events","players","form","h2h"])box.querySelector('[data-md-panel="'+k+'"]').innerHTML=mdPanel(data,k);loadMatchStandings(m)}
  catch(e){if(box.dataset.matchId!==m.id)return;const local={match:m};for(const k of ["overview","stats","lineups","events","players","form","h2h"]){const panel=box.querySelector('[data-md-panel="'+k+'"]');if(panel)panel.innerHTML=mdPanel(local,k)}const overview=box.querySelector('[data-md-panel="overview"]');if(overview)overview.insertAdjacentHTML('beforeend','<p class="md-note">La source détaillée ne répond pas actuellement. La forme et les confrontations affichées proviennent uniquement des résultats déjà chargés.</p>')}
 }
 
@@ -288,7 +288,7 @@ async function refreshOpenMatchDetail(){
  if(!m||!m.live||m.finished||!m.code||String(m.code).startsWith('api-football:'))return;
  box.dataset.liveRefreshBusy='1';
  try{
-  const d=await get(API+m.code+'/summary?event='+encodeURIComponent(m.id)+'&region=fr&lang=fr',10000);
+  const d=await get(API+m.code+'/summary?event='+encodeURIComponent(m.espnEventId||m.id)+'&region=fr&lang=fr',10000);
   if(modal.hidden||box.dataset.matchId!==m.id)return;
   const c=d?.header?.competitions?.[0]||d?.competitions?.[0];
   if(c?.competitors?.length)updateLiveEvent(m,{date:m.date,competitions:[c]});
@@ -666,7 +666,7 @@ async function pollLiveEventAlerts(){
  let seen=[];try{seen=JSON.parse(localStorage.getItem('gold-pronos-seen-events-v1')||'[]')}catch(e){}const seenSet=new Set(seen);const baseline=localStorage.getItem('gold-pronos-event-baseline-v1')==='1';let changed=false;
  for(const m of matches.filter(x=>x.live).slice(0,10)){
   if(p.favorite_teams_only&&!favIds.includes(String(m.homeId))&&!favIds.includes(String(m.awayId))&&!favIds.includes(m.home)&&!favIds.includes(m.away))continue;
-  try{const d=await get(API+m.code+'/summary?event='+encodeURIComponent(m.id)+'&region=fr&lang=fr',9000);const plays=d.commentary?.items||d.plays||[];for(const x of plays){const desc=String(xtext(x)+' '+(x.type?.text||x.type?.name||'')).toLowerCase();const key=m.id+':'+String(x.id||x.sequenceNumber||x.sequence||desc+'-'+(x.clock?.displayValue||x.time||''));if(seenSet.has(key))continue;seenSet.add(key);changed=true;if(!baseline)continue;
+  try{const d=await get(API+m.code+'/summary?event='+encodeURIComponent(m.espnEventId||m.id)+'&region=fr&lang=fr',9000);const plays=d.commentary?.items||d.plays||[];for(const x of plays){const desc=String(xtext(x)+' '+(x.type?.text||x.type?.name||'')).toLowerCase();const key=m.id+':'+String(x.id||x.sequenceNumber||x.sequence||desc+'-'+(x.clock?.displayValue||x.time||''));if(seenSet.has(key))continue;seenSet.add(key);changed=true;if(!baseline)continue;
    if(p.red_cards&&/(red card|carton rouge|second yellow.*card|second jaune)/i.test(desc))send('Carton rouge · '+m.home+' – '+m.away,String(xtext(x)),key);
    else if(p.penalties&&/(penalt|penalty|tir au but|coup de pied de réparation)/i.test(desc))send('Penalty · '+m.home+' – '+m.away,String(xtext(x)),key);
    else if(p.substitutions&&/(substitution|substituted|remplacement|remplace par|enters the match)/i.test(desc))send('Remplacement · '+m.home+' – '+m.away,String(xtext(x)),key);
@@ -723,7 +723,7 @@ function updateLiveEvent(m,event){const comp=event.competitions?.[0]||{},teams=c
 }
 async function pollLiveScores(){if(!matches.length)return;const now=Date.now(),groups=new Map();for(const m of matches){if(String(m.code||'').startsWith('api-football:'))continue;const kick=new Date(m.date).getTime();if(!m.code||m.finished||!Number.isFinite(kick)||kick>now+90*60000||kick<now-14*3600000)continue;const day=new Date(m.date).toISOString().slice(0,10).replace(/-/g,'');const key=m.code+'|'+day;if(!groups.has(key))groups.set(key,{code:m.code,day})}
  const requests=[...groups.values()];let cursor=0;const settled=[];const workers=Array.from({length:5},async()=>{while(true){const i=cursor++;if(i>=requests.length)break;const g=requests[i];try{settled[i]={status:'fulfilled',value:await get(API+g.code+'/scoreboard?dates='+g.day+'&limit=100&region=fr&lang=fr',11000)}}catch(error){settled[i]={status:'rejected',reason:error}}}});await Promise.all(workers);const results=settled;
- let changed=false;results.forEach(r=>{if(r.status!=='fulfilled')return;for(const event of r.value.events||[]){const m=matches.find(x=>x.id===String(event.id));if(!m)continue;const before=[m.status,m.homeScore,m.awayScore,m.periodDetail].join('|');updateLiveEvent(m,event);const after=[m.status,m.homeScore,m.awayScore,m.periodDetail].join('|');if(before!==after)changed=true}});
+ let changed=false;results.forEach((r,index)=>{if(r.status!=='fulfilled')return;const group=requests[index];for(const event of r.value.events||[]){const comp=event.competitions?.[0]||{},teams=comp.competitors||[],home=teams.find(x=>x.homeAway==='home')||teams[0],away=teams.find(x=>x.homeAway==='away')||teams[1];const m=matches.find(x=>x.id===String(event.id))||matches.find(x=>x.code===group.code&&providerNorm(x.home)===providerNorm(home?.team?.displayName||home?.team?.name)&&providerNorm(x.away)===providerNorm(away?.team?.displayName||away?.team?.name)&&Math.abs(new Date(x.date).getTime()-new Date(event.date).getTime())<5*3600000);if(!m)continue;if(m.id!==String(event.id))m.espnEventId=String(event.id);const before=[m.status,m.homeScore,m.awayScore,m.periodDetail].join('|');updateLiveEvent(m,event);const after=[m.status,m.homeScore,m.awayScore,m.periodDetail].join('|');if(before!==after)changed=true}});
  const sportScore=await loadSportScoreLive().catch(error=>{console.warn('SportScore live indisponible',error?.message||error);return null});const crossCheck=mergeSportScoreLive(sportScore);if(crossCheck.changed)changed=true;if(changed){render();renderLive();renderPersonalizedHome();localMatchAlerts()}const active=matches.filter(m=>m.live).length;const el=$('live-indicator');if(el)el.textContent=active?active+' match'+(active>1?'s':'')+' en cours':'Suivi en direct activé';}
 async function loadEspnFixtures(){
  const today=new Date();today.setUTCHours(0,0,0,0);
