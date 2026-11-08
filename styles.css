@@ -15,3 +15,5 @@
 .source-card a:hover{text-decoration:underline}
 .community-hero{background:linear-gradient(120deg,#075c40,#087b50 65%,#1768b5);border-radius:16px;padding:22px;color:#fff;margin:18px 0}
 .community-hero strong{font-size:21px}.community-hero p{color:#e1f4eb;line-height:1.6;margin-bottom:0}
+
+.method-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:18px 0}.method-card{border:1px solid var(--line);border-radius:14px;padding:18px;background:linear-gradient(145deg,#fff,#f6faf7)}.method-card>span{display:inline-grid;place-items:center;width:32px;height:32px;border-radius:10px;background:#e8f4ed;color:var(--green);font-weight:900}.method-card h3{margin:12px 0 7px;font-size:17px}.method-card p{margin:0;color:var(--muted);font-size:13px;line-height:1.65}
