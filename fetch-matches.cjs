@@ -57,6 +57,6 @@ async function fetchLeagueDay(league,dateRange){
  const matches=[...unique.values()].sort((a,b)=>new Date(a.utcDate)-new Date(b.utcDate));
  const output={generatedAt:new Date().toISOString(),range:{from:from.toISOString(),to:to.toISOString()},matches};
  fs.writeFileSync('matches.json',JSON.stringify(output));
- console.log('Calendrier : '+matches.length+' rencontres vérifiées / '+leagues.length+' compétitions / '+dates.length+' dates.');
+ console.log('Calendrier : '+matches.length+' rencontres vérifiées / '+leagues.length+' compétitions / '+dateRanges.length+' périodes.');
  if(!matches.length)console.log('AVERTISSEMENT : aucune rencontre fournie par ESPN. Publication de l’application maintenue, sans fabriquer de données.');
 })();
