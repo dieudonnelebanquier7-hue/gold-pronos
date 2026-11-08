@@ -9,6 +9,10 @@ on:
       - 'index.html'
       - 'styles.css'
       - 'manifest.webmanifest'
+      - 'auth.js'
+      - 'i18n.js'
+      - 'sw.js'
+      - 'matches.json'
       - '.github/workflows/android-apk.yml'
 
 permissions:
@@ -127,7 +131,10 @@ jobs:
       - name: Prepare Capacitor Android project
         run: |
           mkdir -p www
-          cp index.html app.js styles.css i18n.js sw.js manifest.webmanifest icon.svg matches.json www/
+          cp index.html app.js auth.js styles.css i18n.js sw.js manifest.webmanifest icon.svg matches.json www/
+          test -s www/auth.js
+          node --check www/auth.js
+          node --check www/app.js
           cat > package.json <<'EOF'
           {
             "name": "gold-pronos-android",
