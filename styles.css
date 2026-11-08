@@ -756,3 +756,6 @@ input::placeholder{color:#858e9b!important}
 .close{background:#202a36!important;color:#f2f0e9!important}
 #toast{background:#c49a42!important;color:#10141b!important}
 footer{color:#8f98a5!important}
+
+/* Validation multi-sources v182 */
+.match .state.score-conflict{color:#ffd27a!important;font-weight:800;white-space:normal;line-height:1.2}.md-source-warning{margin-top:8px;padding:8px 10px;border:1px solid #8c6a2e;border-radius:8px;background:#342817;color:#ffda91;font-size:12px;line-height:1.45}footer a{color:#e4c16d!important;font-weight:700;text-decoration:underline;text-underline-offset:3px}
