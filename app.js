@@ -156,21 +156,26 @@ async function cornerHistory(teamMatches){
  const cache=readCornerCache(),now=Date.now(),chosen=teamMatches.slice(0,8),totals=[],missing=[];
  for(const m of chosen){
   if(!m?.code||!m?.id)continue;
-  const key=String(m.id),entry=cache[key];
-  if(entry&&now-entry.at<7*86400000&&Number.isFinite(entry.total)){totals.push(entry.total);continue}
+  const key=String(m.id),entry=cache[key],age=entry?now-Number(entry.at||0):Infinity;
+  const verified=entry?.verified===true||(entry?.verified===undefined&&Number.isFinite(Number(entry?.total)));
+  if(entry&&verified&&age<7*86400000&&Number.isFinite(Number(entry.total))){totals.push(Number(entry.total));continue}
+  if(entry&&entry.verified===false&&age<6*3600000)continue;
   missing.push({id:key.replace(/^espn-/,''),competition:m.code,key});
  }
  if(!missing.length)return totals;
- const db=window.GoldSupabase;if(!db)return totals;
+ const db=window.GoldSupabase;if(!db?.functions?.invoke)return totals;
  try{
-  let timer;
   const {data,error}=await withTimeout(db.functions.invoke('corner-history',{body:{matches:missing.map(x=>({id:x.id,competition:x.competition}))}}),10000,'Délai de vérification des corners dépassé');
   if(error)throw error;
+  const returned=new Set();
   for(const item of data?.matches||[]){
    const request=missing.find(x=>x.id===String(item.id)&&x.competition===item.competition);
-   if(!request||item.verified!==true||!Number.isFinite(Number(item.total)))continue;
-   const total=Number(item.total);cache[request.key]={at:now,total};totals.push(total);
+   if(!request)continue;
+   returned.add(request.key);
+   if(item.verified!==true||!Number.isFinite(Number(item.total))){cache[request.key]={at:now,verified:false};continue}
+   const total=Number(item.total);cache[request.key]={at:now,total,verified:true};totals.push(total);
   }
+  for(const request of missing)if(!returned.has(request.key))cache[request.key]={at:now,verified:false};
   saveCornerCache(cache);
  }catch(error){console.warn('GOLD PRONOS corner-history:',error?.message||error)}
  return totals;
