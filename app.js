@@ -108,7 +108,14 @@ async function openMatch(m){
  catch(e){if(box.dataset.matchId!==m.id)return;for(const k of ["overview","stats","lineups","events","players"])box.querySelector('[data-md-panel="'+k+'"]').innerHTML='<div class="md-empty">Les informations détaillées ne sont pas accessibles auprès de la source pour le moment.</div>'}
 }
 function xtext(x){return x.text||x.shortText||x.type?.text||x.type?.name||'Événement'}
-function recent(team,exclude){return matches.filter(x=>x.finished&&x.id!==exclude&&(x.home===team||x.away===team)&&x.homeScore!==null&&x.awayScore!==null).sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,8)}
+function recent(team,exclude,venue=null,teamId=null){
+ return matches.filter(x=>{
+  if(!x.finished||x.id===exclude||x.homeScore===null||x.awayScore===null)return false;
+  const sameHome=teamId&&x.homeId?String(x.homeId)===String(teamId):x.home===team;
+  const sameAway=teamId&&x.awayId?String(x.awayId)===String(teamId):x.away===team;
+  return venue==='home'?sameHome:venue==='away'?sameAway:sameHome||sameAway;
+ }).sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,8);
+}
 function points(m,team){const home=m.home===team,sc=Number(home?m.homeScore:m.awayScore),op=Number(home?m.awayScore:m.homeScore);return sc>op?3:sc===op?1:0}
 function dateKeyInAppZone(value){const prefs=readAppSettings(),zone=prefs.timezone||'Africa/Porto-Novo';try{const parts=new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(value));const p=Object.fromEntries(parts.map(x=>[x.type,x.value]));return p.year+p.month+p.day}catch(e){return dateKey(value)}}
 function matchStats(list,team){
@@ -116,7 +123,7 @@ function matchStats(list,team){
  if(!n)return null;
  let pts=0,wins=0,draws=0,losses=0,scored=0,conceded=0,over15=0,over25=0,btts=0;
  for(const m of sample){const home=m.home===team,forGoals=Number(home?m.homeScore:m.awayScore),against=Number(home?m.awayScore:m.homeScore);scored+=forGoals;conceded+=against;const p=points(m,team);pts+=p;if(p===3)wins++;else if(p===1)draws++;else losses++;const total=forGoals+against;if(total>=2)over15++;if(total>=3)over25++;if(forGoals>0&&against>0)btts++}
- return {sample,n,ppg:pts/n,winRate:wins/n,drawRate:draws/n,unbeatenRate:(wins+draws)/n,scored:scored/n,conceded:conceded/n,goals:(scored+conceded)/n,over15:over15/n,over25:over25/n,btts:btts/n};
+ return {sample,n,ppg:pts/n,winRate:wins/n,drawRate:draws/n,unbeatenRate:(wins+draws)/n,scored:scored/n,conceded:conceded/n,goals:(scored+conceded)/n,over15:over15/n,over25:over25/n,bttsRate:btts/n};
 }
 function marketLine(label,value,detail,kind){
  return '<div class="pick-market"><div><b>'+safe(label)+'</b><small>'+safe(detail)+'</small></div><strong class="'+(kind||'')+'">'+safe(value)+'</strong></div>';
@@ -156,30 +163,37 @@ function renderPicks(){
  if(!dayMatches.length){const empty=document.createElement('div');empty.className='notice';empty.textContent='Aucun match à venir confirmé pour aujourd’hui dans les compétitions suivies. Le calendrier sera actualisé automatiquement.';box.append(empty);return}
  for(const m of dayMatches){
   const h=recent(m.home,m.id),a=recent(m.away,m.id),hs=matchStats(h,m.home),as=matchStats(a,m.away);
+  const hHome=recent(m.home,m.id,'home',m.homeId),aAway=recent(m.away,m.id,'away',m.awayId);
+  const hhs=matchStats(hHome,m.home),aas=matchStats(aAway,m.away);
   const el=document.createElement('article');el.className='pick-card';
   el.innerHTML='<span class="eyebrow">'+safe(m.league)+'</span><div class="pick-team-heading">'+crestMarkup(m.home,m.homeLogo,m.homeNational?'pick-flag':'pick-crest')+'<h3>'+safe(m.home)+' <span>—</span> '+safe(m.away)+'</h3>'+crestMarkup(m.away,m.awayLogo,m.awayNational?'pick-flag':'pick-crest')+'</div><p><b>Coup d’envoi :</b> '+safe(appDate(m.date,{hour:'2-digit',minute:'2-digit'}))+'</p>';
-  if(!hs||!as||hs.n<3||as.n<3){
-   el.innerHTML+='<div class="notice"><b>Analyse en attente</b><p>Historique récent insuffisant. Aucun choix ne sera inventé.</p><small>'+h.length+' résultat(s) pour '+safe(m.home)+' · '+a.length+' pour '+safe(m.away)+' (3 minimum par équipe).</small></div>';
+  if(!hs||!as||hs.n<5||as.n<5||!hhs||!aas||hhs.n<2||aas.n<2){
+   el.innerHTML+='<div class="notice"><b>Analyse en attente</b><p>Échantillon insuffisant pour une analyse prudente : 5 résultats récents et 2 résultats dans le contexte domicile/extérieur sont requis par équipe.</p><small>'+h.length+' résultat(s) pour '+safe(m.home)+' · '+a.length+' pour '+safe(m.away)+' · domicile : '+hHome.length+' · extérieur : '+aAway.length+'. Aucun choix ne sera inventé.</small></div>';
    box.append(el);continue;
   }
-  const edge=hs.ppg-as.ppg;
+  const homeForm=hs.ppg*0.35+hhs.ppg*0.65,awayForm=as.ppg*0.35+aas.ppg*0.65;
+  const edge=homeForm-awayForm;
   let strong='Aucun favori net',strongWhy='Écart de forme trop faible pour isoler une victoire.';
-  if(edge>=0.55){strong='V1 · '+m.home;strongWhy='Moyenne de points récente : '+hs.ppg.toFixed(2)+' contre '+as.ppg.toFixed(2)+'.'}
-  else if(edge<=-0.55){strong='V2 · '+m.away;strongWhy='Moyenne de points récente : '+as.ppg.toFixed(2)+' contre '+hs.ppg.toFixed(2)+'.'}
-  const double=hs.ppg>=as.ppg?'1X · '+m.home+' ou nul':'X2 · '+m.away+' ou nul';
-  const doubleWhy=hs.ppg>=as.ppg?'Le domicile présente la meilleure moyenne récente, avec protection du nul.':'L’extérieur présente la meilleure moyenne récente, avec protection du nul.';
-  const avgGoals=(hs.goals+as.goals)/2;
-  const rate15=(hs.over15+as.over15)/2,rate25=(hs.over25+as.over25)/2;
+  if(edge>=0.65){strong='V1 · '+m.home;strongWhy='Indice de forme pondéré : '+homeForm.toFixed(2)+' contre '+awayForm.toFixed(2)+' points par match, avec 65 % de poids au contexte domicile/extérieur.'}
+  else if(edge<=-0.65){strong='V2 · '+m.away;strongWhy='Indice de forme pondéré : '+awayForm.toFixed(2)+' contre '+homeForm.toFixed(2)+' points par match, avec 65 % de poids au contexte domicile/extérieur.'}
+  let double='Non retenu · prudence',doubleWhy='Aucune différence suffisante dans les taux de matchs sans défaite à domicile et à l’extérieur.';
+  if(hhs.unbeatenRate>=0.70&&hhs.unbeatenRate-aas.unbeatenRate>=0.15){double='1X · '+m.home+' ou nul';doubleWhy='Le '+m.home+' est resté sans défaite dans '+Math.round(hhs.unbeatenRate*100)+' % de ses '+hhs.n+' derniers matchs à domicile.'}
+  else if(aas.unbeatenRate>=0.70&&aas.unbeatenRate-hhs.unbeatenRate>=0.15){double='X2 · '+m.away+' ou nul';doubleWhy='Le '+m.away+' est resté sans défaite dans '+Math.round(aas.unbeatenRate*100)+' % de ses '+aas.n+' derniers matchs à l’extérieur.'}
+  const avgGoals=(hhs.scored+aas.conceded+aas.scored+hhs.conceded)/2;
+  const rate15=(hhs.over15+aas.over15)/2,rate25=(hhs.over25+aas.over25)/2;
+  const bttsRate=(hhs.bttsRate+aas.bttsRate)/2;
   const goals15=avgGoals>=2.0&&rate15>=0.65?'+ de 1,5 but':'Non retenu · prudence';
   const goals25=avgGoals>=2.65&&rate25>=0.55?'+ de 2,5 buts':'Non retenu · prudence';
-  const sampleLabel=Math.min(hs.n,as.n)>=5?'Échantillon correct':'Échantillon limité';
+  const btts=bttsRate>=0.65&&avgGoals>=2.2?'Oui · signal statistique':'Non retenu · prudence';
+  const sampleLabel=Math.min(hs.n,as.n)>=5&&Math.min(hhs.n,aas.n)>=3?'Échantillon exploitable':'Échantillon limité';
   el.innerHTML+='<div class="pick-markets">'+
    marketLine('Équipe la plus forte',strong,strongWhy,strong!=='Aucun favori net'?'market-positive':'market-neutral')+
-   marketLine('Double chance',double,doubleWhy,'market-positive')+
-   marketLine('Total de buts · 1,5',goals15,'Moyenne totale récente : '+avgGoals.toFixed(2)+' but(s) par match · fréquence observée : '+Math.round(rate15*100)+'%.',goals15.startsWith('+')?'market-positive':'market-neutral')+
-   marketLine('Total de buts · 2,5',goals25,'Fréquence observée : '+Math.round(rate25*100)+'% sur les échantillons disponibles.',goals25.startsWith('+')?'market-positive':'market-neutral')+
+   marketLine('Double chance',double,doubleWhy,double.startsWith('Non retenu')?'market-neutral':'market-positive')+
+   marketLine('Total de buts · 1,5',goals15,'Total attendu indicatif : '+avgGoals.toFixed(2)+' but(s) · fréquence observée : '+Math.round(rate15*100)+'% dans les échantillons domicile/extérieur.',goals15.startsWith('+')?'market-positive':'market-neutral')+
+   marketLine('Total de buts · 2,5',goals25,'Fréquence observée : '+Math.round(rate25*100)+'% sur les échantillons domicile/extérieur.',goals25.startsWith('+')?'market-positive':'market-neutral')+
+   marketLine('Les deux équipes marquent',btts,'Fréquence observée : '+Math.round(bttsRate*100)+'% sur les échantillons domicile/extérieur.',btts.startsWith('Oui')?'market-positive':'market-neutral')+
    '<div class="pick-market" data-corners><div><b>Total corners · 5,5</b><small>Recherche des statistiques officielles des derniers matchs…</small></div><strong>Vérification</strong></div>'+
-   '</div><div class="pick-evidence"><b>Éléments vérifiés</b><p>'+safe(m.home)+' : '+hs.n+' matchs · '+hs.ppg.toFixed(2)+' pts/match · '+hs.scored.toFixed(2)+' but(s) marqués et '+hs.conceded.toFixed(2)+' encaissés en moyenne.</p><p>'+safe(m.away)+' : '+as.n+' matchs · '+as.ppg.toFixed(2)+' pts/match · '+as.scored.toFixed(2)+' but(s) marqués et '+as.conceded.toFixed(2)+' encaissés en moyenne.</p><small>'+sampleLabel+' · Calcul indicatif fondé sur les résultats récents, pas une garantie de gain.</small></div>';
+   '</div><div class="pick-evidence"><b>Éléments vérifiés</b><p>'+safe(m.home)+' : '+hs.n+' matchs récents · '+hs.ppg.toFixed(2)+' pts/match · '+hs.scored.toFixed(2)+' but(s) marqués et '+hs.conceded.toFixed(2)+' encaissés en moyenne. À domicile : '+hhs.n+' matchs · '+hhs.ppg.toFixed(2)+' pts/match.</p><p>'+safe(m.away)+' : '+as.n+' matchs récents · '+as.ppg.toFixed(2)+' pts/match · '+as.scored.toFixed(2)+' but(s) marqués et '+as.conceded.toFixed(2)+' encaissés en moyenne. À l’extérieur : '+aas.n+' matchs · '+aas.ppg.toFixed(2)+' pts/match.</p><small>'+sampleLabel+' · Fréquences observées, non probabilités garanties. Calcul indicatif fondé sur les résultats disponibles.</small></div>';
   const aiBox=document.createElement('div');
   aiBox.className='pick-ai-check';
   aiBox.innerHTML='<button type="button" class="ghost" data-ai-check>Comparer avec 3 modèles IA</button><div class="pick-ai-result" data-ai-result aria-live="polite"></div>';
@@ -194,14 +208,15 @@ function renderPicks(){
    const payload={
     fixture:{home:m.home,away:m.away,competition:m.league,kickoff:m.date},
     evidence:{
-     home:{sample:hs.n,pointsPerMatch:Number(hs.ppg.toFixed(2)),goalsScoredAverage:Number(hs.scored.toFixed(2)),goalsConcededAverage:Number(hs.conceded.toFixed(2)),over15Rate:Number(hs.over15.toFixed(3)),over25Rate:Number(hs.over25.toFixed(3))},
-     away:{sample:as.n,pointsPerMatch:Number(as.ppg.toFixed(2)),goalsScoredAverage:Number(as.scored.toFixed(2)),goalsConcededAverage:Number(as.conceded.toFixed(2)),over15Rate:Number(as.over15.toFixed(3)),over25Rate:Number(as.over25.toFixed(3))}
+     home:{sample:hs.n,pointsPerMatch:Number(hs.ppg.toFixed(2)),goalsScoredAverage:Number(hs.scored.toFixed(2)),goalsConcededAverage:Number(hs.conceded.toFixed(2)),over15Rate:Number(hs.over15.toFixed(3)),over25Rate:Number(hs.over25.toFixed(3)),homeSample:hhs.n,homePointsPerMatch:Number(hhs.ppg.toFixed(2)),homeUnbeatenRate:Number(hhs.unbeatenRate.toFixed(3)),homeBttsRate:Number(hhs.bttsRate.toFixed(3))},
+     away:{sample:as.n,pointsPerMatch:Number(as.ppg.toFixed(2)),goalsScoredAverage:Number(as.scored.toFixed(2)),goalsConcededAverage:Number(as.conceded.toFixed(2)),over15Rate:Number(as.over15.toFixed(3)),over25Rate:Number(as.over25.toFixed(3)),awaySample:aas.n,awayPointsPerMatch:Number(aas.ppg.toFixed(2)),awayUnbeatenRate:Number(aas.unbeatenRate.toFixed(3)),awayBttsRate:Number(aas.bttsRate.toFixed(3))}
     },
     markets:[
      {name:'Équipe la plus forte',options:['V1','V2','NO_BET'],current:strong},
      {name:'Double chance',options:['1X','X2','NO_BET'],current:double.startsWith('1X')?'1X':'X2'},
      {name:'Total buts 1.5',options:['OVER_1_5','NO_BET'],current:goals15.startsWith('+')?'OVER_1_5':'NO_BET'},
-     {name:'Total buts 2.5',options:['OVER_2_5','NO_BET'],current:goals25.startsWith('+')?'OVER_2_5':'NO_BET'}
+     {name:'Total buts 2.5',options:['OVER_2_5','NO_BET'],current:goals25.startsWith('+')?'OVER_2_5':'NO_BET'},
+     {name:'Les deux équipes marquent',options:['BTTS_YES','NO_BET'],current:btts.startsWith('Oui')?'BTTS_YES':'NO_BET'}
     ]
    };
    try{
