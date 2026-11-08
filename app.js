@@ -29,7 +29,7 @@ async function loadSportScoreLive(force=false){
 }
 function mergeSportScoreLive(snapshot){
  if(!snapshot||!Array.isArray(snapshot.matches))return {confirmed:0,conflicts:0};
- let confirmed=0,conflicts=0;
+ let confirmed=0,conflicts=0,changed=0;
  const updatedAt=Date.parse(snapshot.updated||'')||snapshot.at||Date.now();
  for(const row of snapshot.matches){
   const home=String(row.home||row.home_team?.name||'').trim(),away=String(row.away||row.away_team?.name||'').trim();
@@ -38,6 +38,7 @@ function mergeSportScoreLive(snapshot){
   const candidates=matches.filter(m=>providerNorm(m.home)===providerNorm(home)&&providerNorm(m.away)===providerNorm(away));
   const match=candidates.find(m=>!Number.isNaN(when)&&Math.abs(new Date(m.date).getTime()-when)<5*3600000)|| (candidates.length===1?candidates[0]:null);
   if(!match)continue;
+  const before=JSON.stringify([match.homeScore,match.awayScore,match.status,match.live,match.finished,match.scoreConflict]);
   const status=sportScoreStatus(row.status||row.status_text),hs=row.home_score??row.score?.home??null,as=row.away_score??row.score?.away??null;
   if(!match.providers)match.providers=['ESPN'];
   match.sportScoreSlug=row.slug||match.sportScoreSlug||'';
@@ -46,7 +47,7 @@ function mergeSportScoreLive(snapshot){
   if(match.scoreConflict&&hs!==null&&as!==null&&Number(hs)===Number(match.homeScore)&&Number(as)===Number(match.awayScore))delete match.scoreConflict;
   if(hs!==null&&as!==null&&match.homeScore!==null&&match.awayScore!==null&&(Number(hs)!==Number(match.homeScore)||Number(as)!==Number(match.awayScore))){
    match.scoreConflict={espn:[match.homeScore,match.awayScore],sportScore:[Number(hs),Number(as)],updatedAt};
-   conflicts++;continue;
+   conflicts++;if(before!==JSON.stringify([match.homeScore,match.awayScore,match.status,match.live,match.finished,match.scoreConflict]))changed++;continue;
   }
   if(hs!==null&&as!==null&&(match.homeScore===null||match.awayScore===null||status==='LIVE')){
    match.homeScore=Number(hs);match.awayScore=Number(as);
@@ -56,8 +57,9 @@ function mergeSportScoreLive(snapshot){
   if(row.home_logo&&!match.homeLogo)match.homeLogo=row.home_logo;
   if(row.away_logo&&!match.awayLogo)match.awayLogo=row.away_logo;
   confirmed++;
+  if(before!==JSON.stringify([match.homeScore,match.awayScore,match.status,match.live,match.finished,match.scoreConflict]))changed++;
  }
- return {confirmed,conflicts};
+ return {confirmed,conflicts,changed};
 }
 
 const API_LEAGUE_CODES={'premier league':'eng.1','championship':'eng.2','la liga':'esp.1','laliga':'esp.1','la liga 2':'esp.2','bundesliga':'ger.1','serie a':'ita.1','ligue 1':'fra.1','eredivisie':'ned.1','primeira liga':'por.1','super lig':'tur.1','eliteserien':'nor.1','allsvenskan':'swe.1','super league':'sui.1','saudi pro league':'ksa.1','pro league':'ksa.1','czech liga':'cze.1','fortuna liga':'cze.1','major league soccer':'usa.1','liga i':'rou.1','russian premier league':'rus.1','premier league':'eng.1','chinese super league':'chn.1','j1 league':'jpn.1','brasileirao serie a':'bra.1','serie a':'ita.1','liga profesional argentina':'arg.1','liga profesional':'arg.1','liga mx':'mex.1','uefa champions league':'uefa.champions','uefa europa league':'uefa.europa','uefa conference league':'uefa.europa.conf','afc champions league':'afc.champions','afc champions league elite':'afc.champions','africa cup of nations':'caf.nations','fifa world cup':'fifa.world','world cup':'fifa.world','european championship':'uefa.euro','uefa nations league':'uefa.nations'};
@@ -667,7 +669,7 @@ function updateLiveEvent(m,event){const comp=event.competitions?.[0]||{},teams=c
 async function pollLiveScores(){if(!matches.length)return;const now=Date.now(),groups=new Map();for(const m of matches){if(m.apiFootballId||String(m.code||'').startsWith('api-football:'))continue;const kick=new Date(m.date).getTime();if(!m.code||m.finished||kick>now+8*3600000||kick<now-4*3600000)continue;const day=new Date(m.date).toISOString().slice(0,10).replace(/-/g,'');const key=m.code+'|'+day;if(!groups.has(key))groups.set(key,{code:m.code,day})}
  const requests=[...groups.values()];let cursor=0;const settled=[];const workers=Array.from({length:5},async()=>{while(true){const i=cursor++;if(i>=requests.length)break;const g=requests[i];try{settled[i]={status:'fulfilled',value:await get(API+g.code+'/scoreboard?dates='+g.day+'&limit=100&region=fr&lang=fr',11000)}}catch(error){settled[i]={status:'rejected',reason:error}}}});await Promise.all(workers);const results=settled;
  let changed=false;results.forEach(r=>{if(r.status!=='fulfilled')return;for(const event of r.value.events||[]){const m=matches.find(x=>x.id===String(event.id));if(!m)continue;const before=[m.status,m.homeScore,m.awayScore,m.periodDetail].join('|');updateLiveEvent(m,event);const after=[m.status,m.homeScore,m.awayScore,m.periodDetail].join('|');if(before!==after)changed=true}});
- const sportScore=await loadSportScoreLive().catch(error=>{console.warn('SportScore live indisponible',error?.message||error);return null});const crossCheck=mergeSportScoreLive(sportScore);if(crossCheck.confirmed)changed=true;if(changed){render();renderLive();renderPersonalizedHome();localMatchAlerts()}const active=matches.filter(m=>m.live).length;const el=$('live-indicator');if(el)el.textContent=active?active+' match'+(active>1?'s':'')+' en cours':'Suivi en direct activé';}
+ const sportScore=await loadSportScoreLive().catch(error=>{console.warn('SportScore live indisponible',error?.message||error);return null});const crossCheck=mergeSportScoreLive(sportScore);if(crossCheck.changed)changed=true;if(changed){render();renderLive();renderPersonalizedHome();localMatchAlerts()}const active=matches.filter(m=>m.live).length;const el=$('live-indicator');if(el)el.textContent=active?active+' match'+(active>1?'s':'')+' en cours':'Suivi en direct activé';}
 async function loadEspnFixtures(){
  const today=new Date();today.setUTCHours(0,0,0,0);
  const pastFrom=new Date(today);pastFrom.setUTCDate(pastFrom.getUTCDate()-7);
