@@ -19,12 +19,14 @@ const { chromium } = require('playwright');
     {id:'old-8',utcDate:new Date(now-8*86400000).toISOString(),status:'FINISHED',competition:{name:'Premier League',code:'ESPN-eng.1'},homeTeam:{id:'103',name:'City Test'},awayTeam:{id:'101',name:'Test FC'},score:{fullTime:{home:1,away:1}}},
     {id:'old-9',utcDate:new Date(now-9*86400000).toISOString(),status:'FINISHED',competition:{name:'Premier League',code:'ESPN-eng.1'},homeTeam:{id:'103',name:'City Test'},awayTeam:{id:'102',name:'United Test'},score:{fullTime:{home:1,away:1}}},
     {id:'old-10',utcDate:new Date(now-10*86400000).toISOString(),status:'FINISHED',competition:{name:'Premier League',code:'ESPN-eng.1'},homeTeam:{id:'101',name:'Test FC'},awayTeam:{id:'103',name:'City Test'},score:{fullTime:{home:1,away:2}}},
+    {id:'live-1',utcDate:new Date(now-45*60000).toISOString(),status:'IN_PLAY',competition:{name:'Premier League',code:'ESPN-eng.1'},homeTeam:{id:'301',name:'Live Test FC'},awayTeam:{id:'302',name:'Live United'},score:{fullTime:{home:1,away:0}}},
     {id:'future-1',utcDate:new Date(now+15*60000).toISOString(),status:'SCHEDULED',competition:{name:'Premier League',code:'ESPN-eng.1'},homeTeam:{id:'101',name:'Test FC',logo:'https://example.com/test-fc.png'},awayTeam:{id:'102',name:'United Test',logo:'https://example.com/united-test.png'},score:{fullTime:{home:null,away:null}}},
     {id:'national-1',utcDate:new Date(now+30*60000).toISOString(),status:'SCHEDULED',competition:{name:'Coupe d’Afrique',code:'ESPN-caf.nations'},homeTeam:{id:'201',name:'Bénin',abbreviation:'BEN'},awayTeam:{id:'202',name:'Nigeria',abbreviation:'NGA'},score:{fullTime:{home:null,away:null}}}
   ];
   await page.route('**/matches.json', route => route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({generatedAt:new Date().toISOString(),matches:fixtures})}));
   await page.route('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2', route => route.fulfill({status:200,contentType:'application/javascript',body:'/* mocked Supabase CDN */'}));
   await page.route('https://site.api.espn.com/**', route => route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({events:[],articles:[],items:[],leaders:[],children:[],entries:[]})}));
+  await page.route('https://sportscore.com/**', route => route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({matches:[],updated:new Date().toISOString()})}));
   await page.route('**/summary?event=*', route => route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({
     header:{competitions:[{competitors:[{homeAway:'home',score:'1',team:{displayName:'Test FC'}},{homeAway:'away',score:'0',team:{displayName:'United Test'}}],status:{type:{state:'pre',detail:'Scheduled'}}}]},
     boxscore:{teams:[
@@ -36,6 +38,8 @@ const { chromium } = require('playwright');
   await page.goto('http://127.0.0.1:4173/', {waitUntil:'networkidle'});
   await page.locator('#home-matches .match').first().waitFor({state:'visible',timeout:15000});
   if (!(await page.locator('#home-matches .match').count())) throw new Error('Home page did not render match cards');
+  const liveMinuteText = await page.locator('#home-matches .match').filter({hasText:'Live Test FC'}).locator('.state').innerText();
+  if (!liveMinuteText.includes('~45′')) throw new Error('Live clock must show the elapsed 45th minute without rounding up early: '+liveMinuteText);
   await page.locator('#personalized-home .personalized-matches > div').first().waitFor({state:'visible',timeout:5000});
   const favoriteFirst = await page.locator('#personalized-home .personalized-matches > div').first().innerText();
   if (!favoriteFirst.includes('Test FC') || !favoriteFirst.includes('United Test')) throw new Error('Personalized home must prioritize the upcoming favorite-team fixture: '+favoriteFirst);
