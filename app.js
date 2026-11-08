@@ -70,8 +70,16 @@ function matchEventLabel(item){
 }
 function matchFromSummary(data,base){
  const c=data?.header?.competitions?.[0]||data?.competitions?.[0]||{},ts=c.competitors||[];
- if(!ts.length)return base;
- const h=ts.find(x=>x.homeAway==="home")||ts[0],a=ts.find(x=>x.homeAway==="away")||ts[1],st=c.status?.type||data?.header?.status?.type||{};
+ if(ts.length<2)return base;
+ const h=ts.find(x=>x.homeAway==="home")||ts[0],a=ts.find(x=>x.homeAway==="away")||ts[1];
+ const hTeam=h?.team||h,aTeam=a?.team||a;
+ const hid=h?.id||hTeam?.id,aid=a?.id||aTeam?.id;
+ const normName=value=>String(value||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");
+ if(base.homeId&&hid&&String(base.homeId)!==String(hid))return base;
+ if(base.awayId&&aid&&String(base.awayId)!==String(aid))return base;
+ if((!base.homeId||!hid)&&normName(base.home)!==normName(hTeam.displayName||hTeam.name))return base;
+ if((!base.awayId||!aid)&&normName(base.away)!==normName(aTeam.displayName||aTeam.name))return base;
+ const st=c.status?.type||data?.header?.status?.type||{};
  const next={...base};
  if(h?.score!==undefined&&h?.score!==null)next.homeScore=Number(h.score);
  if(a?.score!==undefined&&a?.score!==null)next.awayScore=Number(a.score);
