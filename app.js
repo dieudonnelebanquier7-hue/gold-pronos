@@ -333,8 +333,11 @@ async function enableBackgroundPush(){
   const data=subscription.toJSON(),keys=data.keys||{};
   const {error}=await db.from('push_subscriptions').upsert({user_id:user.id,endpoint:subscription.endpoint,p256dh:keys.p256dh,auth:keys.auth,user_agent:navigator.userAgent,updated_at:new Date().toISOString()},{onConflict:'endpoint'});
   if(error)throw error;
-  if(status)status.textContent='Notifications en arrière-plan activées sur cet appareil. Les alertes serveur seront disponibles dès que la programmation des événements sera configurée.';
-  toast('Abonnement push enregistré.');
+  const {error:prefError}=await db.from('notification_preferences').upsert({user_id:user.id,enabled:true,timezone:readAppSettings().timezone||'Africa/Porto-Novo',updated_at:new Date().toISOString()},{onConflict:'user_id'});
+  if(prefError)throw prefError;
+  await loadAccountFeatures();
+  if(status)status.textContent='Notifications en arrière-plan activées. Les événements sont surveillés automatiquement chaque minute. Tu peux personnaliser les alertes dans les paramètres.';
+  toast('Abonnement push et alertes serveur activés.');
  }catch(error){if(status)status.textContent='Activation impossible : '+(error?.message||'Erreur technique.');}
  finally{button.disabled=false}
 }
