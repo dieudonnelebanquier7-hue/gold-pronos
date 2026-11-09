@@ -168,7 +168,7 @@ function officialLineups(data){
   }
   const starters=explicit.length?entries:entries.filter(p=>p.starter===true||p.isStarter===true||p.athlete?.starter===true||p.athlete?.isStarter===true||String(p.lineupStatus||p.athlete?.lineupStatus||'').toLowerCase()==='starter');
   const uniq=[...new Map(starters.map(p=>{const z=p.athlete||p.player||p;return [z.id||z.displayName||z.fullName||z.name,z]})).values()];
-  const mapPlayer=p=>{const z=p.athlete||p.player||p;return {name:z.displayName||z.fullName||z.shortName||z.name||'Joueur',number:z.jersey??z.number??p.number??'',position:z.position?.abbreviation||z.position?.displayName||z.pos||p.position||''}};
+  const mapPlayer=p=>{const z=p.athlete||p.player||p,stats=z.statistics?.[0]||p.statistics?.[0]||{};return {name:z.displayName||z.fullName||z.shortName||z.name||'Joueur',number:z.jersey??z.number??p.number??'',position:z.position?.abbreviation||z.position?.displayName||z.pos||p.position||'',rating:z.rating??p.rating??stats.games?.rating??stats.rating??''}};
   const substitutes=(Array.isArray(g.substitutes)?g.substitutes:[]).map(mapPlayer);
   if(uniq.length>=11)groups.push({team,teamId:g.team?.id||g.team?.uid||null,formation:g.formation||'',coach:g.coach?.name||g.coach?.displayName||'',players:uniq.slice(0,11).map(mapPlayer),substitutes});
  }
@@ -181,7 +181,23 @@ function lineupsMatchFixture(groups,m){
  const away=groups.find(g=>(m.awayId&&g.teamId&&String(m.awayId)===String(g.teamId))||norm(g.team)===norm(m.away));
  return !!home&&!!away&&home!==away;
 }
-function lineupHtml(groups){return '<h3>Compositions officielles</h3><p class="muted">Titulaires publiés par la source de la rencontre.</p><div class="stats-grid">'+groups.map(g=>'<div class="stat-card"><b>'+safe(g.team)+'</b>'+(g.formation?'<p class="muted">Formation : '+safe(g.formation)+'</p>':'')+(g.coach?'<p class="muted">Entraîneur : '+safe(g.coach)+'</p>':'')+'<h4>Titulaires</h4><ol>'+g.players.map(p=>'<li>'+(p.number?safe(p.number)+' · ':'')+safe(p.name)+(p.position?' · '+safe(p.position):'')+'</li>').join('')+'</ol>'+(g.substitutes?.length?'<h4>Remplaçants</h4><ul>'+g.substitutes.map(p=>'<li>'+(p.number?safe(p.number)+' · ':'')+safe(p.name)+(p.position?' · '+safe(p.position):'')+'</li>').join('')+'</ul>':'')+'</div>').join('')+'</div>'}
+function lineupPositionGroup(position){
+ const p=String(position||'').toLowerCase();
+ if(/goalkeeper|keeper|^gk$|^por$/.test(p))return 'Gardiens';
+ if(/defend|^def$|^d$|back|centre.?back|full.?back/.test(p))return 'Défenseurs';
+ if(/midfield|^mid$|^m$|wing.?half/.test(p))return 'Milieux';
+ if(/forward|attacker|striker|winger|^fwd$|^fw$|^att$|^f$/.test(p))return 'Attaquants';
+ return '';
+}
+function lineupHtml(groups){
+ const player=p=>'<span class="md-lineup-player"><small>'+(p.number?safe(p.number):'—')+'</small><b>'+safe(p.name)+'</b>'+(p.position?'<em>'+safe(p.position)+'</em>':'')+(p.rating!==''&&p.rating!=null?'<strong>'+safe(p.rating)+'</strong>':'')+'</span>';
+ return '<h3>Compositions officielles</h3><p class="md-note">Titulaires publiés par la source. Les notes des joueurs ne sont affichées que si le fournisseur les transmet.</p><div class="md-lineup-teams">'+groups.map(g=>{
+  const buckets=['Gardiens','Défenseurs','Milieux','Attaquants'].map(label=>({label,players:g.players.filter(p=>lineupPositionGroup(p.position)===label)}));
+  const known=buckets.reduce((n,b)=>n+b.players.length,0);
+  const pitch=known>=8?'<div class="md-lineup-pitch">'+buckets.filter(b=>b.players.length).map(b=>'<div class="md-lineup-line"><small>'+b.label+'</small><div>'+b.players.map(player).join('')+'</div></div>').join('')+'</div>':'<ol class="md-lineup-list">'+g.players.map(p=>'<li>'+player(p)+'</li>').join('')+'</ol>';
+  return '<section class="md-stat-card"><div class="md-lineup-title"><b>'+safe(g.team)+'</b>'+(g.formation?'<strong>'+safe(g.formation)+'</strong>':'')+'</div>'+(g.coach?'<p class="md-note">Entraîneur : '+safe(g.coach)+'</p>':'')+pitch+(g.substitutes?.length?'<h4>Remplaçants</h4><div class="md-substitutes">'+g.substitutes.map(player).join('')+'</div>':'')+'</section>';
+ }).join('')+'</div>';
+}
 async function pollOfficialLineups(){
  const now=Date.now(),due=matches.filter(m=>{
   const kick=new Date(m.date).getTime(),recentFinished=m.finished&&now-kick<=6*3600000,soon=!m.live&&!m.finished&&kick-now<=75*60000&&kick-now>0;
@@ -297,8 +313,9 @@ async function loadMatchStandings(m){
  let rows=matchStandingsCache.get(code);if(!rows){const urls=['https://site.api.espn.com/apis/v2/sports/soccer/'+encodeURIComponent(code)+'/standings','https://site.web.api.espn.com/apis/v2/sports/soccer/'+encodeURIComponent(code)+'/standings'];for(const url of urls){try{const d=await get(url,12000),found=standingsRows(d);if(found.length){rows=found;matchStandingsCache.set(code,rows);break}}catch(_){}}}
  if(!rows?.length){if(current())panel.insertAdjacentHTML('beforeend','<div class="md-empty">Classement officiel non communiqué pour cette compétition.</div>');return}
  const rank=e=>e?(e.rank??e.position??stat(e,['rank'])):'—';
- const card=(e,name)=>'<article class="md-standing-team"><b>'+safe(name)+'</b><strong>'+(rank(e)==='—'?'—':'#'+safe(rank(e)))+'</strong><span>'+(e?'Pts '+safe(stat(e,['points']))+' · '+safe(stat(e,['gamesplayed']))+' MJ':'Non classé dans la table reçue')+'</span><small>'+(e?'V '+safe(stat(e,['wins']))+' · N '+safe(stat(e,['ties']))+' · D '+safe(stat(e,['losses'])):'')+'</small></article>';
- if(current())panel.insertAdjacentHTML('beforeend','<section class="md-stat-card md-match-standings"><h3>Classement actuel · '+safe(m.competition||m.league)+'</h3><div class="md-standing-grid">'+card(matchTeamStandingRow(rows,m,'home'),m.home)+card(matchTeamStandingRow(rows,m,'away'),m.away)+'</div><p class="md-note">Classement fourni par ESPN. Les positions absentes ne sont pas estimées.</p></section>');
+ rows.sort((a,b)=>Number(rank(a)||999)-Number(rank(b)||999));
+ const table='<div class="table-wrap md-standing-table"><table><thead><tr><th>#</th><th>Équipe</th><th>MJ</th><th>Diff.</th><th>Pts</th></tr></thead><tbody>'+rows.map((e,i)=>{const name=teamName(e),isTarget=!!matchTeamStandingRow([e],m,'home')||!!matchTeamStandingRow([e],m,'away');return '<tr class="'+(isTarget?'md-standing-highlight':'')+'"><td>'+(rank(e)==='—'?i+1:rank(e))+'</td><td><b>'+safe(name)+'</b></td><td>'+safe(stat(e,['gamesplayed']))+'</td><td>'+safe(stat(e,['pointdifferential','goaldifference','gd']))+'</td><td><b>'+safe(stat(e,['points']))+'</b></td></tr>'}).join('')+'</tbody></table></div>';
+ if(current())panel.innerHTML='<section class="md-stat-card md-match-standings"><h3>Classement · '+safe(m.competition||m.league)+'</h3>'+table+'<p class="md-note">Source : ESPN. Les clubs concernés par ce match sont surlignés. Les valeurs absentes ne sont pas estimées.</p></section>';
 }
 async function openMatch(m){
  if(window.goldPronosDetailTimer)clearInterval(window.goldPronosDetailTimer);
