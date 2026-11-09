@@ -32,6 +32,9 @@ const { chromium } = require('playwright');
     boxscore:{teams:[
       {team:{displayName:'Test FC'},statistics:[{name:'fouls',label:'Fouls',displayValue:'4'},{name:'wonCorners',label:'Corner Kicks',displayValue:'3'}]},
       {team:{displayName:'United Test'},statistics:[{name:'fouls',label:'Fouls',displayValue:'2'},{name:'wonCorners',label:'Corner Kicks',displayValue:'1'}]}
+    ],players:[
+      {team:{displayName:'Test FC'},statistics:[{athletes:[{athlete:{displayName:'Player Stats Test',position:{abbreviation:'FW'}},stats:['90','1','0']}]}]},
+      {team:{displayName:'United Test'},statistics:[{athletes:[{athlete:{displayName:'United Player Stats'},stats:['90','0','0']}]}]}
     ]},
     lineups:[
       {team:{name:'Test FC'},formation:'4-3-3',coach:{name:'Coach Test FC'},startXI:Array.from({length:11},(_,i)=>({player:{id:'home-'+i,name:'Test FC Player '+(i+1),number:i+1,pos:'MID'}})),substitutes:[{player:{id:'home-sub',name:'Test FC Substitute',number:12,pos:'DEF'}}]},
@@ -86,7 +89,10 @@ const { chromium } = require('playwright');
   if (!formPanel.includes('Forme récente')) throw new Error('Recent team form panel is missing: '+formPanel);
   await page.locator('#match-detail [data-md-tab="h2h"]').click();
   const h2hPanel = await page.locator('#match-detail [data-md-panel="h2h"]').innerText();
-  if (!h2hPanel.includes('Aucune confrontation') && !h2hPanel.includes('Confrontations disponibles')) throw new Error('Head-to-head panel is missing a clear data state: '+h2hPanel);
+  if (!h2hPanel.includes('Confrontations disponibles') || !h2hPanel.includes('2 – 0')) throw new Error('Verified head-to-head history was not loaded for the matching teams: '+h2hPanel);
+  await page.locator('#match-detail [data-md-tab="players"]').click();
+  const playerPanel = await page.locator('#match-detail [data-md-panel="players"]').innerText();
+  if (!playerPanel.includes('Player Stats Test')) throw new Error('Individual player statistics panel did not render the available official player data: '+playerPanel);
   await page.locator('#close-modal').click();
   await nationalCard.click();
   await page.locator('#match-modal:not([hidden])').waitFor({state:'visible',timeout:5000});
