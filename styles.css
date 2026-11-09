@@ -877,3 +877,5 @@ a{color:#f0cf65}
 #toast{background:#d4af37;color:#080a0e}
 .team-profile-card,.team-facts>div,.player-tile,.method-card,.settings-grid>div,.competition-item{background:#11151c;color:#f4f0e5;border-color:#34302a}
 @media(prefers-color-scheme:light){:root{color-scheme:dark}}
+
+.md-player-stat{display:grid;gap:4px;padding:10px 12px;margin:7px 0;border:1px solid var(--line);border-radius:10px;background:rgba(181,138,53,.07)}.md-player-stat>b{color:var(--gold);font-weight:850}.md-player-stat>span,.md-player-stat>small{color:var(--muted);line-height:1.5}.md-player-stat>small{font-size:12px;overflow-wrap:anywhere}
