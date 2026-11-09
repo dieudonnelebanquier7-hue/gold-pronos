@@ -875,14 +875,19 @@ async function loadEspnFixtures(){
  const today=new Date();today.setUTCHours(0,0,0,0);
  const pastFrom=new Date(today);pastFrom.setUTCDate(pastFrom.getUTCDate()-7);
  const futureTo=new Date(today);futureTo.setUTCDate(futureTo.getUTCDate()+14);
- const plus7=new Date(today);plus7.setUTCDate(plus7.getUTCDate()+7);
- const ymd=d=>d.toISOString().slice(0,10).replace(/-/g,'');
- // ESPN est plus fiable avec des fenêtres courtes qu'avec une requête de 21 jours.
- const windows=[{from:ymd(pastFrom),to:ymd(today)},{from:ymd(today),to:ymd(plus7)},{from:ymd(plus7),to:ymd(futureTo)}];
- const tasks=leagues.flatMap(([code,label])=>windows.map(w=>({code,label,...w})));
- const found=[];let cursor=0;
- const workers=Array.from({length:8},async()=>{while(true){const i=cursor++;if(i>=tasks.length)break;const {code,label,from,to}=tasks[i];try{const data=await get(API+code+'/scoreboard?dates='+from+'-'+to+'&limit=1000&region=fr&lang=fr',15000);for(const event of data.events||[]){const item=mapEvent(event,code,label);if(item.date&&item.home!=='Équipe inconnue'&&item.away!=='Équipe inconnue')found.push(item)}}catch(error){console.warn('Calendrier ESPN indisponible',code,from+'-'+to,error?.message||error)}}});
+ const dates=[];for(let d=new Date(pastFrom);d<=futureTo;d.setUTCDate(d.getUTCDate()+1))dates.push(d.toISOString().slice(0,10).replace(/-/g,''));
+ // ESPN a régressé sur les requêtes de plage avec tiret : une requête par jour est nécessaire.
+ const tasks=leagues.flatMap(([code,label])=>dates.map(date=>({code,label,date})));
+ const found=[];let cursor=0,failed=0;
+ const workers=Array.from({length:12},async()=>{while(true){
+  const i=cursor++;if(i>=tasks.length)break;
+  const {code,label,date}=tasks[i];
+  try{const data=await get(API+code+'/scoreboard?dates='+date+'&limit=1000&region=fr&lang=fr',12000);
+   for(const event of data.events||[]){const item=mapEvent(event,code,label);if(item.date&&item.home!=='Équipe inconnue'&&item.away!=='Équipe inconnue')found.push(item)}
+  }catch(error){failed++;console.warn('Calendrier ESPN indisponible',code,date,error?.message||error)}
+ }});
  await Promise.all(workers);
+ if(failed)console.warn('Collecte ESPN partielle :',failed,'requêtes journalières en échec sur',tasks.length);
  return [...new Map(found.map(m=>[String(m.id),m])).values()].sort((x,y)=>new Date(x.date)-new Date(y.date));
 }
 async function loadPreloadedFixtures(){
