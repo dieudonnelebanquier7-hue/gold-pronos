@@ -803,3 +803,12 @@ footer{color:#8f98a5!important}
  .md-panel{padding:4px 0 18px!important}
  .md-standing-grid{grid-template-columns:1fr!important}
 }
+
+/* Onglets et séries enrichis du centre de match */
+.md-series-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0}
+.md-series-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 12px;border:1px solid #354252;border-radius:10px;background:#111a25;color:#e8edf3;font-size:12px}
+.md-series-item b{color:#efc96d;font-size:16px;white-space:nowrap}
+.md-panel[hidden]{display:none!important}
+.md-tabs{scroll-behavior:smooth}
+.md-tabs button{touch-action:pan-x}
+@media(max-width:600px){.md-series-grid{grid-template-columns:1fr}.md-series-item{font-size:12px;padding:10px}}
