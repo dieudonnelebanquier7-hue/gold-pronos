@@ -274,7 +274,7 @@ function renderLive(){
   const key=m.apiFootballId?'api:'+m.apiFootballId:m.sportScoreId?'sportscore:'+m.sportScoreId:(providerNorm(m.home)+'|'+providerNorm(m.away)+'|'+Math.floor(new Date(m.date).getTime()/60000));
   if(!unique.has(key))unique.set(key,m);
  }
- const l=[...unique.values()].sort((a,b)=>displayCompetition(a).localeCompare(displayCompetition(b))||new Date(a.date)-new Date(b.date));
+ const l=[...unique.values()];
  if(!l.length){box.innerHTML='<div class="notice">Aucun match en direct confirmé par les sources à cet instant. Actualise pour vérifier les dernières données.</div>';return}
  l.forEach(m=>box.append(card(m)));
 }
