@@ -463,7 +463,7 @@ async function openMatch(m){
    const view={...supplement,match:m};
    for(const key of ['form','series']){const panel=box.querySelector('[data-md-panel="'+key+'"]');if(panel)panel.innerHTML=mdPanel(view,key);}
    if(!(providerData.statistics||[]).some(x=>(x.statistics||[]).length)){const panel=box.querySelector('[data-md-panel="stats"]');if(panel)panel.innerHTML=mdPanel(view,'stats');}
-   if(!(providerData.players||[]).some(x=>(x.players||[]).length)){const panel=box.querySelector('[data-md-panel="players"]');if(panel)panel.innerHTML=mdPanel(view,'players');}
+   const espnPlayerGroups=supplement?.boxscore?.players||[];if(espnPlayerGroups.some(g=>(g.statistics||[]).some(group=>(group.athletes||[]).length))||!(providerData.players||[]).some(x=>(x.players||[]).length)){const panel=box.querySelector('[data-md-panel="players"]');if(panel)panel.innerHTML=mdPanel(view,'players');}
    if(!(providerData.events||[]).length){const panel=box.querySelector('[data-md-panel="events"]');if(panel)panel.innerHTML=mdPanel(view,'events');}
    if(!(providerData.lineups||[]).length){const panel=box.querySelector('[data-md-panel="lineups"]');if(panel)panel.innerHTML=mdPanel(view,'lineups');}
    const h2hPanel=box.querySelector('[data-md-panel="h2h"]');if(h2hPanel)h2hPanel.innerHTML=headToHead(m);
