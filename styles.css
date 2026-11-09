@@ -762,3 +762,44 @@ footer{color:#8f98a5!important}
 
 /* Match sheet standings */
 .md-standing-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}.md-standing-team{display:grid;grid-template-columns:1fr auto;gap:6px 10px;align-items:center;padding:12px;border:1px solid var(--line,#303b49);border-radius:10px;background:rgba(255,255,255,.025);min-width:0}.md-standing-team>b{font-size:13px;overflow-wrap:anywhere}.md-standing-team>strong{color:#e4c16d;font-size:18px}.md-standing-team>span,.md-standing-team>small{grid-column:1/-1;color:var(--muted,#a5a9b2);font-size:12px}.md-match-standings{margin-top:14px}@media(max-width:520px){.md-standing-grid{grid-template-columns:1fr}}
+
+/* Match Center mobile — identité GOLD PRONOS noir & or */
+#match-modal{padding:0!important;background:rgba(3,6,10,.94)!important;place-items:stretch!important}
+#match-modal .modal-card{position:relative!important;box-sizing:border-box!important;width:min(920px,100%)!important;height:min(94vh,980px)!important;max-height:94vh!important;overflow-y:auto!important;margin:auto!important;padding:18px!important;border:1px solid #343b47!important;border-radius:20px!important;background:#0d131c!important;color:#f4f1e9!important;overscroll-behavior:contain}
+#match-modal .close{position:sticky!important;float:right!important;z-index:20!important;top:8px!important;margin:0 0 -42px auto!important;background:#202936!important;color:#f0d18b!important;border:1px solid #3a4655!important}
+.md-head{margin:-18px -18px 0!important;padding:20px 18px 16px!important;background:linear-gradient(145deg,#171e29,#25252a 70%,#47391f)!important;border-bottom:1px solid #55462c!important}
+.md-head>.eyebrow{color:#e8c574!important;font-weight:850!important;letter-spacing:1.4px!important}
+.md-scoreboard{display:grid!important;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)!important;align-items:center!important;gap:14px!important;margin:16px auto!important;max-width:650px!important}
+.md-side{min-width:0!important;display:flex!important;flex-direction:column!important;align-items:center!important;gap:9px!important;text-align:center!important}
+.md-side b{font-size:clamp(12px,2.5vw,17px)!important;line-height:1.25!important;color:#f6f3eb!important}
+.md-score{font-size:clamp(30px,7vw,46px)!important;font-weight:950!important;line-height:1!important;color:#efc96d!important;text-align:center!important;white-space:nowrap!important}
+.md-score small{display:block!important;margin-top:9px!important;font-size:11px!important;letter-spacing:1px!important;color:#ff7777!important;font-weight:900!important}
+.md-meta{font-size:11px!important;color:#aeb6c2!important;text-align:center!important;line-height:1.6!important}
+.md-tabs{position:sticky!important;top:0!important;z-index:12!important;display:flex!important;gap:7px!important;overflow-x:auto!important;margin:0 -18px 14px!important;padding:11px 14px!important;background:#0d131c!important;border-bottom:1px solid #303a49!important;scrollbar-width:none!important}
+.md-tabs::-webkit-scrollbar{display:none!important}
+.md-tabs button{flex:0 0 auto!important;min-height:38px!important;padding:9px 14px!important;border-radius:9px!important;background:#192330!important;border:1px solid #354252!important;color:#c5ccd5!important;font-size:12px!important;font-weight:850!important;white-space:nowrap!important}
+.md-tabs button.active{background:linear-gradient(135deg,#e7c777,#b98b35)!important;border-color:#e7c777!important;color:#17130b!important}
+.md-panel{padding:4px 0 20px!important;color:#edf0f4!important}
+.md-panel h3{color:#edcf83!important}
+.md-stat-card,.md-info-card{margin:12px 0!important;padding:15px!important;border:1px solid #303b49!important;border-radius:13px!important;background:#151e29!important;color:#edf0f4!important}
+.md-note{color:#aab4c1!important;font-size:12px!important;line-height:1.6!important}
+.md-form-row{border-bottom:1px solid #303b49!important;color:#e9edf2!important}
+.md-empty{background:#131c27!important;border-color:#3c4857!important;color:#b8c1cd!important}
+.md-standing-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important}
+.md-standing-team{background:#111a25!important;border-color:#354252!important}
+@media(max-width:600px){
+ #match-modal{padding:0!important}
+ #match-modal .modal-card{width:100%!important;height:100dvh!important;max-height:100dvh!important;min-height:100dvh!important;margin:0!important;padding:0 12px 20px!important;border:0!important;border-radius:0!important}
+ #match-modal .close{top:8px!important;margin:8px 0 -42px auto!important}
+ .md-head{margin:0 -12px 0!important;padding:28px 12px 15px!important}
+ .md-scoreboard{gap:5px!important;margin:17px auto!important}
+ .md-side b{max-width:112px!important;font-size:11px!important}
+ .md-side .gp-crest.detail-crest{width:48px!important;height:48px!important;flex-basis:48px!important}
+ .md-side .gp-crest.detail-flag{width:52px!important;height:35px!important;flex-basis:52px!important}
+ .md-score{font-size:32px!important}
+ .md-score small{font-size:10px!important}
+ .md-tabs{margin:0 -12px 12px!important;padding:10px 12px!important}
+ .md-tabs button{padding:9px 12px!important;font-size:11px!important}
+ .md-panel{padding:4px 0 18px!important}
+ .md-standing-grid{grid-template-columns:1fr!important}
+}
