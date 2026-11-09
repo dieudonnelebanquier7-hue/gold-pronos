@@ -195,7 +195,7 @@ function lineupHtml(groups){
   const buckets=['Gardiens','Défenseurs','Milieux','Attaquants'].map(label=>({label,players:g.players.filter(p=>lineupPositionGroup(p.position)===label)}));
   const known=buckets.reduce((n,b)=>n+b.players.length,0);
   const pitch=known>=8?'<div class="md-lineup-pitch">'+buckets.filter(b=>b.players.length).map(b=>'<div class="md-lineup-line"><small>'+b.label+'</small><div>'+b.players.map(player).join('')+'</div></div>').join('')+'</div>':'<ol class="md-lineup-list">'+g.players.map(p=>'<li>'+player(p)+'</li>').join('')+'</ol>';
-  return '<section class="md-stat-card"><div class="md-lineup-title"><b>'+safe(g.team)+'</b>'+(g.formation?'<strong>'+safe(g.formation)+'</strong>':'')+'</div>'+(g.coach?'<p class="md-note">Entraîneur : '+safe(g.coach)+'</p>':'')+pitch+(g.substitutes?.length?'<h4>Remplaçants</h4><div class="md-substitutes">'+g.substitutes.map(player).join('')+'</div>':'')+'</section>';
+  return '<section class="md-stat-card"><div class="md-lineup-title"><b>'+safe(g.team)+'</b>'+(g.formation?'<strong>Formation : '+safe(g.formation)+'</strong>':'')+'</div>'+(g.coach?'<p class="md-note">Entraîneur : '+safe(g.coach)+'</p>':'')+pitch+(g.substitutes?.length?'<h4>Remplaçants</h4><div class="md-substitutes">'+g.substitutes.map(player).join('')+'</div>':'')+'</section>';
  }).join('')+'</div>';
 }
 async function pollOfficialLineups(){
