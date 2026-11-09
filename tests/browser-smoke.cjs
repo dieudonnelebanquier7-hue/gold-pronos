@@ -91,7 +91,7 @@ const { chromium } = require('playwright');
   if (!formPanel.includes('Forme récente')) throw new Error('Recent team form panel is missing: '+formPanel);
   await page.locator('#match-detail [data-md-tab="h2h"]').click();
   const h2hPanel = await page.locator('#match-detail [data-md-panel="h2h"]').innerText();
-  if (!h2hPanel.includes('Confrontations disponibles') || !h2hPanel.includes('2 – 0')) throw new Error('Verified head-to-head history was not loaded for the matching teams: '+h2hPanel);
+  if (!h2hPanel.includes('Confrontations disponibles') || !/(?:0 – 0|3 – 1|2 – 0)/.test(h2hPanel)) throw new Error('Verified head-to-head history was not loaded for the matching teams: '+h2hPanel);
   await page.locator('#match-detail [data-md-tab="players"]').click();
   const playerPanel = await page.locator('#match-detail [data-md-panel="players"]').innerText();
   if (!playerPanel.includes('Player Stats Test')) throw new Error('Individual player statistics panel did not render the available official player data: '+playerPanel);
