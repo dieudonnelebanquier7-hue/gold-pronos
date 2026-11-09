@@ -26,7 +26,7 @@ const { chromium } = require('playwright');
   await page.route('**/matches.json', route => route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({generatedAt:new Date().toISOString(),matches:fixtures})}));
   await page.route('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2', route => route.fulfill({status:200,contentType:'application/javascript',body:'/* mocked Supabase CDN */'}));
   await page.route('https://site.api.espn.com/**', route => route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({events:[],articles:[],items:[],leaders:[],children:[],entries:[]})}));
-  await page.route('https://sportscore.com/**', route => route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({matches:[],updated:new Date().toISOString()})}));
+  await page.route('https://sportscore.com/**', route => route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({fixtures:[{id:'ss-live-1',slug:'global-live-fc-vs-world-live-united',home:'Global Live FC',away:'World Live United',home_score:2,away_score:1,status:'live',status_text:'30\u2032',time:new Date(now-50*60000).toISOString(),competition:'International Cup'}],updated:new Date().toISOString()})}));
   await page.route('**/summary?event=*', route => route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({
     header:{competitions:[{competitors:[{homeAway:'home',score:'1',team:{displayName:'Test FC'}},{homeAway:'away',score:'0',team:{displayName:'United Test'}}],status:{type:{state:'pre',detail:'Scheduled'}}}]},
     boxscore:{teams:[
@@ -47,6 +47,8 @@ const { chromium } = require('playwright');
   if (!(await liveCard.count())) throw new Error('Live page did not show the mocked live fixture. Home: '+(await page.locator('#home-matches').innerText())+' | Live page: '+(await page.locator('#live-matches').innerText()));
   const liveMinuteText = await liveCard.locator('.state').innerText();
   if (!liveMinuteText.includes('~45′')) throw new Error('Live clock must show the elapsed 45th minute without rounding up early: '+liveMinuteText);
+  const liveText = await page.locator('#live-matches').innerText();
+  if (!liveText.includes('Global Live FC') || !liveText.includes('World Live United')) throw new Error('Live page must add live fixtures supplied outside the ESPN calendar: '+liveText);
   await page.locator('#personalized-home .personalized-matches > div').first().waitFor({state:'visible',timeout:5000});
   const favoriteFirst = await page.locator('#personalized-home .personalized-matches > div').first().innerText();
   if (!favoriteFirst.includes('Test FC') || !favoriteFirst.includes('United Test')) throw new Error('Personalized home must prioritize the upcoming favorite-team fixture: '+favoriteFirst);

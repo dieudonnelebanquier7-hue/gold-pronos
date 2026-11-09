@@ -23,8 +23,8 @@ const SPORT_SCORE_URL='https://sportscore.com/api/v1/fixtures/';
 const SPORT_SCORE_CACHE_KEY='gold-pronos-sportscore-live-v1';
 function sportScoreStatus(value){
  const v=String(value||'').toLowerCase();
- if(/live|in.?play|1st half|2nd half|half.?time|extra time|penalt/.test(v))return 'LIVE';
- if(/finish|full.?time|ended|after.?extra/.test(v))return 'FINISHED';
+ if(/live|in.?play|in.?progress|playing|1st half|first half|2nd half|second half|half.?time|extra time|penalt|^1h$|^2h$|^ht$|^et$|^p$/.test(v))return 'LIVE';
+ if(/finish|full.?time|ended|after.?extra|^ft$|^aet$|^pen$/.test(v))return 'FINISHED';
  return 'SCHEDULED';
 }
 async function loadSportScoreLive(force=false){
@@ -45,7 +45,7 @@ function mergeSportScoreLive(snapshot){
  for(const row of snapshot.matches){
   const home=String(typeof row.home==='string'?row.home:row.home?.name||row.home_team?.name||row.teams?.home?.name||'').trim();
   const away=String(typeof row.away==='string'?row.away:row.away?.name||row.away_team?.name||row.teams?.away?.name||'').trim();
-  const when=Date.parse(row.time||row.date||row.kickoff||row.fixture?.date||'');
+  const when=Date.parse(row.time||row.date||row.utcDate||row.kickoff||row.fixture?.date||'');
   const rawStatus=row.status?.short||row.status?.type||row.status||row.status_text||row.status_detail||'';
   const status=sportScoreStatus(rawStatus);
   const hs=row.home_score??row.score?.home??row.scores?.home??row.goals?.home??row.teams?.home?.score??null;
