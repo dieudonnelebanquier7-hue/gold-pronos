@@ -53,6 +53,8 @@
     selectors.forEach(id=>{const el=document.getElementById(id);if(el)el.value=current;});
   }
   function translateNode(node) {
+    // Player names are proper names: never translate words inside them (e.g. “Player Stats Test”).
+    if(node.parentElement?.closest('[data-md-panel="players"]'))return;
     if(!originalText.has(node))originalText.set(node,node.nodeValue);
     const next=translateText(originalText.get(node));
     if(node.nodeValue!==next)node.nodeValue=next;
