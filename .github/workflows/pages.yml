@@ -2,6 +2,17 @@ name: Deploy GOLD PRONOS
 on:
   push:
     branches: [main]
+    paths:
+      - 'index.html'
+      - 'app.js'
+      - 'auth.js'
+      - 'i18n.js'
+      - 'styles.css'
+      - 'sw.js'
+      - 'fetch-matches.cjs'
+      - 'manifest.webmanifest'
+      - 'icon.svg'
+      - '.github/workflows/pages.yml'
   workflow_dispatch:
   schedule:
     - cron: '0 * * * *'
