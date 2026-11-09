@@ -842,3 +842,38 @@ footer{color:#8f98a5!important}
 
 /* Catalogue mondial des compétitions */
 .world-competition-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:9px;margin:12px 0 22px}.world-competition{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 10px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:11px;background:#fff}.world-competition b{display:block;font-size:13px;line-height:1.35}.world-competition small{display:block;color:var(--muted);font-size:10px;margin-top:4px}.world-season{font-size:11px;font-weight:800;color:var(--green)}.world-features{grid-column:1/-1;border-top:1px solid var(--line);padding-top:6px}.catalog-count{grid-column:1/-1;color:var(--muted);font-size:12px;font-weight:800}
+
+
+/* GOLD PRONOS · thème noir et or harmonisé */
+:root{color-scheme:dark;--green:#d4af37;--green2:#f0cf65;--blue:#f0cf65;--ink:#f4f0e5;--muted:#b8b1a0;--bg:#080a0e;--line:#34302a;--white:#11151c;--gold:#d4af37}
+body{background:#080a0e;color:#f4f0e5}
+.top,.page,.modal-card,.tab,.match,.stat-card,.pick-card,.news-card,.leader-group,.source-card,.world-competition,.table-wrap,.competition,.filters input,.filters select,.auth-form input,.auth-form select,.settings-card,.community-card{background:#11151c;color:#f4f0e5;border-color:#34302a}
+.top{background:#0b0e13;border-bottom-color:#34302a}
+.brand,.brand b,footer b,.eyebrow,.leader-group li strong,.news-card a,.source-card a,.competition:hover{color:#d4af37}
+.mark,.tab.active{background:#d4af37;border-color:#d4af37;color:#080a0e}
+.hero{background:linear-gradient(120deg,#090b10,#17140c 58%,#29200b);border:1px solid #665321;color:#f7f1df}
+.hero .eyebrow,.hero h1 em{color:#f0cf65}
+.hero p,.hero-stat span,.hero-stat small{color:#e5ddc7}
+.hero-stat{background:#d4af3718;border-color:#d4af3745}
+.tab{color:#d8d0bd}
+.tab.vip{border-color:#8c702b;color:#f0cf65}
+.tab.active{color:#080a0e}
+.install,.ghost{background:#292313;color:#f0cf65;border:1px solid #665321}
+.match:hover,.world-competition:hover{background:#191a1b;border-color:#9b7c2e}
+.score,.detail-score{color:#f0cf65}
+.notice{background:#19170f;color:#e8dfc9;border-color:#5a4922}
+.loading,.intro,.league,.state,footer{color:#b8b1a0}
+.modal{background:#05070be8}
+.close{background:#292313;color:#f0cf65}
+th,.day-heading{background:#211c10;color:#f0cf65;border-color:#8c702b}
+tr,td,th{border-color:#34302a}
+.pick-card>strong{background:#292313;color:#f0cf65}
+.live-label{color:#ff7777}
+input,select,textarea{background:#0c1016;color:#f4f0e5;border-color:#454034}
+input::placeholder,textarea::placeholder{color:#938c7e}
+button{accent-color:#d4af37}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #d4af37;outline-offset:2px}
+a{color:#f0cf65}
+#toast{background:#d4af37;color:#080a0e}
+.team-profile-card,.team-facts>div,.player-tile,.method-card,.settings-grid>div,.competition-item{background:#11151c;color:#f4f0e5;border-color:#34302a}
+@media(prefers-color-scheme:light){:root{color-scheme:dark}}
