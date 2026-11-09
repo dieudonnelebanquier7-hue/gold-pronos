@@ -74,7 +74,7 @@ async function apiFootballRequest(body,ms=22000){
 function mapApiFootballFixture(x){
  const f=x.fixture||{},league=x.league||{},teams=x.teams||{},home=teams.home||{},away=teams.away||{},name=String(league.name||'Compétition');
  const code=API_LEAGUE_CODES[name.toLowerCase()]||('api-football:'+String(league.id||'unknown'));
- const statusCode=String(f.status?.short||'NS'),live=['1H','HT','2H','ET','BT','P','LIVE'].includes(statusCode),finished=['FT','AET','PEN'].includes(statusCode);
+ const statusCode=String(f.status?.short||'NS'),live=['1H','HT','2H','ET','BT','P','LIVE','INT','SUSP'].includes(statusCode),finished=['FT','AET','PEN'].includes(statusCode);
  const national=['fifa.world','caf.nations','uefa.euro','uefa.nations','conmebol.copa','concacaf.gold','afc.asian'].includes(code);
  return {id:'af-'+String(f.id),apiFootballId:String(f.id),provider:'API-Football',providers:['API-Football'],code,league:name+(league.country?' · '+league.country:''),competition:name,home:home.name||'Équipe inconnue',away:away.name||'Équipe inconnue',homeLogo:national?(league.flag||''):(home.logo||''),awayLogo:national?(league.flag||''):(away.logo||''),homeNational:national,awayNational:national,homeId:home.id||null,awayId:away.id||null,homeScore:x.goals?.home??null,awayScore:x.goals?.away??null,date:f.date,status:live?'LIVE':finished?'FINISHED':'SCHEDULED',live,finished,periodDetail:f.status?.long||'',periodNumber:0,clockBaseSeconds:(Number(f.status?.elapsed||0)+Number(f.status?.extra||0))*60,clockLabel:f.status?.extra&&f.status?.elapsed?String(f.status.elapsed)+'+'+String(f.status.extra):'',clockUpdatedAt:Date.now(),clockRunning:live&&statusCode!=='HT',venue:f.venue?.name||'',raw:x};
 }
@@ -88,6 +88,39 @@ function mergeApiFootballFixtures(rows){
   if(!matches.some(m=>m.apiFootballId===item.apiFootballId))extras.push(item);
  }
  return extras;
+}
+const API_FOOTBALL_LIVE_CACHE_KEY='gold-pronos-api-football-live-v1';
+async function loadApiFootballLive(force=false){
+ const now=Date.now();
+ if(!force){try{const cache=JSON.parse(localStorage.getItem(API_FOOTBALL_LIVE_CACHE_KEY)||'null');if(cache&&now-cache.at<15*60*1000&&Array.isArray(cache.fixtures))return cache.fixtures}catch(_){}}
+ const data=await apiFootballRequest({action:'live'});
+ if(!data?.configured||!Array.isArray(data.fixtures))return [];
+ try{localStorage.setItem(API_FOOTBALL_LIVE_CACHE_KEY,JSON.stringify({at:now,fixtures:data.fixtures}))}catch(_){}
+ return data.fixtures;
+}
+function mergeApiFootballLiveFixtures(rows){
+ let changed=false,added=0;
+ for(const raw of rows||[]){
+  const item=mapApiFootballFixture(raw);
+  if(!item.date||item.home==='Équipe inconnue'||item.away==='Équipe inconnue')continue;
+  let match=matches.find(m=>m.apiFootballId===item.apiFootballId);
+  if(!match){
+   const time=Date.parse(item.date);
+   match=matches.find(m=>providerNorm(m.home)===providerNorm(item.home)&&providerNorm(m.away)===providerNorm(item.away)&&Math.abs(Date.parse(m.date)-time)<5*3600000);
+  }
+  if(!match){matches.push(item);added++;changed=true;continue}
+  const before=JSON.stringify([match.live,match.finished,match.status,match.homeScore,match.awayScore,match.periodDetail]);
+  match.apiFootballId=item.apiFootballId;
+  match.providers=[...new Set([...(match.providers||['ESPN']),'API-Football'])];
+  match.homeScore=item.homeScore;match.awayScore=item.awayScore;
+  match.live=item.live;match.finished=item.finished;match.status=item.status;
+  match.periodDetail=item.periodDetail;match.clockBaseSeconds=item.clockBaseSeconds;
+  match.clockLabel=item.clockLabel;match.clockUpdatedAt=Date.now();match.clockRunning=item.clockRunning;
+  if(!match.homeLogo)match.homeLogo=item.homeLogo;if(!match.awayLogo)match.awayLogo=item.awayLogo;
+  if(!match.venue)match.venue=item.venue;
+  if(before!==JSON.stringify([match.live,match.finished,match.status,match.homeScore,match.awayScore,match.periodDetail]))changed=true;
+ }
+ return {changed,added,count:(rows||[]).length};
 }
 async function loadApiFootballFixtures(force=false){
  const now=Date.now();
@@ -790,9 +823,9 @@ function updateLiveEvent(m,event){const comp=event.competitions?.[0]||{},teams=c
  const raw=st.displayClock||comp.status?.displayClock||st.shortDetail||'';if(raw&&/\d/.test(String(raw))){m.clockBaseSeconds=clockSeconds(raw);if(m.periodNumber===2&&m.clockBaseSeconds<2700)m.clockBaseSeconds+=2700;if(m.periodNumber===3&&m.clockBaseSeconds<5400)m.clockBaseSeconds+=5400;if(m.periodNumber===4&&m.clockBaseSeconds<6300)m.clockBaseSeconds+=6300;m.clockUpdatedAt=Date.now();}else if(m.live&&(m.clockBaseSeconds===null||m.clockBaseSeconds===undefined)){m.clockUpdatedAt=Date.now();}
  const added=String(st.shortDetail||st.detail||'').match(/(\d{1,3})\s*['′]?\s*\+\s*(\d{1,2})/);m.clockLabel=added?added[1]+'+'+added[2]:'';if(added&&Number(m.clockBaseSeconds||0)<(Number(added[1])+Number(added[2]))*60)m.clockBaseSeconds=(Number(added[1])+Number(added[2]))*60;m.clockRunning=m.live&&!/half.?time|mi-temps|break|suspended/i.test(m.periodDetail);m.date=event.date||m.date;m.raw=event;
 }
-async function pollLiveScores(force=false){if(!matches.length)return;const now=Date.now(),groups=new Map();for(const m of matches){if(String(m.code||'').startsWith('api-football:'))continue;const kick=new Date(m.date).getTime();if(!m.code||m.finished||!Number.isFinite(kick)||kick>now+60*60000||kick<now-5*3600000)continue;const day=new Date(m.date).toISOString().slice(0,10).replace(/-/g,'');const key=m.code+'|'+day;if(!groups.has(key))groups.set(key,{code:m.code,day})}
+async function pollLiveScores(force=false){if(!matches.length)return;const apiLiveRows=await loadApiFootballLive(force).catch(error=>{console.warn('API-Football live indisponible',error?.message||error);return []});const apiLiveCheck=mergeApiFootballLiveFixtures(apiLiveRows);const now=Date.now(),groups=new Map();for(const m of matches){if(String(m.code||'').startsWith('api-football:'))continue;const kick=new Date(m.date).getTime();if(!m.code||m.finished||!Number.isFinite(kick)||kick>now+60*60000||kick<now-5*3600000)continue;const day=new Date(m.date).toISOString().slice(0,10).replace(/-/g,'');const key=m.code+'|'+day;if(!groups.has(key))groups.set(key,{code:m.code,day})}
  const requests=[...groups.values()];let cursor=0;const settled=[];const workers=Array.from({length:5},async()=>{while(true){const i=cursor++;if(i>=requests.length)break;const g=requests[i];try{settled[i]={status:'fulfilled',value:await get(API+g.code+'/scoreboard?dates='+g.day+'&limit=100&region=fr&lang=fr',11000)}}catch(error){settled[i]={status:'rejected',reason:error}}}});await Promise.all(workers);const results=settled;
- let changed=false;results.forEach((r,index)=>{if(r.status!=='fulfilled')return;const group=requests[index];for(const event of r.value.events||[]){const comp=event.competitions?.[0]||{},teams=comp.competitors||[],home=teams.find(x=>x.homeAway==='home')||teams[0],away=teams.find(x=>x.homeAway==='away')||teams[1];const m=matches.find(x=>x.id===String(event.id))||matches.find(x=>x.code===group.code&&providerNorm(x.home)===providerNorm(home?.team?.displayName||home?.team?.name)&&providerNorm(x.away)===providerNorm(away?.team?.displayName||away?.team?.name)&&Math.abs(new Date(x.date).getTime()-new Date(event.date).getTime())<5*3600000);if(!m)continue;if(m.id!==String(event.id))m.espnEventId=String(event.id);const before=[m.status,m.homeScore,m.awayScore,m.periodDetail].join('|');updateLiveEvent(m,event);const after=[m.status,m.homeScore,m.awayScore,m.periodDetail].join('|');if(before!==after)changed=true}});
+ let changed=!!apiLiveCheck.changed;results.forEach((r,index)=>{if(r.status!=='fulfilled')return;const group=requests[index];for(const event of r.value.events||[]){const comp=event.competitions?.[0]||{},teams=comp.competitors||[],home=teams.find(x=>x.homeAway==='home')||teams[0],away=teams.find(x=>x.homeAway==='away')||teams[1];const m=matches.find(x=>x.id===String(event.id))||matches.find(x=>x.code===group.code&&providerNorm(x.home)===providerNorm(home?.team?.displayName||home?.team?.name)&&providerNorm(x.away)===providerNorm(away?.team?.displayName||away?.team?.name)&&Math.abs(new Date(x.date).getTime()-new Date(event.date).getTime())<5*3600000);if(!m)continue;if(m.id!==String(event.id))m.espnEventId=String(event.id);const before=[m.status,m.homeScore,m.awayScore,m.periodDetail].join('|');updateLiveEvent(m,event);const after=[m.status,m.homeScore,m.awayScore,m.periodDetail].join('|');if(before!==after)changed=true}});
  const sportScore=await loadSportScoreLive(force).catch(error=>{console.warn('SportScore live indisponible',error?.message||error);return null});const crossCheck=mergeSportScoreLive(sportScore);if(crossCheck.changed)changed=true;if(changed){render();renderLive();renderPersonalizedHome();localMatchAlerts()}const active=matches.filter(m=>m.live).length;const el=$('live-indicator');if(el)el.textContent=active?active+' match'+(active>1?'s':'')+' en cours':'Suivi en direct activé';}
 async function loadEspnFixtures(){
  const today=new Date();today.setUTCHours(0,0,0,0);
@@ -821,7 +854,7 @@ async function refresh(){if(busy)return;busy=true;$('home-matches').innerHTML='<
  }
  const apiRows=await loadApiFootballFixtures().catch(error=>{console.warn('API-Football indisponible',error?.message||error);return []});
  const extras=mergeApiFootballFixtures(apiRows);matches=[...matches,...extras];
- const sportScore=await loadSportScoreLive().catch(error=>{console.warn('SportScore indisponible, scores ESPN conservés',error?.message||error);return null});
+ const apiLiveRows=await loadApiFootballLive().catch(error=>{console.warn('API-Football live indisponible',error?.message||error);return []});const apiLiveCheck=mergeApiFootballLiveFixtures(apiLiveRows);const sportScore=await loadSportScoreLive().catch(error=>{console.warn('SportScore indisponible, scores ESPN conservés',error?.message||error);return null});
  const sportScoreCheck=mergeSportScoreLive(sportScore);
  render();renderLive();renderPicks();renderVIP();renderPersonalizedHome();localMatchAlerts();
  const providers=['ESPN'];if(apiRows.length)providers.push('API-Football');if(sportScoreCheck.confirmed)providers.push('SportScore');
