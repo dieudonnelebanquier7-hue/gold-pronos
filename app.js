@@ -92,7 +92,7 @@ function mergeApiFootballFixtures(rows){
 const API_FOOTBALL_LIVE_CACHE_KEY='gold-pronos-api-football-live-v1';
 async function loadApiFootballLive(force=false){
  const now=Date.now();
- if(!force){try{const cache=JSON.parse(localStorage.getItem(API_FOOTBALL_LIVE_CACHE_KEY)||'null');if(cache&&now-cache.at<15*60*1000&&Array.isArray(cache.fixtures))return cache.fixtures}catch(_){}}
+ if(!force){try{const cache=JSON.parse(localStorage.getItem(API_FOOTBALL_LIVE_CACHE_KEY)||'null');if(cache&&now-cache.at<30*1000&&Array.isArray(cache.fixtures))return cache.fixtures}catch(_){}}
  const data=await apiFootballRequest({action:'live'});
  if(!data?.configured||!Array.isArray(data.fixtures))return [];
  try{localStorage.setItem(API_FOOTBALL_LIVE_CACHE_KEY,JSON.stringify({at:now,fixtures:data.fixtures}))}catch(_){}
