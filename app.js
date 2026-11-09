@@ -871,11 +871,13 @@ async function pollLiveScores(force=false){if(!matches.length)return;const apiLi
  const requests=[...groups.values()];let cursor=0;const settled=[];const workers=Array.from({length:5},async()=>{while(true){const i=cursor++;if(i>=requests.length)break;const g=requests[i];try{settled[i]={status:'fulfilled',value:await get(API+g.code+'/scoreboard?dates='+g.day+'&limit=100&region=fr&lang=fr',11000)}}catch(error){settled[i]={status:'rejected',reason:error}}}});await Promise.all(workers);const results=settled;
  let changed=!!apiLiveCheck.changed;results.forEach((r,index)=>{if(r.status!=='fulfilled')return;const group=requests[index];for(const event of r.value.events||[]){const comp=event.competitions?.[0]||{},teams=comp.competitors||[],home=teams.find(x=>x.homeAway==='home')||teams[0],away=teams.find(x=>x.homeAway==='away')||teams[1];const m=matches.find(x=>x.id===String(event.id))||matches.find(x=>x.code===group.code&&providerNorm(x.home)===providerNorm(home?.team?.displayName||home?.team?.name)&&providerNorm(x.away)===providerNorm(away?.team?.displayName||away?.team?.name)&&Math.abs(new Date(x.date).getTime()-new Date(event.date).getTime())<5*3600000);if(!m)continue;if(m.id!==String(event.id))m.espnEventId=String(event.id);const before=[m.status,m.homeScore,m.awayScore,m.periodDetail].join('|');updateLiveEvent(m,event);const after=[m.status,m.homeScore,m.awayScore,m.periodDetail].join('|');if(before!==after)changed=true}});
  const sportScore=await loadSportScoreLive(force).catch(error=>{console.warn('SportScore live indisponible',error?.message||error);return null});const crossCheck=mergeSportScoreLive(sportScore);if(crossCheck.changed)changed=true;if(changed){render();renderLive();renderPersonalizedHome();localMatchAlerts()}const active=matches.filter(m=>m.live).length;const el=$('live-indicator');if(el)el.textContent=active?active+' match'+(active>1?'s':'')+' en cours':'Suivi en direct activé';}
-async function loadEspnFixtures(){
+async function loadEspnFixtures(todayOnly=false){
  const today=new Date();today.setUTCHours(0,0,0,0);
  const pastFrom=new Date(today);pastFrom.setUTCDate(pastFrom.getUTCDate()-7);
  const futureTo=new Date(today);futureTo.setUTCDate(futureTo.getUTCDate()+14);
- const dates=[];for(let d=new Date(pastFrom);d<=futureTo;d.setUTCDate(d.getUTCDate()+1))dates.push(d.toISOString().slice(0,10).replace(/-/g,''));
+ const dates=[];
+ if(todayOnly)dates.push(today.toISOString().slice(0,10).replace(/-/g,''));
+ else for(let d=new Date(pastFrom);d<=futureTo;d.setUTCDate(d.getUTCDate()+1))dates.push(d.toISOString().slice(0,10).replace(/-/g,''));
  // ESPN a régressé sur les requêtes de plage avec tiret : une requête par jour est nécessaire.
  const tasks=leagues.flatMap(([code,label])=>dates.map(date=>({code,label,date})));
  const found=[];let cursor=0,failed=0;
@@ -910,7 +912,7 @@ async function refresh(){
    $('updated').textContent='Calendrier chargé · '+matches.length+' rencontres vérifiées · actualisation des sources…';
   }
   let fresh=[];
-  try{fresh=await loadEspnFixtures()}catch(error){console.warn('Calendrier ESPN indisponible',error?.message||error)}
+  try{fresh=await loadEspnFixtures(matches.length>0)}catch(error){console.warn('Calendrier ESPN indisponible',error?.message||error)}
   if(fresh.length){
    const byId=new Map(matches.map(m=>[String(m.id),m]));
    for(const item of fresh){const existing=byId.get(String(item.id));byId.set(String(item.id),existing?{...existing,...item,providers:[...new Set([...(existing.providers||['ESPN']),...(item.providers||['ESPN'])])]}:item)}
