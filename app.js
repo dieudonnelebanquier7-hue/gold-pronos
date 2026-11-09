@@ -93,7 +93,7 @@ async function loadApiFootballLeagues(force=false){
 function classifyWorldCompetition(item){
  const name=String(item?.league?.name||'').toLowerCase();
  if(/women|woman|femenin|feminin|ladies|女/.test(name))return 'Féminin';
- if(/\\bu(?:-)?(?:15|16|17|18|19|20|21|23)\\b|youth|junior|juvenil/.test(name))return 'Jeunes';
+ if(/\bu(?:-)?(?:15|16|17|18|19|20|21|23)\b|youth|junior|juvenil/.test(name))return 'Jeunes';
  return 'Autres catégories';
 }
 function renderWorldCompetitionCatalog(){
