@@ -839,3 +839,6 @@ footer{color:#8f98a5!important}
 .md-standing-highlight{background:rgba(239,201,109,.13)}
 .md-standing-highlight td:first-child,.md-standing-highlight td:last-child{color:#efc96d;font-weight:900}
 @media(max-width:600px){.md-lineup-player{min-width:52px;max-width:82px}.md-lineup-pitch{padding:8px 4px}.md-standing-table th,.md-standing-table td{padding:8px 5px;font-size:11px}}
+
+/* Catalogue mondial des compétitions */
+.world-competition-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:9px;margin:12px 0 22px}.world-competition{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 10px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:11px;background:#fff}.world-competition b{display:block;font-size:13px;line-height:1.35}.world-competition small{display:block;color:var(--muted);font-size:10px;margin-top:4px}.world-season{font-size:11px;font-weight:800;color:var(--green)}.world-features{grid-column:1/-1;border-top:1px solid var(--line);padding-top:6px}.catalog-count{grid-column:1/-1;color:var(--muted);font-size:12px;font-weight:800}
