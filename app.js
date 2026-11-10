@@ -226,16 +226,25 @@ function liveMinute(m){
  const detail=String(m.periodDetail||'').toLowerCase();
  if(/half.?time|mi-temps|break|interval/.test(detail))return 'Mi-temps';
  const base=Number(m.clockBaseSeconds);
+ let seconds;
+ let approximate=false;
  if(m.clockBaseSeconds===null||m.clockBaseSeconds===undefined||!Number.isFinite(base)||base<=0){
   const kickoff=Date.parse(m.date),elapsed=Date.now()-kickoff;
-  if(Number.isFinite(kickoff)&&elapsed>0&&elapsed<=125*60*1000)return '~'+Math.floor(elapsed/60000)+'′';
-  return 'En cours';
+  if(Number.isFinite(kickoff)&&elapsed>0&&elapsed<=125*60*1000){seconds=Math.floor(elapsed/1000);approximate=true}
+  else return 'En cours';
+ }else{
+  const elapsed=Math.max(0,Math.floor((Date.now()-(m.clockUpdatedAt||Date.now()))/1000));
+  seconds=base+(m.clockRunning?elapsed:0);
  }
- const elapsed=Math.max(0,Math.floor((Date.now()-(m.clockUpdatedAt||Date.now()))/1000));
- const seconds=base+(m.clockRunning?elapsed:0);
+ const total=Math.max(0,Math.floor(seconds));
+ const mm=String(Math.floor(total/60)).padStart(2,'0');
+ const ss=String(total%60).padStart(2,'0');
  const added=String(m.clockLabel||'').match(/^(\d{1,3})\+(\d{1,2})$/);
- if(added){const minute=Number(added[1]),extra=Math.max(Number(added[2]),Math.floor(seconds/60)-minute);return minute+'+'+extra+'′'}
- return Math.floor(seconds/60)+'′';
+ if(added){
+  const minute=Number(added[1]),extra=Math.max(Number(added[2]),Math.floor(total/60)-minute);
+  return (approximate?'~':'')+minute+'+'+extra+'′ '+ss+'s';
+ }
+ return (approximate?'~':'')+mm+':'+ss;
 }
 function status(m){
  if(m.live){const minute=liveMinute(m);return '● EN DIRECT · '+minute}
