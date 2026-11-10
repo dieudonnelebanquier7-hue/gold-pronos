@@ -332,18 +332,28 @@ function lineupHtml(groups){
 }
 async function pollOfficialLineups(){
  const now=Date.now(),due=matches.filter(m=>{
-  const kick=new Date(m.date).getTime(),recentFinished=m.finished&&now-kick<=6*3600000,soon=!m.live&&!m.finished&&kick-now<=75*60000&&kick-now>0;
-  const interval=soon?5*60000:15*60000;
-  return (m.live||recentFinished||soon)&&m.code&&!String(m.code).startsWith('api-football:')&&!String(m.code).startsWith('sportscore:')&&!m.lineups?.length&&!m.apiFootballLineupsLoaded&&(!m.lineupCheckAt||now-m.lineupCheckAt>interval);
- }).sort((a,b)=>Math.abs(new Date(a.date)-now)-Math.abs(new Date(b.date)-now)).slice(0,12);
+  const kick=new Date(m.date).getTime(),recentFinished=m.finished&&now-kick<=24*3600000,soon=!m.live&&!m.finished&&kick-now<=120*60000&&kick-now>0;
+  const interval=soon?3*60000:m.live?5*60000:15*60000;
+  const hasProvider=!!m.apiFootballId||!!(m.code&&!String(m.code).startsWith('sportscore:')&&!String(m.code).startsWith('api-football:'));
+  return (m.live||recentFinished||soon)&&hasProvider&&!m.lineups?.length&&(!m.lineupCheckAt||now-m.lineupCheckAt>interval);
+ }).sort((a,b)=>Math.abs(new Date(a.date)-now)-Math.abs(new Date(b.date)-now)).slice(0,30);
  if(!due.length)return;
  await Promise.allSettled(due.map(async m=>{
   m.lineupCheckAt=Date.now();
   try{
-   const d=await get(API+m.code+'/summary?event='+encodeURIComponent(m.espnEventId||m.id)+'&region=fr&lang=fr',12000);
-   const groups=officialLineups(d);
+   let groups=[];
+   if(m.apiFootballId){
+    try{
+     const providerData=await apiFootballRequest({action:'fixture',fixtureId:m.apiFootballId,sections:['lineups']},20000);
+     groups=officialLineups({lineups:providerData?.lineups});
+    }catch(e){console.warn('Compositions API-Football indisponibles pour '+m.home+' – '+m.away,e?.message||e)}
+   }
+   if(!lineupsMatchFixture(groups,m)&&m.code&&!String(m.code).startsWith('sportscore:')&&!String(m.code).startsWith('api-football:')){
+    const d=await get(API+m.code+'/summary?event='+encodeURIComponent(m.espnEventId||m.id)+'&region=fr&lang=fr',15000);
+    groups=officialLineups(d);
+   }
    if(lineupsMatchFixture(groups,m)){
-    m.lineups=groups;m.lineupPublishedAt=Date.now();render();renderLive();
+    m.lineups=groups;m.lineupPublishedAt=Date.now();m.apiFootballLineupsLoaded=!!m.apiFootballId;render();renderLive();
     const box=$('match-detail');
     if(!$('match-modal').hidden&&box?.dataset.matchId===m.id){const panel=box.querySelector('[data-md-panel="lineups"]');if(panel)panel.innerHTML=lineupHtml(groups);}
     await localMatchAlerts();
