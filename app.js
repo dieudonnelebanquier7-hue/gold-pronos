@@ -640,6 +640,7 @@ function renderPicks(){
   // Les cartes indiquent explicitement ce repli et ne présentent pas la forme globale comme une statistique de lieu.
   const useHomeOverall=hHome.length<2,useAwayOverall=aAway.length<2;
   const homeContext=useHomeOverall?h:hHome,awayContext=useAwayOverall?a:aAway;
+  const homeContextLabel=useHomeOverall?'forme globale':'domicile',awayContextLabel=useAwayOverall?'forme globale':'extérieur';
   const hhs=matchStats(homeContext,m.home),aas=matchStats(awayContext,m.away);
   const el=document.createElement('article');el.className='pick-card';
   el.innerHTML='<span class="eyebrow">'+safe(m.league)+'</span><div class="pick-team-heading">'+crestMarkup(m.home,m.homeLogo,m.homeNational?'pick-flag':'pick-crest')+'<h3>'+safe(m.home)+' <span>—</span> '+safe(m.away)+'</h3>'+crestMarkup(m.away,m.awayLogo,m.awayNational?'pick-flag':'pick-crest')+'</div><p><b>Coup d’envoi :</b> '+safe(appDate(m.date,{hour:'2-digit',minute:'2-digit'}))+'</p>';
@@ -652,9 +653,9 @@ function renderPicks(){
   let strong='Aucun favori net',strongWhy='Écart de forme trop faible pour isoler une victoire.';
   if(edge>=0.65){strong='V1 · '+m.home;strongWhy='Indice de forme pondéré : '+homeForm.toFixed(2)+' contre '+awayForm.toFixed(2)+' points par match, avec 65 % de poids au contexte domicile/extérieur.'}
   else if(edge<=-0.65){strong='V2 · '+m.away;strongWhy='Indice de forme pondéré : '+awayForm.toFixed(2)+' contre '+homeForm.toFixed(2)+' points par match, avec 65 % de poids au contexte domicile/extérieur.'}
-  let double='Non retenu · prudence',doubleWhy='Aucune différence suffisante dans les taux de matchs sans défaite à domicile et à l’extérieur.';
-  if(hhs.unbeatenRate>=0.70&&hhs.unbeatenRate-aas.unbeatenRate>=0.15){double='1X · '+m.home+' ou nul';doubleWhy='Le '+m.home+' est resté sans défaite dans '+Math.round(hhs.unbeatenRate*100)+' % de ses '+hhs.n+' derniers matchs à domicile.'}
-  else if(aas.unbeatenRate>=0.70&&aas.unbeatenRate-hhs.unbeatenRate>=0.15){double='2X · '+m.away+' ou nul';doubleWhy='Le '+m.away+' est resté sans défaite dans '+Math.round(aas.unbeatenRate*100)+' % de ses '+aas.n+' derniers matchs à l’extérieur.'}
+  let double='Non retenu · prudence',doubleWhy='Aucune différence suffisante dans les taux de matchs sans défaite sur les échantillons retenus.';
+  if(hhs.unbeatenRate>=0.70&&hhs.unbeatenRate-aas.unbeatenRate>=0.15){double='1X · '+m.home+' ou nul';doubleWhy='Le '+m.home+' est resté sans défaite dans '+Math.round(hhs.unbeatenRate*100)+' % de ses '+hhs.n+' derniers matchs ('+homeContextLabel+').' }
+  else if(aas.unbeatenRate>=0.70&&aas.unbeatenRate-hhs.unbeatenRate>=0.15){double='2X · '+m.away+' ou nul';doubleWhy='Le '+m.away+' est resté sans défaite dans '+Math.round(aas.unbeatenRate*100)+' % de ses '+aas.n+' derniers matchs ('+awayContextLabel+').' }
   const avgGoals=(hhs.scored+aas.conceded+aas.scored+hhs.conceded)/2;
   const rate15=(hhs.over15+aas.over15)/2,rate25=(hhs.over25+aas.over25)/2;
   const bttsRate=(hhs.bttsRate+aas.bttsRate)/2;
@@ -666,8 +667,8 @@ function renderPicks(){
    marketLine('Résultat (1 ou 2)',strong,strongWhy,strong!=='Aucun favori net'?'market-positive':'market-neutral')+
    marketLine('Double chance',double,doubleWhy,double.startsWith('Non retenu')?'market-neutral':'market-positive')+
    marketLine('Total de buts · 1,5',goals15,'Total attendu indicatif : '+avgGoals.toFixed(2)+' but(s) · fréquence observée : '+Math.round(rate15*100)+'% dans les échantillons domicile/extérieur.',goals15.startsWith('+')?'market-positive':'market-neutral')+
-   marketLine('Total de buts · 2,5',goals25,'Fréquence observée : '+Math.round(rate25*100)+'% sur les échantillons domicile/extérieur.',goals25.startsWith('+')?'market-positive':'market-neutral')+
-   marketLine('Les deux équipes marquent',btts,'Fréquence observée : '+Math.round(bttsRate*100)+'% sur les échantillons domicile/extérieur.',btts.startsWith('Oui')?'market-positive':'market-neutral')+
+   marketLine('Total de buts · 2,5',goals25,'Fréquence observée : '+Math.round(rate25*100)+'% sur les échantillons retenus ('+homeContextLabel+' / '+awayContextLabel+').',goals25.startsWith('+')?'market-positive':'market-neutral')+
+   marketLine('Les deux équipes marquent',btts,'Fréquence observée : '+Math.round(bttsRate*100)+'% sur les échantillons retenus ('+homeContextLabel+' / '+awayContextLabel+').',btts.startsWith('Oui')?'market-positive':'market-neutral')+
    '<div class="pick-market" data-corners><div><b>Total corners · 5,5</b><small>Recherche des statistiques officielles des derniers matchs…</small></div><strong>Vérification</strong></div>'+
    '</div><div class="pick-evidence"><b>Éléments vérifiés</b><p>'+safe(m.home)+' : '+hs.n+' matchs récents · '+hs.ppg.toFixed(2)+' pts/match · '+hs.scored.toFixed(2)+' but(s) marqués et '+hs.conceded.toFixed(2)+' encaissés en moyenne. À domicile : '+hhs.n+' matchs · '+hhs.ppg.toFixed(2)+' pts/match.</p><p>'+safe(m.away)+' : '+as.n+' matchs récents · '+as.ppg.toFixed(2)+' pts/match · '+as.scored.toFixed(2)+' but(s) marqués et '+as.conceded.toFixed(2)+' encaissés en moyenne. À l’extérieur : '+aas.n+' matchs · '+aas.ppg.toFixed(2)+' pts/match.</p><small>'+sampleLabel+' · Fréquences observées, non probabilités garanties. Calcul indicatif fondé sur les résultats disponibles.</small></div>';
   const aiBox=document.createElement('div');
