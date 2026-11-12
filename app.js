@@ -576,10 +576,10 @@ async function refreshOpenMatchDetail(){
 
 function xtext(x){return x.text||x.shortText||x.type?.text||x.type?.name||'Événement'}
 function trustedFinishedResult(x,now=Date.now()){
- const date=Date.parse(x?.date),home=Number(x?.homeScore),away=Number(x?.awayScore);
+ const date=Date.parse(x?.date),hasScores=x?.homeScore!==null&&x?.homeScore!==undefined&&String(x.homeScore).trim()!==''&&x?.awayScore!==null&&x?.awayScore!==undefined&&String(x.awayScore).trim()!=='',home=Number(x?.homeScore),away=Number(x?.awayScore);
  const sources=[x?.source,...(Array.isArray(x?.providers)?x.providers:[])].filter(Boolean).map(v=>String(v).toLowerCase());
  const trustedSource=sources.some(v=>v==='espn'||v==='api-football');
- return !!x&&x.finished===true&&!x.live&&!x.scoreConflict&&trustedSource&&Number.isFinite(date)&&date<now&&date>=now-400*86400000&&Number.isInteger(home)&&Number.isInteger(away)&&home>=0&&away>=0&&!!providerNorm(x.home)&&!!providerNorm(x.away);
+ return !!x&&x.finished===true&&!x.live&&!x.scoreConflict&&trustedSource&&Number.isFinite(date)&&date<now&&date>=now-400*86400000&&hasScores&&Number.isInteger(home)&&Number.isInteger(away)&&home>=0&&away>=0&&!!providerNorm(x.home)&&!!providerNorm(x.away);
 }
 function trustedUpcomingFixture(x,now=Date.now(),horizon=now+7*86400000){
  const date=Date.parse(x?.date),sources=[x?.source,...(Array.isArray(x?.providers)?x.providers:[])].filter(Boolean).map(v=>String(v).toLowerCase());
