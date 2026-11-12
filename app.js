@@ -651,8 +651,8 @@ function renderPicks(){
   const homeForm=hs.ppg*0.35+hhs.ppg*0.65,awayForm=as.ppg*0.35+aas.ppg*0.65;
   const edge=homeForm-awayForm;
   let strong='Aucun favori net',strongWhy='Écart de forme trop faible pour isoler une victoire.';
-  if(edge>=0.65){strong='V1 · '+m.home;strongWhy='Indice de forme pondéré : '+homeForm.toFixed(2)+' contre '+awayForm.toFixed(2)+' points par match, avec 65 % de poids à l'échantillon de contexte indiqué.'}
-  else if(edge<=-0.65){strong='V2 · '+m.away;strongWhy='Indice de forme pondéré : '+awayForm.toFixed(2)+' contre '+homeForm.toFixed(2)+' points par match, avec 65 % de poids à l'échantillon de contexte indiqué.'}
+  if(edge>=0.65){strong='V1 · '+m.home;strongWhy='Indice de forme pondéré : '+homeForm.toFixed(2)+' contre '+awayForm.toFixed(2)+' points par match, avec 65 % de poids à cet échantillon de contexte.'}
+  else if(edge<=-0.65){strong='V2 · '+m.away;strongWhy='Indice de forme pondéré : '+awayForm.toFixed(2)+' contre '+homeForm.toFixed(2)+' points par match, avec 65 % de poids à cet échantillon de contexte.'}
   let double='Non retenu · prudence',doubleWhy='Aucune différence suffisante dans les taux de matchs sans défaite sur les échantillons retenus.';
   if(hhs.unbeatenRate>=0.70&&hhs.unbeatenRate-aas.unbeatenRate>=0.15){double='1X · '+m.home+' ou nul';doubleWhy='Le '+m.home+' est resté sans défaite dans '+Math.round(hhs.unbeatenRate*100)+' % de ses '+hhs.n+' derniers matchs ('+homeContextLabel+').' }
   else if(aas.unbeatenRate>=0.70&&aas.unbeatenRate-hhs.unbeatenRate>=0.15){double='2X · '+m.away+' ou nul';doubleWhy='Le '+m.away+' est resté sans défaite dans '+Math.round(aas.unbeatenRate*100)+' % de ses '+aas.n+' derniers matchs ('+awayContextLabel+').' }
