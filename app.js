@@ -18,7 +18,7 @@ function appLocale(){return ({fr:'fr-FR',en:'en-GB',es:'es-ES',pt:'pt-PT',de:'de
 function appDate(value,options={}){const d=new Date(value);if(Number.isNaN(d.getTime()))return 'Date inconnue';const prefs=readAppSettings();try{return new Intl.DateTimeFormat(appLocale(),{timeZone:prefs.timezone||'Africa/Porto-Novo',...options}).format(d)}catch(e){return new Intl.DateTimeFormat(appLocale(),options).format(d)}}
 async function get(url,ms=9000){const c=new AbortController(),t=setTimeout(()=>c.abort(),ms);try{const r=await fetch(url,{signal:c.signal,cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);return await r.json()}finally{clearTimeout(t)}}
 async function withTimeout(promise,ms,message){let timer;try{return await Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error(message||'Délai de réponse dépassé')),ms)})])}finally{clearTimeout(timer)}}
-const API_FOOTBALL_CACHE_KEY='gold-pronos-api-football-fixtures-v1';
+const API_FOOTBALL_CACHE_KEY='gold-pronos-api-football-fixtures-v2';
 const SPORT_SCORE_URL='https://sportscore.com/api/v1/fixtures/';
 const SPORT_SCORE_CACHE_KEY='gold-pronos-sportscore-live-v1';
 function sportScoreStatus(value){
@@ -182,7 +182,7 @@ function mergeApiFootballLiveFixtures(rows){
 async function loadApiFootballFixtures(force=false){
  const now=Date.now();
  if(!force){try{const cache=JSON.parse(localStorage.getItem(API_FOOTBALL_CACHE_KEY)||'null');if(cache&&now-cache.at<10*60*1000&&Array.isArray(cache.fixtures))return cache.fixtures}catch(_){}}
- const start=new Date();start.setUTCDate(start.getUTCDate()-7);
+ const start=new Date();start.setUTCDate(start.getUTCDate()-35);
  const end=new Date();end.setUTCDate(end.getUTCDate()+14);
  const data=await apiFootballRequest({action:'fixtures',from:start.toISOString().slice(0,10),to:end.toISOString().slice(0,10),timezone:'Africa/Porto-Novo'});
  if(!data?.configured||!Array.isArray(data.fixtures))return [];
