@@ -579,11 +579,11 @@ async function cornerHistory(teamMatches){
 }
 function renderPicks(){
  const box=$('picks');if(!box)return;
- const now=Date.now(),today=dateKeyInAppZone(now);
- const dayMatches=matches.filter(m=>!m.live&&!m.finished&&dateKeyInAppZone(m.date)===today&&new Date(m.date).getTime()>now).sort((a,b)=>new Date(a.date)-new Date(b.date));
+ const now=Date.now(),horizon=now+7*86400000;
+ const dayMatches=matches.filter(m=>!m.live&&!m.finished&&Date.parse(m.date)>now&&Date.parse(m.date)<=horizon).sort((a,b)=>new Date(a.date)-new Date(b.date));
  box.replaceChildren();
- const heading=document.createElement('div');heading.className='notice';heading.innerHTML='<b>PRONOSTICS DU JOUR · '+safe(appDate(now,{weekday:'long',day:'numeric',month:'long',year:'numeric'}))+'</b><br>'+dayMatches.length+' rencontre(s) à venir · Sélections calculées à partir des résultats vérifiés disponibles.';box.append(heading);
- if(!dayMatches.length){const empty=document.createElement('div');empty.className='notice';empty.textContent='Aucun match à venir confirmé pour aujourd’hui dans les compétitions suivies. Le calendrier sera actualisé automatiquement.';box.append(empty);return}
+ const heading=document.createElement('div');heading.className='notice';heading.innerHTML='<b>PRONOSTICS · 7 PROCHAINS JOURS</b><br>'+dayMatches.length+' rencontre(s) à venir · '+safe(appDate(now,{weekday:'long',day:'numeric',month:'long'}))+' au '+safe(appDate(horizon,{day:'numeric',month:'long'}))+' · Sélections calculées à partir des résultats vérifiés disponibles.';box.append(heading);
+ if(!dayMatches.length){const empty=document.createElement('div');empty.className='notice';empty.textContent='Aucun match à venir confirmé dans les sept prochains jours pour les compétitions suivies. Le calendrier sera actualisé automatiquement.';box.append(empty);return}
  for(const m of dayMatches){
   const h=recent(m.home,m.id),a=recent(m.away,m.id),hs=matchStats(h,m.home),as=matchStats(a,m.away);
   const hHome=recent(m.home,m.id,'home',m.homeId),aAway=recent(m.away,m.id,'away',m.awayId);
@@ -601,7 +601,7 @@ function renderPicks(){
   else if(edge<=-0.65){strong='V2 · '+m.away;strongWhy='Indice de forme pondéré : '+awayForm.toFixed(2)+' contre '+homeForm.toFixed(2)+' points par match, avec 65 % de poids au contexte domicile/extérieur.'}
   let double='Non retenu · prudence',doubleWhy='Aucune différence suffisante dans les taux de matchs sans défaite à domicile et à l’extérieur.';
   if(hhs.unbeatenRate>=0.70&&hhs.unbeatenRate-aas.unbeatenRate>=0.15){double='1X · '+m.home+' ou nul';doubleWhy='Le '+m.home+' est resté sans défaite dans '+Math.round(hhs.unbeatenRate*100)+' % de ses '+hhs.n+' derniers matchs à domicile.'}
-  else if(aas.unbeatenRate>=0.70&&aas.unbeatenRate-hhs.unbeatenRate>=0.15){double='X2 · '+m.away+' ou nul';doubleWhy='Le '+m.away+' est resté sans défaite dans '+Math.round(aas.unbeatenRate*100)+' % de ses '+aas.n+' derniers matchs à l’extérieur.'}
+  else if(aas.unbeatenRate>=0.70&&aas.unbeatenRate-hhs.unbeatenRate>=0.15){double='2X · '+m.away+' ou nul';doubleWhy='Le '+m.away+' est resté sans défaite dans '+Math.round(aas.unbeatenRate*100)+' % de ses '+aas.n+' derniers matchs à l’extérieur.'}
   const avgGoals=(hhs.scored+aas.conceded+aas.scored+hhs.conceded)/2;
   const rate15=(hhs.over15+aas.over15)/2,rate25=(hhs.over25+aas.over25)/2;
   const bttsRate=(hhs.bttsRate+aas.bttsRate)/2;
@@ -610,7 +610,7 @@ function renderPicks(){
   const btts=bttsRate>=0.65&&avgGoals>=2.2?'Oui · signal statistique':'Non retenu · prudence';
   const sampleLabel=Math.min(hs.n,as.n)>=5&&Math.min(hhs.n,aas.n)>=3?'Échantillon exploitable':'Échantillon limité';
   el.innerHTML+='<div class="pick-markets">'+
-   marketLine('Équipe la plus forte',strong,strongWhy,strong!=='Aucun favori net'?'market-positive':'market-neutral')+
+   marketLine('Résultat (1 ou 2)',strong,strongWhy,strong!=='Aucun favori net'?'market-positive':'market-neutral')+
    marketLine('Double chance',double,doubleWhy,double.startsWith('Non retenu')?'market-neutral':'market-positive')+
    marketLine('Total de buts · 1,5',goals15,'Total attendu indicatif : '+avgGoals.toFixed(2)+' but(s) · fréquence observée : '+Math.round(rate15*100)+'% dans les échantillons domicile/extérieur.',goals15.startsWith('+')?'market-positive':'market-neutral')+
    marketLine('Total de buts · 2,5',goals25,'Fréquence observée : '+Math.round(rate25*100)+'% sur les échantillons domicile/extérieur.',goals25.startsWith('+')?'market-positive':'market-neutral')+
@@ -635,8 +635,8 @@ function renderPicks(){
      away:{sample:as.n,pointsPerMatch:Number(as.ppg.toFixed(2)),goalsScoredAverage:Number(as.scored.toFixed(2)),goalsConcededAverage:Number(as.conceded.toFixed(2)),over15Rate:Number(as.over15.toFixed(3)),over25Rate:Number(as.over25.toFixed(3)),awaySample:aas.n,awayPointsPerMatch:Number(aas.ppg.toFixed(2)),awayUnbeatenRate:Number(aas.unbeatenRate.toFixed(3)),awayBttsRate:Number(aas.bttsRate.toFixed(3))}
     },
     markets:[
-     {name:'Équipe la plus forte',options:['V1','V2','NO_BET'],current:strong},
-     {name:'Double chance',options:['1X','X2','NO_BET'],current:double.startsWith('1X')?'1X':double.startsWith('X2')?'X2':'NO_BET'},
+     {name:'Équipe la plus forte',options:['V1','V2','NO_BET'],current:strong.startsWith('V1')?'V1':strong.startsWith('V2')?'V2':'NO_BET'},
+     {name:'Double chance',options:['1X','2X','NO_BET'],current:double.startsWith('1X')?'1X':double.startsWith('2X')?'2X':'NO_BET'},
      {name:'Total buts 1.5',options:['OVER_1_5','NO_BET'],current:goals15.startsWith('+')?'OVER_1_5':'NO_BET'},
      {name:'Total buts 2.5',options:['OVER_2_5','NO_BET'],current:goals25.startsWith('+')?'OVER_2_5':'NO_BET'},
      {name:'Les deux équipes marquent',options:['BTTS_YES','NO_BET'],current:btts.startsWith('Oui')?'BTTS_YES':'NO_BET'}
@@ -656,7 +656,7 @@ function renderPicks(){
   });
   box.append(el);
   const cornerNode=el.querySelector('[data-corners]');
-  const cornerTimer=setTimeout(()=>{if(cornerNode.isConnected&&cornerNode.querySelector('small')?.textContent.includes('Recherche'))cornerNode.innerHTML='<div><b>Total corners · 5,5</b><small>La source met trop de temps à répondre. Relance les pronostics pour réessayer.</small></div><strong>Vérification interrompue</strong>'},14000);
+  const cornerTimer=setTimeout(()=>{if(cornerNode.isConnected&&cornerNode.querySelector('small')?.textContent.includes('Recherche'))cornerNode.innerHTML='<div><b>Plus de 5,5 corners</b><small>La source met trop de temps à répondre. Relance les pronostics pour réessayer.</small></div><strong>Vérification interrompue</strong>'},14000);
   cornerHistory([...h.slice(0,4),...a.slice(0,4)]).then(all=>{
    clearTimeout(cornerTimer);
    if(!cornerNode.isConnected)return;
