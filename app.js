@@ -161,9 +161,9 @@ async function loadEspnTeamHistory(){
   const i=cursor++;if(i>=tasks.length)break;const item=tasks[i],key=item.code+'|'+item.id;
   try{
    const data=await get(API+item.code+'/teams/'+encodeURIComponent(item.id)+'/schedule?region=fr&lang=fr',15000);
-   const events=Array.isArray(data?.events)?data.events:[];
-   cache[key]={at:now,events};
-  }catch(error){console.warn('Historique ESPN indisponible pour '+item.team,error?.message||error);cache[key]={at:now,events:[]}}
+   const events=Array.isArray(data?.events)?data.events:Array.isArray(data?.items)?data.items:[];
+   if(events.length)cache[key]={at:now,events};else{delete cache[key];console.warn('Historique ESPN vide pour '+item.team+' ('+item.code+'). Nouvelle tentative au prochain chargement.');}
+  }catch(error){console.warn('Historique ESPN indisponible pour '+item.team,error?.message||error);delete cache[key]}
  }});
  await Promise.all(workers);
  try{localStorage.setItem(ESPN_TEAM_HISTORY_CACHE_KEY,JSON.stringify(cache))}catch(_){}
