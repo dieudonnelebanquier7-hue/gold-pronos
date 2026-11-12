@@ -636,11 +636,15 @@ function renderPicks(){
  for(const m of dayMatches){
   const h=recent(m.home,m.id),a=recent(m.away,m.id),hs=matchStats(h,m.home),as=matchStats(a,m.away);
   const hHome=recent(m.home,m.id,'home',m.homeId),aAway=recent(m.away,m.id,'away',m.awayId);
-  const hhs=matchStats(hHome,m.home),aas=matchStats(aAway,m.away);
+  // Si l'échantillon domicile/extérieur est trop court, utiliser la forme globale vérifiée.
+  // Les cartes indiquent explicitement ce repli et ne présentent pas la forme globale comme une statistique de lieu.
+  const useHomeOverall=hHome.length<2,useAwayOverall=aAway.length<2;
+  const homeContext=useHomeOverall?h:hHome,awayContext=useAwayOverall?a:aAway;
+  const hhs=matchStats(homeContext,m.home),aas=matchStats(awayContext,m.away);
   const el=document.createElement('article');el.className='pick-card';
   el.innerHTML='<span class="eyebrow">'+safe(m.league)+'</span><div class="pick-team-heading">'+crestMarkup(m.home,m.homeLogo,m.homeNational?'pick-flag':'pick-crest')+'<h3>'+safe(m.home)+' <span>—</span> '+safe(m.away)+'</h3>'+crestMarkup(m.away,m.awayLogo,m.awayNational?'pick-flag':'pick-crest')+'</div><p><b>Coup d’envoi :</b> '+safe(appDate(m.date,{hour:'2-digit',minute:'2-digit'}))+'</p>';
-  if(!hs||!as||hs.n<5||as.n<5||!hhs||!aas||hhs.n<2||aas.n<2){
-   el.innerHTML+='<div class="notice"><b>Analyse en attente</b><p>Échantillon insuffisant pour une analyse prudente : 5 résultats récents et 2 résultats dans le contexte domicile/extérieur sont requis par équipe.</p><small>'+h.length+' résultat(s) pour '+safe(m.home)+' · '+a.length+' pour '+safe(m.away)+' · domicile : '+hHome.length+' · extérieur : '+aAway.length+'. Aucun choix ne sera inventé.</small></div>';
+  if(!hs||!as||hs.n<5||as.n<5||!hhs||!aas){
+   el.innerHTML+='<div class="notice"><b>Analyse en attente</b><p>Il faut au moins 5 résultats terminés et vérifiés pour chaque équipe.</p><small>'+h.length+' résultat(s) pour '+safe(m.home)+' · '+a.length+' pour '+safe(m.away)+' · domicile : '+hHome.length+' · extérieur : '+aAway.length+'. Aucun choix ne sera inventé.</small></div>';
    box.append(el);continue;
   }
   const homeForm=hs.ppg*0.35+hhs.ppg*0.65,awayForm=as.ppg*0.35+aas.ppg*0.65;
@@ -657,7 +661,7 @@ function renderPicks(){
   const goals15=avgGoals>=2.0&&rate15>=0.65?'+ de 1,5 but':'Non retenu · prudence';
   const goals25=avgGoals>=2.65&&rate25>=0.55?'+ de 2,5 buts':'Non retenu · prudence';
   const btts=bttsRate>=0.65&&avgGoals>=2.2?'Oui · signal statistique':'Non retenu · prudence';
-  const sampleLabel=Math.min(hs.n,as.n)>=5&&Math.min(hhs.n,aas.n)>=3?'Échantillon exploitable':'Échantillon limité';
+  const sampleLabel='Forme récente vérifiée · '+(useHomeOverall?'forme globale pour '+m.home+' (domicile insuffisant)':'domicile pour '+m.home)+' · '+(useAwayOverall?'forme globale pour '+m.away+' (extérieur insuffisant)':'extérieur pour '+m.away);
   el.innerHTML+='<div class="pick-markets">'+
    marketLine('Résultat (1 ou 2)',strong,strongWhy,strong!=='Aucun favori net'?'market-positive':'market-neutral')+
    marketLine('Double chance',double,doubleWhy,double.startsWith('Non retenu')?'market-neutral':'market-positive')+
