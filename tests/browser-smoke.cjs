@@ -140,6 +140,7 @@ const { chromium } = require('playwright');
   await page.evaluate(() => {
     window.GoldSupabase = {functions:{invoke:async(name,args) => name==='teams-catalog' ? {data:{teams:[{id:'ben-1',displayName:'Bénin',abbreviation:'BEN',country:{name:'Bénin',code:'BEN'},nationalFlag:'https://example.com/benin.png'}]},error:null} : {data:null,error:null}}};
   });
+  await page.locator('.tab[data-page="teams"]').click();
   await page.locator('#teams-competition').selectOption('fifa.worldq.caf');
   await page.locator('#teams-list .team-tile').filter({hasText:'Bénin'}).waitFor({state:'visible',timeout:5000});
   const nationalTeamsText = await page.locator('#teams-list').innerText();
