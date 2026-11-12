@@ -133,7 +133,7 @@ function mapApiFootballFixture(x){
  const code=API_LEAGUE_CODES[name.toLowerCase()]||('api-football:'+String(league.id||'unknown'));
  const statusCode=String(f.status?.short||'NS'),live=['1H','HT','2H','ET','BT','P','LIVE','INT','SUSP'].includes(statusCode),finished=['FT','AET','PEN'].includes(statusCode);
  const national=isNationalCompetition(code);
- return {id:'af-'+String(f.id),apiFootballId:String(f.id),provider:'API-Football',providers:['API-Football'],code,league:name+(league.country?' · '+league.country:''),competition:name,home:home.name||'Équipe inconnue',away:away.name||'Équipe inconnue',homeLogo:national?(league.flag||''):(home.logo||''),awayLogo:national?(league.flag||''):(away.logo||''),homeNational:national,awayNational:national,homeId:home.id||null,awayId:away.id||null,apiHomeId:home.id||null,apiAwayId:away.id||null,homeScore:x.goals?.home??null,awayScore:x.goals?.away??null,date:f.date,status:live?'LIVE':finished?'FINISHED':'SCHEDULED',live,finished,periodDetail:f.status?.long||'',periodNumber:statusCode==='1H'?1:statusCode==='2H'?2:0,clockBaseSeconds:f.status?.elapsed!==null&&f.status?.elapsed!==undefined&&Number.isFinite(Number(f.status.elapsed))?(Number(f.status.elapsed)+Number(f.status.extra||0))*60:null,clockLabel:f.status?.extra&&f.status?.elapsed?String(f.status.elapsed)+'+'+String(f.status.extra):'',clockUpdatedAt:Date.now(),clockRunning:live&&statusCode!=='HT',venue:f.venue?.name||'',raw:x};
+ return {id:'af-'+String(f.id),apiFootballId:String(f.id),provider:'API-Football',providers:['API-Football'],code,league:name+(league.country?' · '+league.country:''),competition:name,home:home.name||'Équipe inconnue',away:away.name||'Équipe inconnue',homeLogo:national?(league.flag||''):(home.logo||''),awayLogo:national?(league.flag||''):(away.logo||''),homeNational:national,awayNational:national,homeId:home.id||null,awayId:away.id||null,apiHomeId:home.id||null,apiAwayId:away.id||null,homeScore:x.goals?.home??null,awayScore:x.goals?.away??null,date:f.date,status:live?'LIVE':finished?'FINISHED':'SCHEDULED',live,finished,periodDetail:f.status?.long||'',periodNumber:statusCode==='1H'?1:statusCode==='2H'?2:0,clockBaseSeconds:f.status?.elapsed!==null&&f.status?.elapsed!==undefined&&Number.isFinite(Number(f.status.elapsed))?(Number(f.status.elapsed)+Number(f.status.extra||0))*60:null,clockLabel:f.status?.extra&&f.status?.elapsed?String(f.status.elapsed)+'+'+String(f.status.extra):'',clockUpdatedAt:Date.now(),clockRunning:live&&statusCode!=='HT',venue:f.venue?.name||'',source:'API-Football',raw:x};
 }
 function mergeApiFootballFixtures(rows){
  const extras=[];
@@ -269,7 +269,7 @@ function teamFlagUrl(team){
  return iso?'https://flagcdn.com/w160/'+iso+'.png':'';
 }
 function crestMarkup(name,url,kind='crest'){const label=String(name||'Équipe'),initials=label.split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase()||'FC',isFlag=String(kind).includes('flag');return '<span class="gp-crest '+kind+'">'+(url?'<img loading="lazy" src="'+safe(url)+'" alt="'+(isFlag?'Drapeau de ':'Écusson de ')+safe(label)+'" onerror="this.parentElement.classList.add(\'is-fallback\');this.remove()">':'')+'<span class="gp-crest-fallback" aria-hidden="true">'+safe(initials)+'</span></span>'}
-function mapEvent(e,code,label){const c=e.competitions?.[0]||{},ts=c.competitors||[],h=ts.find(x=>x.homeAway==='home')||ts[0]||{},a=ts.find(x=>x.homeAway==='away')||ts[1]||{},st=c.status?.type||e.status?.type||{},national=isNationalCompetition(code),state=String(st.state||'').toLowerCase(),statusName=String(st.name||st.description||'').toLowerCase(),finished=!!st.completed||state==='post'||/status_final|full.?time|after.?extra.?time|finalizado|terminé/.test(statusName),live=state==='in'||/in.?progress|live/.test(statusName);return{id:e.id,code:code,league:label,competition:c.name||label,home:h.team?.displayName||h.team?.name||'Équipe inconnue',away:a.team?.displayName||a.team?.name||'Équipe inconnue',homeLogo:national?teamFlagUrl(h.team):crestUrl(h.team),awayLogo:national?teamFlagUrl(a.team):crestUrl(a.team),homeNational:national,awayNational:national,homeId:h.id||h.team?.id,awayId:a.id||a.team?.id,homeScore:h.score??null,awayScore:a.score??null,date:e.date,status:live?'LIVE':finished?'FINISHED':'SCHEDULED',live,finished,period:c.status?.displayClock||e.status?.displayClock||'',venue:c.venue?.fullName||'',raw:e}}
+function mapEvent(e,code,label){const c=e.competitions?.[0]||{},ts=c.competitors||[],h=ts.find(x=>x.homeAway==='home')||ts[0]||{},a=ts.find(x=>x.homeAway==='away')||ts[1]||{},st=c.status?.type||e.status?.type||{},national=isNationalCompetition(code),state=String(st.state||'').toLowerCase(),statusName=String(st.name||st.description||'').toLowerCase(),finished=!!st.completed||state==='post'||/status_final|full.?time|after.?extra.?time|finalizado|terminé/.test(statusName),live=state==='in'||/in.?progress|live/.test(statusName);return{id:e.id,code:code,league:label,competition:c.name||label,home:h.team?.displayName||h.team?.name||'Équipe inconnue',away:a.team?.displayName||a.team?.name||'Équipe inconnue',homeLogo:national?teamFlagUrl(h.team):crestUrl(h.team),awayLogo:national?teamFlagUrl(a.team):crestUrl(a.team),homeNational:national,awayNational:national,homeId:h.id||h.team?.id,awayId:a.id||a.team?.id,homeScore:h.score??null,awayScore:a.score??null,date:e.date,status:live?'LIVE':finished?'FINISHED':'SCHEDULED',live,finished,period:c.status?.displayClock||e.status?.displayClock||'',venue:c.venue?.fullName||'',source:'ESPN',raw:e}}
 function liveMinute(m){
  if(!m.live)return '';
  const detail=String(m.periodDetail||'').toLowerCase();
@@ -575,9 +575,20 @@ async function refreshOpenMatchDetail(){
 }
 
 function xtext(x){return x.text||x.shortText||x.type?.text||x.type?.name||'Événement'}
+function trustedFinishedResult(x,now=Date.now()){
+ const date=Date.parse(x?.date),home=Number(x?.homeScore),away=Number(x?.awayScore);
+ const sources=[x?.source,...(Array.isArray(x?.providers)?x.providers:[])].filter(Boolean).map(v=>String(v).toLowerCase());
+ const trustedSource=sources.some(v=>v==='espn'||v==='api-football');
+ return !!x&&x.finished===true&&!x.live&&!x.scoreConflict&&trustedSource&&Number.isFinite(date)&&date<now&&date>=now-400*86400000&&Number.isInteger(home)&&Number.isInteger(away)&&home>=0&&away>=0&&!!providerNorm(x.home)&&!!providerNorm(x.away);
+}
+function trustedUpcomingFixture(x,now=Date.now(),horizon=now+7*86400000){
+ const date=Date.parse(x?.date),sources=[x?.source,...(Array.isArray(x?.providers)?x.providers:[])].filter(Boolean).map(v=>String(v).toLowerCase());
+ return !!x&&!x.live&&!x.finished&&!x.scoreConflict&&Number.isFinite(date)&&date>now&&date<=horizon&&sources.some(v=>v==='espn'||v==='api-football')&&!!providerNorm(x.home)&&!!providerNorm(x.away)&&!!x.league;
+}
 function recent(team,exclude,venue=null,teamId=null){
+ const now=Date.now();
  return matches.filter(x=>{
-  if(!x.finished||x.id===exclude||x.homeScore===null||x.awayScore===null)return false;
+  if(!trustedFinishedResult(x,now)||x.id===exclude)return false;
   const sameHome=!!(teamId&&x.homeId&&String(x.homeId)===String(teamId))||providerNorm(x.home)===providerNorm(team);
   const sameAway=!!(teamId&&x.awayId&&String(x.awayId)===String(teamId))||providerNorm(x.away)===providerNorm(team);
   return venue==='home'?sameHome:venue==='away'?sameAway:sameHome||sameAway;
@@ -629,7 +640,7 @@ async function cornerHistory(teamMatches){
 function renderPicks(){
  const box=$('picks');if(!box)return;
  const now=Date.now(),horizon=now+7*86400000;
- const dayMatches=matches.filter(m=>!m.live&&!m.finished&&Date.parse(m.date)>now&&Date.parse(m.date)<=horizon).sort((a,b)=>new Date(a.date)-new Date(b.date));
+ const dayMatches=matches.filter(m=>trustedUpcomingFixture(m,now,horizon)).sort((a,b)=>new Date(a.date)-new Date(b.date));
  box.replaceChildren();
  const heading=document.createElement('div');heading.className='notice';heading.innerHTML='<b>PRONOSTICS · 7 PROCHAINS JOURS</b><br>'+dayMatches.length+' rencontre(s) à venir · '+safe(appDate(now,{weekday:'long',day:'numeric',month:'long'}))+' au '+safe(appDate(horizon,{day:'numeric',month:'long'}))+' · Sélections calculées à partir des résultats vérifiés disponibles.';box.append(heading);
  if(!dayMatches.length){const empty=document.createElement('div');empty.className='notice';empty.textContent='Aucun match à venir confirmé dans les sept prochains jours pour les compétitions suivies. Le calendrier sera actualisé automatiquement.';box.append(empty);return}
