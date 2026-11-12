@@ -150,7 +150,7 @@ const ESPN_TEAM_HISTORY_CACHE_KEY='gold-pronos-espn-team-history-v1';
 async function loadEspnTeamHistory(){
  const now=Date.now(),cache=(()=>{try{return JSON.parse(localStorage.getItem(ESPN_TEAM_HISTORY_CACHE_KEY)||'{}')}catch(_){return {}}})();
  // Les historiques doivent couvrir les clubs ET les sélections : le calendrier préchargé ne contient pas les résultats passés.
- const upcoming=matches.filter(m=>!m.live&&!m.finished&&Date.parse(m.date)>now&&Date.parse(m.date)<=now+7*86400000&&m.code&&m.homeId&&m.awayId);
+ const upcoming=matches.filter(m=>!m.live&&!m.finished&&Date.parse(m.date)>now&&Date.parse(m.date)<=now+7*86400000&&m.code&&!String(m.code).startsWith('api-football:')&&m.homeId&&m.awayId);
  const teams=new Map();
  for(const m of upcoming){
   if(recent(m.home,m.id).length<5||recent(m.home,m.id,'home',m.homeId).length<2)teams.set(String(m.code)+'|'+String(m.homeId),{code:String(m.code),id:String(m.homeId),team:m.home});
