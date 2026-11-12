@@ -51,7 +51,7 @@ const { chromium } = require('playwright');
   const liveCard = page.locator('#live-matches .match').first();
   if (!(await liveCard.count())) throw new Error('Live page did not show the mocked live fixture. Home: '+(await page.locator('#home-matches').innerText())+' | Live page: '+(await page.locator('#live-matches').innerText()));
   const liveMinuteText = await liveCard.locator('.state').innerText();
-  if (!/~45:00|~45:\\d{2}/.test(liveMinuteText)) throw new Error('Live clock must show minute and seconds for the elapsed 45th minute: '+liveMinuteText);
+  if (!/~45:\d{2}/.test(liveMinuteText)) throw new Error('Live clock must show minute and seconds for the elapsed 45th minute: '+liveMinuteText);
   const liveText = await page.locator('#live-matches').innerText();
   if (!liveText.includes('Global United FC') || !liveText.includes('World Athletic Club')) throw new Error('Live page must add live fixtures supplied outside the ESPN calendar: '+liveText);
   await page.locator('#personalized-home .personalized-matches > div').first().waitFor({state:'visible',timeout:5000});
