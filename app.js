@@ -278,9 +278,7 @@ function liveMinute(m){
  let seconds;
  let approximate=false;
  if(m.clockBaseSeconds===null||m.clockBaseSeconds===undefined||!Number.isFinite(base)||base<=0){
-  const kickoff=Date.parse(m.date),elapsed=Date.now()-kickoff;
-  if(Number.isFinite(kickoff)&&elapsed>0&&elapsed<=125*60*1000){seconds=Math.floor(elapsed/1000);approximate=true}
-  else return 'En cours';
+  return 'Minute non confirmée';
  }else{
   const elapsed=Math.max(0,Math.floor((Date.now()-(m.clockUpdatedAt||Date.now()))/1000));
   seconds=base+(m.clockRunning?elapsed:0);
@@ -304,7 +302,7 @@ function displayCompetition(m){
  const values=[m.competition,m.league].map(v=>String(v||'').trim()).filter(v=>v&&!/^HOR\s*L$/i.test(v)&&!/^football international$/i.test(v));
  return values[0]||'Compétition non communiquée';
 }
-function card(m){const b=document.createElement('button');b.className='match'+(m.live?' is-live':'');b.innerHTML='<span class="league"></span><span class="teams"><span class="match-side home-side">'+crestMarkup(m.home,m.homeLogo,m.homeNational?'match-flag':'match-crest')+'<b class="team-name"></b></span><span class="match-side away-side">'+crestMarkup(m.away,m.awayLogo,m.awayNational?'match-flag':'match-crest')+'<b class="team-name"></b></span></span><span class="match-result"><span class="score"></span><span class="state"></span></span>';b.querySelector('.league').textContent=displayCompetition(m);b.querySelector('.home-side .team-name').textContent=m.home;b.querySelector('.away-side .team-name').textContent=m.away;b.querySelector('.score').textContent=m.homeScore!==null&&m.homeScore!==undefined&&m.awayScore!==null&&m.awayScore!==undefined?m.homeScore+' - '+m.awayScore:'VS';const state=b.querySelector('.state');state.textContent=(m.scoreConflict?'⚠ Scores à vérifier · '+status(m):status(m))+(m.lineups?.length?' · XI officiels':'');if(m.live)state.classList.add('live-state');if(m.scoreConflict){state.classList.add('score-conflict');b.setAttribute('aria-label','Attention : les fournisseurs ne concordent pas sur le score. '+m.home+' contre '+m.away)}b.onclick=()=>openMatch(m);return b}
+function card(m){const b=document.createElement('button');b.className='match'+(m.live?' is-live':'');b.innerHTML='<span class="league"></span><span class="teams"><span class="match-side home-side">'+crestMarkup(m.home,m.homeLogo,m.homeNational?'match-flag':'match-crest')+'<b class="team-name"></b></span><span class="match-side away-side">'+crestMarkup(m.away,m.awayLogo,m.awayNational?'match-flag':'match-crest')+'<b class="team-name"></b></span></span><span class="match-result"><span class="score"></span><span class="state"></span></span>';b.querySelector('.league').textContent=displayCompetition(m);b.querySelector('.home-side .team-name').textContent=m.home;b.querySelector('.away-side .team-name').textContent=m.away;b.querySelector('.score').textContent=m.scoreConflict?'SCORE À CONFIRMER':(m.homeScore!==null&&m.homeScore!==undefined&&m.awayScore!==null&&m.awayScore!==undefined?m.homeScore+' - '+m.awayScore:'VS');const state=b.querySelector('.state');state.textContent=(m.scoreConflict?'⚠ Scores à vérifier · '+status(m):status(m))+(m.lineups?.length?' · XI officiels':'');if(m.live)state.classList.add('live-state');if(m.scoreConflict){state.classList.add('score-conflict');b.setAttribute('aria-label','Attention : les fournisseurs ne concordent pas sur le score. '+m.home+' contre '+m.away)}b.onclick=()=>openMatch(m);return b}
 const PREF_KEY='gold-pronos-onboarding-v1';
 function readFootballPrefs(){try{return JSON.parse(localStorage.getItem(PREF_KEY)||'{}')}catch(e){return {}}}
 function saveFootballPrefs(p){localStorage.setItem(PREF_KEY,JSON.stringify({...p,completed:true,updatedAt:new Date().toISOString()}));}
