@@ -204,7 +204,9 @@ function mergeApiFootballLiveFixtures(rows){
   const before=JSON.stringify([match.live,match.finished,match.status,match.homeScore,match.awayScore,match.periodDetail]);
   match.apiFootballId=item.apiFootballId;match.apiHomeId=item.apiHomeId||item.homeId||match.apiHomeId||null;match.apiAwayId=item.apiAwayId||item.awayId||match.apiAwayId||null;
   match.providers=[...new Set([...(match.providers||['ESPN']),'API-Football'])];
-  match.homeScore=item.homeScore;match.awayScore=item.awayScore;
+  const hasBothScores=match.homeScore!==null&&match.homeScore!==undefined&&item.homeScore!==null&&item.homeScore!==undefined&&match.awayScore!==null&&match.awayScore!==undefined&&item.awayScore!==null&&item.awayScore!==undefined;
+  const scoreDiffers=hasBothScores&&(Number(match.homeScore)!==Number(item.homeScore)||Number(match.awayScore)!==Number(item.awayScore));
+  if(scoreDiffers){match.scoreConflict={...(match.scoreConflict||{}),existing:[Number(match.homeScore),Number(match.awayScore)],apiFootball:[Number(item.homeScore),Number(item.awayScore)],updatedAt:Date.now()};}else if(!match.scoreConflict){match.homeScore=item.homeScore;match.awayScore=item.awayScore;}
   match.live=item.live;match.finished=item.finished;match.status=item.status;
   match.periodDetail=item.periodDetail;match.clockBaseSeconds=item.clockBaseSeconds;
   match.clockLabel=item.clockLabel;match.clockUpdatedAt=Date.now();match.clockRunning=item.clockRunning;
