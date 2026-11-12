@@ -18,7 +18,7 @@ function appLocale(){return ({fr:'fr-FR',en:'en-GB',es:'es-ES',pt:'pt-PT',de:'de
 function appDate(value,options={}){const d=new Date(value);if(Number.isNaN(d.getTime()))return 'Date inconnue';const prefs=readAppSettings();try{return new Intl.DateTimeFormat(appLocale(),{timeZone:prefs.timezone||'Africa/Porto-Novo',...options}).format(d)}catch(e){return new Intl.DateTimeFormat(appLocale(),options).format(d)}}
 async function get(url,ms=9000){const c=new AbortController(),t=setTimeout(()=>c.abort(),ms);try{const r=await fetch(url,{signal:c.signal,cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);return await r.json()}finally{clearTimeout(t)}}
 async function withTimeout(promise,ms,message){let timer;try{return await Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error(message||'Délai de réponse dépassé')),ms)})])}finally{clearTimeout(timer)}}
-const API_FOOTBALL_CACHE_KEY='gold-pronos-api-football-fixtures-v2';
+const API_FOOTBALL_CACHE_KEY='gold-pronos-api-football-fixtures-v3';
 const SPORT_SCORE_URL='https://sportscore.com/api/v1/fixtures/';
 const SPORT_SCORE_CACHE_KEY='gold-pronos-sportscore-live-v1';
 function sportScoreStatus(value){
@@ -181,16 +181,16 @@ function mergeApiFootballLiveFixtures(rows){
 }
 async function loadApiFootballFixtures(force=false){
  const now=Date.now();
- if(!force){try{const cache=JSON.parse(localStorage.getItem(API_FOOTBALL_CACHE_KEY)||'null');if(cache&&now-cache.at<10*60*1000&&Array.isArray(cache.fixtures))return cache.fixtures}catch(_){}}
- const start=new Date();start.setUTCDate(start.getUTCDate()-35);
- const end=new Date();end.setUTCDate(end.getUTCDate()+14);
- // football-data-hub limite chaque requête à 31 jours : découper les 49 jours en deux plages.
- const split=new Date(start);split.setUTCDate(split.getUTCDate()+30);
- const next=new Date(split);next.setUTCDate(next.getUTCDate()+1);
- const ranges=[
-  {from:start,to:split},
-  {from:next,to:end}
- ];
+ if(!force){try{const cache=JSON.parse(localStorage.getItem(API_FOOTBALL_CACHE_KEY)||'null');if(cache&&now-cache.at<6*60*60*1000&&Array.isArray(cache.fixtures))return cache.fixtures}catch(_){}}
+ const start=new Date();start.setUTCHours(0,0,0,0);start.setUTCDate(start.getUTCDate()-90);
+ const end=new Date();end.setUTCHours(0,0,0,0);end.setUTCDate(end.getUTCDate()+14);
+ // Historique partagé par toutes les compétitions : plages de 31 jours, cache long car les résultats passés changent rarement.
+ const ranges=[];
+ for(let from=new Date(start);from<=end;){
+  const to=new Date(from);to.setUTCDate(to.getUTCDate()+30);if(to>end)to.setTime(end.getTime());
+  ranges.push({from:new Date(from),to});
+  from=new Date(to);from.setUTCDate(from.getUTCDate()+1);
+ }
  const results=await Promise.all(ranges.map(range=>apiFootballRequest({
   action:'fixtures',
   from:range.from.toISOString().slice(0,10),
@@ -421,7 +421,7 @@ function teamRecentForm(teamName,teamId,excludeId){
  const list=recent(teamName,excludeId,null,teamId).slice(0,5);
  if(!list.length)return '<div class="md-empty">Aucun résultat récent vérifié disponible dans le calendrier chargé.</div>';
  return '<div class="md-form-list">'+list.map(m=>{
-  const home=teamId&&m.homeId?String(m.homeId)===String(teamId):m.home===teamName;
+  const home=!!(teamId&&m.homeId&&String(m.homeId)===String(teamId))||providerNorm(m.home)===providerNorm(teamName);
   const gf=Number(home?m.homeScore:m.awayScore),ga=Number(home?m.awayScore:m.homeScore),result=gf>ga?'V':gf===ga?'N':'D';
   const opponent=home?m.away:m.home;
   return '<article class="md-form-row"><span class="md-form-result '+(result==='V'?'win':result==='D'?'loss':'draw')+'">'+result+'</span><span>'+safe(opponent)+'</span><b>'+gf+' – '+ga+'</b><small>'+safe(appDate(m.date,{day:'2-digit',month:'short'}))+'</small></article>';
@@ -543,18 +543,18 @@ function xtext(x){return x.text||x.shortText||x.type?.text||x.type?.name||'Évé
 function recent(team,exclude,venue=null,teamId=null){
  return matches.filter(x=>{
   if(!x.finished||x.id===exclude||x.homeScore===null||x.awayScore===null)return false;
-  const sameHome=teamId&&x.homeId?String(x.homeId)===String(teamId):x.home===team;
-  const sameAway=teamId&&x.awayId?String(x.awayId)===String(teamId):x.away===team;
+  const sameHome=!!(teamId&&x.homeId&&String(x.homeId)===String(teamId))||providerNorm(x.home)===providerNorm(team);
+  const sameAway=!!(teamId&&x.awayId&&String(x.awayId)===String(teamId))||providerNorm(x.away)===providerNorm(team);
   return venue==='home'?sameHome:venue==='away'?sameAway:sameHome||sameAway;
  }).sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,8);
 }
-function points(m,team){const home=m.home===team,sc=Number(home?m.homeScore:m.awayScore),op=Number(home?m.awayScore:m.homeScore);return sc>op?3:sc===op?1:0}
+function points(m,team){const home=providerNorm(m.home)===providerNorm(team),sc=Number(home?m.homeScore:m.awayScore),op=Number(home?m.awayScore:m.homeScore);return sc>op?3:sc===op?1:0}
 function dateKeyInAppZone(value){const prefs=readAppSettings(),zone=prefs.timezone||'Africa/Porto-Novo';try{const parts=new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(value));const p=Object.fromEntries(parts.map(x=>[x.type,x.value]));return p.year+p.month+p.day}catch(e){return dateKey(value)}}
 function matchStats(list,team){
  const sample=list.slice(0,8),n=sample.length;
  if(!n)return null;
  let pts=0,wins=0,draws=0,losses=0,scored=0,conceded=0,over15=0,over25=0,btts=0;
- for(const m of sample){const home=m.home===team,forGoals=Number(home?m.homeScore:m.awayScore),against=Number(home?m.awayScore:m.homeScore);scored+=forGoals;conceded+=against;const p=points(m,team);pts+=p;if(p===3)wins++;else if(p===1)draws++;else losses++;const total=forGoals+against;if(total>=2)over15++;if(total>=3)over25++;if(forGoals>0&&against>0)btts++}
+ for(const m of sample){const home=providerNorm(m.home)===providerNorm(team),forGoals=Number(home?m.homeScore:m.awayScore),against=Number(home?m.awayScore:m.homeScore);scored+=forGoals;conceded+=against;const p=points(m,team);pts+=p;if(p===3)wins++;else if(p===1)draws++;else losses++;const total=forGoals+against;if(total>=2)over15++;if(total>=3)over25++;if(forGoals>0&&against>0)btts++}
  return {sample,n,ppg:pts/n,winRate:wins/n,drawRate:draws/n,unbeatenRate:(wins+draws)/n,scored:scored/n,conceded:conceded/n,goals:(scored+conceded)/n,over15:over15/n,over25:over25/n,bttsRate:btts/n};
 }
 function marketLine(label,value,detail,kind){
