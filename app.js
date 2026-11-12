@@ -133,7 +133,7 @@ function mapApiFootballFixture(x){
  const code=API_LEAGUE_CODES[name.toLowerCase()]||('api-football:'+String(league.id||'unknown'));
  const statusCode=String(f.status?.short||'NS'),live=['1H','HT','2H','ET','BT','P','LIVE','INT','SUSP'].includes(statusCode),finished=['FT','AET','PEN'].includes(statusCode);
  const national=isNationalCompetition(code);
- return {id:'af-'+String(f.id),apiFootballId:String(f.id),provider:'API-Football',providers:['API-Football'],code,league:name+(league.country?' · '+league.country:''),competition:name,home:home.name||'Équipe inconnue',away:away.name||'Équipe inconnue',homeLogo:national?(league.flag||''):(home.logo||''),awayLogo:national?(league.flag||''):(away.logo||''),homeNational:national,awayNational:national,homeId:home.id||null,awayId:away.id||null,apiHomeId:home.id||null,apiAwayId:away.id||null,homeScore:x.goals?.home??null,awayScore:x.goals?.away??null,date:f.date,status:live?'LIVE':finished?'FINISHED':'SCHEDULED',live,finished,periodDetail:f.status?.long||'',periodNumber:0,clockBaseSeconds:f.status?.elapsed!==null&&f.status?.elapsed!==undefined&&Number.isFinite(Number(f.status.elapsed))?(Number(f.status.elapsed)+Number(f.status.extra||0))*60:null,clockLabel:f.status?.extra&&f.status?.elapsed?String(f.status.elapsed)+'+'+String(f.status.extra):'',clockUpdatedAt:Date.now(),clockRunning:live&&statusCode!=='HT',venue:f.venue?.name||'',raw:x};
+ return {id:'af-'+String(f.id),apiFootballId:String(f.id),provider:'API-Football',providers:['API-Football'],code,league:name+(league.country?' · '+league.country:''),competition:name,home:home.name||'Équipe inconnue',away:away.name||'Équipe inconnue',homeLogo:national?(league.flag||''):(home.logo||''),awayLogo:national?(league.flag||''):(away.logo||''),homeNational:national,awayNational:national,homeId:home.id||null,awayId:away.id||null,apiHomeId:home.id||null,apiAwayId:away.id||null,homeScore:x.goals?.home??null,awayScore:x.goals?.away??null,date:f.date,status:live?'LIVE':finished?'FINISHED':'SCHEDULED',live,finished,periodDetail:f.status?.long||'',periodNumber:statusCode==='1H'?1:statusCode==='2H'?2:0,clockBaseSeconds:f.status?.elapsed!==null&&f.status?.elapsed!==undefined&&Number.isFinite(Number(f.status.elapsed))?(Number(f.status.elapsed)+Number(f.status.extra||0))*60:null,clockLabel:f.status?.extra&&f.status?.elapsed?String(f.status.elapsed)+'+'+String(f.status.extra):'',clockUpdatedAt:Date.now(),clockRunning:live&&statusCode!=='HT',venue:f.venue?.name||'',raw:x};
 }
 function mergeApiFootballFixtures(rows){
  const extras=[];
@@ -274,6 +274,8 @@ function liveMinute(m){
  if(!m.live)return '';
  const detail=String(m.periodDetail||'').toLowerCase();
  if(/half.?time|mi-temps|break|interval/.test(detail))return 'Mi-temps';
+ const period=Number(m.periodNumber||0);
+ const phase=/second.?half|2nd.?half|deuxième.?mi.?temps|seconde.?mi.?temps/.test(detail)||period===2?'2e mi-temps':(/first.?half|1st.?half|première.?mi.?temps/.test(detail)||period===1?'1re mi-temps':'');
  const base=Number(m.clockBaseSeconds);
  let seconds;
  let approximate=false;
@@ -289,9 +291,9 @@ function liveMinute(m){
  const added=String(m.clockLabel||'').match(/^(\d{1,3})\+(\d{1,2})$/);
  if(added){
   const minute=Number(added[1]),extra=Math.max(Number(added[2]),Math.floor(total/60)-minute);
-  return (approximate?'~':'')+minute+'+'+extra+'′ '+ss+'s';
+  return (phase?phase+' · ':'')+(approximate?'~':'')+minute+'+'+extra+'′ '+ss+'s';
  }
- return (approximate?'~':'')+mm+':'+ss;
+ return (phase?phase+' · ':'')+(approximate?'~':'')+mm+':'+ss;
 }
 function status(m){
  if(m.live){const minute=liveMinute(m);return '● EN DIRECT · '+minute}
