@@ -133,6 +133,17 @@ const { chromium } = require('playwright');
     await page.locator('.tab[data-page="'+name+'"]').click();
     await page.locator('#page-'+name+'.active').waitFor({state:'visible',timeout:5000});
   }
+  const nationalCompetitionCodes = await page.locator('#teams-competition option').evaluateAll(nodes => nodes.map(node => node.value));
+  for (const code of ['fifa.worldq.caf','fifa.worldq.uefa','fifa.friendly','fifa.wwc','fifa.world.u20','fifa.world.u17','uefa.u21']) {
+    if (!nationalCompetitionCodes.includes(code)) throw new Error('National teams selector is missing competition: '+code);
+  }
+  await page.evaluate(() => {
+    window.GoldSupabase = {functions:{invoke:async(name,args) => name==='teams-catalog' ? {data:{teams:[{id:'ben-1',displayName:'Bénin',abbreviation:'BEN',country:{name:'Bénin',code:'BEN'},nationalFlag:'https://example.com/benin.png'}]},error:null} : {data:null,error:null}}};
+  });
+  await page.locator('#teams-competition').selectOption('fifa.worldq.caf');
+  await page.locator('#teams-list .team-tile').filter({hasText:'Bénin'}).waitFor({state:'visible',timeout:5000});
+  const nationalTeamsText = await page.locator('#teams-list').innerText();
+  if (!nationalTeamsText.includes('Bénin')) throw new Error('National team catalog did not render the mocked official selection: '+nationalTeamsText);
   await page.locator('#account-open').click();
   await page.locator('#page-account.active').waitFor({state:'visible',timeout:5000});
   await page.setViewportSize({width:390,height:844});
