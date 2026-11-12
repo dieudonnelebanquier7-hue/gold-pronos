@@ -184,10 +184,24 @@ async function loadApiFootballFixtures(force=false){
  if(!force){try{const cache=JSON.parse(localStorage.getItem(API_FOOTBALL_CACHE_KEY)||'null');if(cache&&now-cache.at<10*60*1000&&Array.isArray(cache.fixtures))return cache.fixtures}catch(_){}}
  const start=new Date();start.setUTCDate(start.getUTCDate()-35);
  const end=new Date();end.setUTCDate(end.getUTCDate()+14);
- const data=await apiFootballRequest({action:'fixtures',from:start.toISOString().slice(0,10),to:end.toISOString().slice(0,10),timezone:'Africa/Porto-Novo'});
- if(!data?.configured||!Array.isArray(data.fixtures))return [];
- try{localStorage.setItem(API_FOOTBALL_CACHE_KEY,JSON.stringify({at:now,fixtures:data.fixtures}))}catch(_){}
- return data.fixtures;
+ // football-data-hub limite chaque requête à 31 jours : découper les 49 jours en deux plages.
+ const split=new Date(start);split.setUTCDate(split.getUTCDate()+30);
+ const next=new Date(split);next.setUTCDate(next.getUTCDate()+1);
+ const ranges=[
+  {from:start,to:split},
+  {from:next,to:end}
+ ];
+ const results=await Promise.all(ranges.map(range=>apiFootballRequest({
+  action:'fixtures',
+  from:range.from.toISOString().slice(0,10),
+  to:range.to.toISOString().slice(0,10),
+  timezone:'Africa/Porto-Novo'
+ }).catch(error=>{console.warn('Plage API-Football indisponible',error?.message||error);return null})));
+ const rows=results.flatMap(data=>data?.configured&&Array.isArray(data.fixtures)?data.fixtures:[]);
+ const unique=[...new Map(rows.map(x=>[String(x.fixture?.id||x.fixture?.date+'-'+x.teams?.home?.id+'-'+x.teams?.away?.id),x])).values()];
+ if(!unique.length)return [];
+ try{localStorage.setItem(API_FOOTBALL_CACHE_KEY,JSON.stringify({at:now,fixtures:unique}))}catch(_){}
+ return unique;
 }
 function renderApiFootballDetail(m,data){
  const apiLineupGroups=officialLineups({lineups:data.lineups});const validApiLineups=lineupsMatchFixture(apiLineupGroups,m)?apiLineupGroups:[];m.apiFootballLineupsLoaded=validApiLineups.length>0;if(validApiLineups.length)m.lineups=validApiLineups;
