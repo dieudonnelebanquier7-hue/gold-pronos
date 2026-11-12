@@ -149,21 +149,22 @@ function mergeApiFootballFixtures(rows){
 const ESPN_TEAM_HISTORY_CACHE_KEY='gold-pronos-espn-team-history-v1';
 async function loadEspnTeamHistory(){
  const now=Date.now(),cache=(()=>{try{return JSON.parse(localStorage.getItem(ESPN_TEAM_HISTORY_CACHE_KEY)||'{}')}catch(_){return {}}})();
- const upcoming=matches.filter(m=>!m.live&&!m.finished&&Date.parse(m.date)>now&&Date.parse(m.date)<=now+7*86400000&&(m.homeNational||m.awayNational||isNationalCompetition(m.code)));
+ // Les historiques doivent couvrir les clubs ET les sélections : le calendrier préchargé ne contient pas les résultats passés.
+ const upcoming=matches.filter(m=>!m.live&&!m.finished&&Date.parse(m.date)>now&&Date.parse(m.date)<=now+7*86400000&&m.code&&m.homeId&&m.awayId);
  const teams=new Map();
  for(const m of upcoming){
-  if(recent(m.home,m.id).length<5&&m.homeId)teams.set(String(m.code)+'|'+String(m.homeId),{code:String(m.code),id:String(m.homeId),team:m.home});
-  if(recent(m.away,m.id).length<5&&m.awayId)teams.set(String(m.code)+'|'+String(m.awayId),{code:String(m.code),id:String(m.awayId),team:m.away});
+  if(recent(m.home,m.id).length<5||recent(m.home,m.id,'home',m.homeId).length<2)teams.set(String(m.code)+'|'+String(m.homeId),{code:String(m.code),id:String(m.homeId),team:m.home});
+  if(recent(m.away,m.id).length<5||recent(m.away,m.id,'away',m.awayId).length<2)teams.set(String(m.code)+'|'+String(m.awayId),{code:String(m.code),id:String(m.awayId),team:m.away});
  }
- const tasks=[...teams.values()].filter(x=>{const e=cache[x.code+'|'+x.id];return !(e&&now-Number(e.at||0)<6*60*60*1000&&Array.isArray(e.events))}).slice(0,40);
- let cursor=0,added=0;
- const workers=Array.from({length:8},async()=>{while(true){
+ const tasks=[...teams.values()].filter(x=>{const e=cache[x.code+'|'+x.id];return !(e&&now-Number(e.at||0)<6*60*60*1000&&Array.isArray(e.events)&&e.events.length>0)}).slice(0,200);
+ let cursor=0,added=0,failed=0;
+ const workers=Array.from({length:12},async()=>{while(true){
   const i=cursor++;if(i>=tasks.length)break;const item=tasks[i],key=item.code+'|'+item.id;
   try{
    const data=await get(API+item.code+'/teams/'+encodeURIComponent(item.id)+'/schedule?region=fr&lang=fr',15000);
    const events=Array.isArray(data?.events)?data.events:Array.isArray(data?.items)?data.items:[];
-   if(events.length)cache[key]={at:now,events};else{delete cache[key];console.warn('Historique ESPN vide pour '+item.team+' ('+item.code+'). Nouvelle tentative au prochain chargement.');}
-  }catch(error){console.warn('Historique ESPN indisponible pour '+item.team,error?.message||error);delete cache[key]}
+   if(events.length)cache[key]={at:now,events};else{delete cache[key];failed++;console.warn('Historique ESPN vide pour '+item.team+' ('+item.code+').')}
+  }catch(error){failed++;console.warn('Historique ESPN indisponible pour '+item.team,error?.message||error);delete cache[key]}
  }});
  await Promise.all(workers);
  try{localStorage.setItem(ESPN_TEAM_HISTORY_CACHE_KEY,JSON.stringify(cache))}catch(_){}
@@ -171,14 +172,14 @@ async function loadEspnTeamHistory(){
  for(const item of teams.values()){
   const entry=cache[item.code+'|'+item.id];if(!Array.isArray(entry?.events))continue;
   for(const event of entry.events){
-   const mapped=mapEvent(event,item.code,'Sélections nationales');
+   const mapped=mapEvent(event,item.code,'Historique des équipes');
    if(!mapped||!mapped.id||seen.has(String(mapped.id))||!mapped.finished||mapped.homeScore===null||mapped.awayScore===null)continue;
    const time=Date.parse(mapped.date);if(!Number.isFinite(time)||time>now||time<now-400*86400000)continue;
    matches.push(mapped);seen.add(String(mapped.id));added++;
   }
  }
  if(added)matches.sort((a,b)=>new Date(a.date)-new Date(b.date));
- return {teams:teams.size,added};
+ return {teams:teams.size,requested:tasks.length,added,failed};
 }
 const API_FOOTBALL_LIVE_CACHE_KEY='gold-pronos-api-football-live-v1';
 async function loadApiFootballLive(force=false){
