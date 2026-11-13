@@ -166,7 +166,7 @@ const { chromium } = require('playwright');
   const newsCards = page.locator('#news-list .news-card');
   const newsCount = await newsCards.count();
   const summaryLabels = await page.locator('#news-list .news-summary-label').evaluateAll(nodes => nodes.map(node => node.textContent.trim()));
-  if (!newsCount || summaryLabels.length !== newsCount || summaryLabels.some(label => label !== 'RÉSUMÉ EN FRANÇAIS')) {
+  if (!newsCount || summaryLabels.length !== newsCount || summaryLabels.some(label => label !== 'CONTENU DISPONIBLE EN FRANÇAIS')) {
     throw new Error('French news page did not render complete, clearly labelled French summaries: '+newsCount+' card(s), '+summaryLabels.length+' label(s)');
   }
   const newsColors = await newsCards.first().evaluate(el => ({
