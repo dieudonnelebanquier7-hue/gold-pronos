@@ -14,6 +14,7 @@ on:
       - 'sw.js'
       - 'matches.json'
       - '.github/workflows/android-apk.yml'
+      - '.github/workflows/pages.yml'
 
 permissions:
   contents: write
@@ -165,14 +166,39 @@ jobs:
           npx cap add android
           npx cap sync android
           # Capacitor peut réécrire les propriétés pendant sync : appliquer le délai après cette étape.
-          sed -i '/^distributionUrl=/a networkTimeout=60000' android/gradle/wrapper/gradle-wrapper.properties
+          sed -i '/^networkTimeout=/d; /^distributionUrl=/a networkTimeout=60000' android/gradle/wrapper/gradle-wrapper.properties
           grep -E '^(distributionUrl|networkTimeout)=' android/gradle/wrapper/gradle-wrapper.properties
+
+      - name: Add Maven Central fallback and retry settings
+        run: |
+          cat > /tmp/gold-pronos-gradle.init.gradle <<'EOF'
+          allprojects {
+            buildscript {
+              repositories {
+                maven { url 'https://repo1.maven.org/maven2' }
+              }
+            }
+            repositories {
+              maven { url 'https://repo1.maven.org/maven2' }
+            }
+          }
+          EOF
 
       - name: Build Android APK
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          for attempt in 1 2 3; do
+            echo "Build Android APK · tentative $attempt/3"
+            if ./gradlew --init-script /tmp/gold-pronos-gradle.init.gradle --refresh-dependencies assembleDebug; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "Dépendances Maven momentanément indisponibles ; nouvelle tentative dans 20 secondes."
+              sleep 20
+            fi
+          done
+          exit 1
 
       - name: Publish APK on GitHub Releases
         env:
