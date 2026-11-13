@@ -687,7 +687,14 @@ function marketLine(label,value,detail,kind){
 const CORNER_CACHE_KEY='gold-pronos-corner-cache-v2';
 function readCornerCache(){try{return JSON.parse(localStorage.getItem(CORNER_CACHE_KEY)||'{}')}catch(e){return {}}}
 function saveCornerCache(cache){try{localStorage.setItem(CORNER_CACHE_KEY,JSON.stringify(cache))}catch(e){}}
+let cornerHistoryInFlight=null;
 async function cornerHistory(teamMatches){
+ if(cornerHistoryInFlight){
+  const pending=cornerHistoryInFlight;
+  await pending.catch(()=>{});
+  if(cornerHistoryInFlight===pending)cornerHistoryInFlight=null;
+  return cornerHistory(teamMatches);
+ }
  const cache=readCornerCache(),now=Date.now(),chosen=teamMatches.slice(0,8),totals=[],missing=[];
  for(const m of chosen){
   if(!m?.code||!m?.id)continue;
@@ -699,7 +706,7 @@ async function cornerHistory(teamMatches){
  }
  if(!missing.length)return totals;
  const db=window.GoldSupabase;if(!db?.functions?.invoke)return totals;
- try{
+ const work=(async()=>{
   const {data,error}=await withTimeout(db.functions.invoke('corner-history',{body:{matches:missing.map(x=>({id:x.id,competition:x.competition}))}}),10000,'Délai de vérification des corners dépassé');
   if(error)throw error;
   const returned=new Set();
@@ -712,7 +719,10 @@ async function cornerHistory(teamMatches){
   }
   for(const request of missing)if(!returned.has(request.key))cache[request.key]={at:now,verified:false};
   saveCornerCache(cache);
- }catch(error){console.warn('GOLD PRONOS corner-history:',error?.message||error)}
+ })();
+ cornerHistoryInFlight=work;
+ try{await work}catch(error){console.warn('GOLD PRONOS corner-history:',error?.message||error)}
+ finally{if(cornerHistoryInFlight===work)cornerHistoryInFlight=null}
  return totals;
 }
 function renderPicks(){
