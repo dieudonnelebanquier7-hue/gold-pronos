@@ -189,11 +189,24 @@ async function loadEspnTeamHistory(){
  let apiRequested=0,apiAdded=0,apiFailed=0;
  const apiCache=(()=>{try{return JSON.parse(localStorage.getItem(API_FOOTBALL_TEAM_HISTORY_CACHE_KEY)||'{}')}catch(_){return {}}})();
  const historyCacheKey=item=>providerNorm(item.team)+'|'+String(item.apiFootballId||'name');
- const missing=[...teams.values()].filter(item=>recent(item.team,'__history_probe__').length<5);
- const apiTasks=missing.filter(item=>{
-  const key=historyCacheKey(item),entry=apiCache[key],age=entry?now-Number(entry.at||0):Infinity;
-  return !(entry&&age<(Array.isArray(entry.fixtures)&&entry.fixtures.length?6*60*60*1000:30*60*1000));
- }).sort((a,b)=>Number(!!b.national)-Number(!!a.national)||a.kickoff-b.kickoff).slice(0,12);
+ const missingByKey=new Map();
+ for(const item of teams.values())if(recent(item.team,'__history_probe__').length<5){
+  const key=historyCacheKey(item),previous=missingByKey.get(key);
+  if(!previous||(!previous.national&&item.national)||item.kickoff<previous.kickoff)missingByKey.set(key,item);
+ }
+ const missing=[...missingByKey.values()].sort((a,b)=>Number(!!b.national)-Number(!!a.national)||a.kickoff-b.kickoff);
+ const cursorKey='gold-pronos-api-team-history-cursor-v1',cursorRaw=(()=>{try{return Number(localStorage.getItem(cursorKey)||0)}catch(_){return 0}})();
+ const cursor=missing.length?((Number.isFinite(cursorRaw)?Math.max(0,Math.floor(cursorRaw)):0)%missing.length):0;
+ const rotated=[...missing.slice(cursor),...missing.slice(0,cursor)],apiTasks=[];
+ for(const item of rotated){
+  const entry=apiCache[historyCacheKey(item)],age=entry?now-Number(entry.at||0):Infinity;
+  if(!(entry&&age<(Array.isArray(entry.fixtures)&&entry.fixtures.length?6*60*60*1000:30*60*1000)))apiTasks.push(item);
+  if(apiTasks.length>=12)break;
+ }
+ if(apiTasks.length&&missing.length){
+  const lastKey=historyCacheKey(apiTasks[apiTasks.length-1]),lastIndex=missing.findIndex(item=>historyCacheKey(item)===lastKey);
+  try{localStorage.setItem(cursorKey,String((lastIndex+1)%missing.length))}catch(_){}
+ }
  if(apiTasks.length){
   apiRequested=apiTasks.length;
   try{
