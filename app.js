@@ -677,14 +677,21 @@ function recent(team,exclude,venue=null,teamId=null,teamSource=null,apiTeamId=nu
   return venue==='home'?sameHome:venue==='away'?sameAway:sameHome||sameAway;
  }).sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,8);
 }
-function points(m,team){const home=providerNorm(m.home)===providerNorm(team),sc=Number(home?m.homeScore:m.awayScore),op=Number(home?m.awayScore:m.homeScore);return sc>op?3:sc===op?1:0}
+function isTeamHome(m,team,teamId=null,teamSource=null,apiTeamId=null){
+ if(providerNorm(m.home)===providerNorm(team))return true;
+ const source=String(teamSource||'').toLowerCase(),sources=[m.source,...(Array.isArray(m.providers)?m.providers:[])].filter(Boolean).map(v=>String(v).toLowerCase());
+ if(source==='espn'&&sources.includes('espn')&&teamId&&m.homeId&&String(m.homeId)===String(teamId))return true;
+ const wantedApiId=apiTeamId||(source==='api-football'?teamId:null),fixtureApiId=m.apiHomeId||(String(m.source||'').toLowerCase()==='api-football'?m.homeId:null);
+ return !!(wantedApiId&&sources.includes('api-football')&&fixtureApiId&&String(fixtureApiId)===String(wantedApiId));
+}
+function points(m,team,teamId=null,teamSource=null,apiTeamId=null){const home=isTeamHome(m,team,teamId,teamSource,apiTeamId),sc=Number(home?m.homeScore:m.awayScore),op=Number(home?m.awayScore:m.homeScore);return sc>op?3:sc===op?1:0}
 function dateKeyInAppZone(value){const prefs=readAppSettings(),zone=prefs.timezone||'Africa/Porto-Novo';try{const parts=new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(value));const p=Object.fromEntries(parts.map(x=>[x.type,x.value]));return p.year+p.month+p.day}catch(e){return dateKey(value)}}
-function matchStats(list,team){
+function matchStats(list,team,teamId=null,teamSource=null,apiTeamId=null){
  const sample=list.slice(0,8),n=sample.length;
  if(!n)return null;
  let pts=0,wins=0,draws=0,losses=0,scored=0,conceded=0,over15=0,over25=0,btts=0;
- for(const m of sample){const home=providerNorm(m.home)===providerNorm(team),forGoals=Number(home?m.homeScore:m.awayScore),against=Number(home?m.awayScore:m.homeScore);scored+=forGoals;conceded+=against;const p=points(m,team);pts+=p;if(p===3)wins++;else if(p===1)draws++;else losses++;const total=forGoals+against;if(total>=2)over15++;if(total>=3)over25++;if(forGoals>0&&against>0)btts++}
- return {sample,n,ppg:pts/n,winRate:wins/n,drawRate:draws/n,unbeatenRate:(wins+draws)/n,scored:scored/n,conceded:conceded/n,goals:(scored+conceded)/n,over15:over15/n,over25:over25/n,bttsRate:btts/n};
+ for(const m of sample){const home=isTeamHome(m,team,teamId,teamSource,apiTeamId),forGoals=Number(home?m.homeScore:m.awayScore),against=Number(home?m.awayScore:m.homeScore);scored+=forGoals;conceded+=against;const p=points(m,team,teamId,teamSource,apiTeamId);pts+=p;if(p===3)wins++;else if(p===1)draws++;else losses++;const total=forGoals+against;if(total>=2)over15++;if(total>=3)over25++;if(forGoals>0&&against>0)btts++}
+ return {sample,n,ppg:pts/n,winRate:wins/n,drawRate:draws/n,lossRate:losses/n,unbeatenRate:(wins+draws)/n,scored:scored/n,conceded:conceded/n,goals:(scored+conceded)/n,over15:over15/n,over25:over25/n,bttsRate:btts/n};
 }
 function marketLine(label,value,detail,kind){
  return '<div class="pick-market"><div><b>'+safe(label)+'</b><small>'+safe(detail)+'</small></div><strong class="'+(kind||'')+'">'+safe(value)+'</strong></div>';
@@ -738,14 +745,14 @@ function renderPicks(){
  const heading=document.createElement('div');heading.className='notice';heading.innerHTML='<b>PRONOSTICS · 7 PROCHAINS JOURS</b><br>'+dayMatches.length+' rencontre(s) à venir · '+safe(appDate(now,{weekday:'long',day:'numeric',month:'long'}))+' au '+safe(appDate(horizon,{day:'numeric',month:'long'}))+' · Sélections calculées à partir des résultats vérifiés disponibles.';box.append(heading);
  if(!dayMatches.length){const empty=document.createElement('div');empty.className='notice';empty.textContent='Aucun match à venir confirmé dans les sept prochains jours pour les compétitions suivies. Le calendrier sera actualisé automatiquement.';box.append(empty);return}
  for(const m of dayMatches){
-  const h=recent(m.home,m.id,null,m.homeId,m.source,m.apiHomeId),a=recent(m.away,m.id,null,m.awayId,m.source,m.apiAwayId),hs=matchStats(h,m.home),as=matchStats(a,m.away);
+  const h=recent(m.home,m.id,null,m.homeId,m.source,m.apiHomeId),a=recent(m.away,m.id,null,m.awayId,m.source,m.apiAwayId),hs=matchStats(h,m.home,m.homeId,m.source,m.apiHomeId),as=matchStats(a,m.away,m.awayId,m.source,m.apiAwayId);
   const hHome=recent(m.home,m.id,'home',m.homeId,m.source,m.apiHomeId),aAway=recent(m.away,m.id,'away',m.awayId,m.source,m.apiAwayId);
   // Si l'échantillon domicile/extérieur est trop court, utiliser la forme globale vérifiée.
   // Les cartes indiquent explicitement ce repli et ne présentent pas la forme globale comme une statistique de lieu.
   const useHomeOverall=hHome.length<2,useAwayOverall=aAway.length<2;
   const homeContext=useHomeOverall?h:hHome,awayContext=useAwayOverall?a:aAway;
   const homeContextLabel=useHomeOverall?'forme globale':'domicile',awayContextLabel=useAwayOverall?'forme globale':'extérieur';
-  const hhs=matchStats(homeContext,m.home),aas=matchStats(awayContext,m.away);
+  const hhs=matchStats(homeContext,m.home,m.homeId,m.source,m.apiHomeId),aas=matchStats(awayContext,m.away,m.awayId,m.source,m.apiAwayId);
   const el=document.createElement('article');el.className='pick-card';
   el.innerHTML='<span class="eyebrow">'+safe(m.league)+'</span><div class="pick-team-heading">'+crestMarkup(m.home,m.homeLogo,m.homeNational?'pick-flag':'pick-crest')+'<h3>'+safe(m.home)+' <span>—</span> '+safe(m.away)+'</h3>'+crestMarkup(m.away,m.awayLogo,m.awayNational?'pick-flag':'pick-crest')+'</div><p><b>Coup d’envoi :</b> '+safe(appDate(m.date,{hour:'2-digit',minute:'2-digit'}))+'</p>';
   if(!hs||!as||hs.n<5||as.n<5||!hhs||!aas){
