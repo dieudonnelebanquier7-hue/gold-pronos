@@ -95,12 +95,13 @@ async function apiFootballRequest(body,ms=22000){
 }
 async function loadApiFootballLeagues(force=false){
  const key='gold-pronos-world-leagues-v1',now=Date.now();
- if(!force){try{const c=JSON.parse(localStorage.getItem(key)||'null');if(c&&now-c.at<24*60*60*1000&&Array.isArray(c.leagues)){worldLeagues=c.leagues;renderWorldCompetitionCatalog();return c.leagues}}catch(_){}}
+ if(!force){try{const c=JSON.parse(localStorage.getItem(key)||'null');if(c&&now-c.at<24*60*60*1000&&Array.isArray(c.leagues)){worldLeagues=c.leagues;renderWorldCompetitionCatalog();populateStandingsCompetitionOptions();return c.leagues}}catch(_){}}
  const data=await apiFootballRequest({action:'leagues'});
  if(!data?.configured||!Array.isArray(data.leagues))throw Error(data?.error||'Catalogue mondial API-Football indisponible');
  worldLeagues=data.leagues;
  try{localStorage.setItem(key,JSON.stringify({at:now,leagues:worldLeagues}))}catch(_){}
  renderWorldCompetitionCatalog();
+ populateStandingsCompetitionOptions();
  return worldLeagues;
 }
 function classifyWorldCompetition(item){
@@ -848,7 +849,7 @@ function renderPicks(){
 function findRows(obj,out=[],seen=new Set()){
  if(!obj||typeof obj!=='object'||seen.has(obj))return out;seen.add(obj);
  if(Array.isArray(obj)){for(const x of obj)findRows(x,out,seen);return out}
- if(obj.team&&(obj.stats||obj.statsSummary||obj.rank||obj.position||obj.team.displayName||obj.team.name))out.push(obj);
+ if(obj.team&&(obj.stats||obj.statsSummary||obj.rank!==undefined||obj.position!==undefined||obj.team.displayName||obj.team.name))out.push(obj);
  if(Array.isArray(obj.entries))for(const e of obj.entries)if(e?.team)out.push(e);
  for(const [k,v] of Object.entries(obj)){if(v&&typeof v==='object'&&k!=='team')findRows(v,out,seen)}
  return out;
@@ -860,34 +861,136 @@ function standingsRows(data){
 }
 function stat(e,names){
  const s=e.stats||e.statsSummary||e.statistics||[];
- const aliases={gamesplayed:['gamesplayed','played','gp','mp'],wins:['wins','win','w'],ties:['ties','draw','draws','d'],losses:['losses','loss','l'],pointsfor:['pointsfor','goalsfor','gf','for'],pointsagainst:['pointsagainst','goalsagainst','ga','against'],points:['points','pts']};
- const wanted=names.flatMap(n=>aliases[n]||[n]).map(x=>x.toLowerCase());
+ const aliases={gamesplayed:['gamesplayed','played','gp','mp'],wins:['wins','win','w'],ties:['ties','draw','draws','d'],losses:['losses','loss','l'],pointsfor:['pointsfor','goalsfor','gf','for'],pointsagainst:['pointsagainst','goalsagainst','ga','against'],points:['points','pts'],rank:['rank','position']};
+ const wanted=names.flatMap(n=>aliases[n]||[n]).map(x=>x.toLowerCase().replace(/[^a-z]/g,''));
  const arr=Array.isArray(s)?s:Object.entries(s).map(([name,value])=>({name,value}));
- for(const x of arr){const key=String(x.name||x.abbreviation||x.type||x.shortDisplayName||x.displayName||'').toLowerCase().replace(/[^a-z]/g,'');if(wanted.some(n=>key===n.replace(/[^a-z]/g,'')))return x.displayValue??x.value??x.display??'—'}
+ for(const x of arr){const key=String(x.name||x.abbreviation||x.type||x.shortDisplayName||x.displayName||'').toLowerCase().replace(/[^a-z]/g,'');if(wanted.includes(key))return x.displayValue??x.value??x.display??'—'}
  return '—';
 }
 function teamName(e){return e.team?.displayName||e.team?.name||e.team?.shortDisplayName||e.team?.abbreviation||'Club non renseigné'}
-function normaliseLeaderGroups(data){
- let groups=Array.isArray(data?.leaders)?data.leaders:Array.isArray(data?.categories)?data.categories:[];
- if(!groups.length&&data?.leaders&&typeof data.leaders==='object')groups=Object.values(data.leaders);
- return groups.map(g=>({...g,leaders:Array.isArray(g.leaders)?g.leaders:Array.isArray(g.leader)?g.leader:g.leaders?.athletes||g.leader?.athletes||[]})).filter(g=>g.leaders.length);
+function normalizeStandingText(value){return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('fr').trim()}
+function frenchCompetitionName(name,country){
+ const n=String(name||'');
+ if(/africa cup of nations.*qualif/i.test(n))return 'CAF · Qualifications CAN';
+ if(/^africa cup of nations$/i.test(n))return 'CAF · Coupe d’Afrique des nations';
+ if(/world cup.*qualif.*africa/i.test(n))return 'FIFA · Qualifications Coupe du monde CAF';
+ if(/world cup.*qualif/i.test(n))return 'FIFA · Qualifications Coupe du monde';
+ if(/friendlies/i.test(n))return 'Matchs amicaux';
+ return n+(country?' · '+country:'');
+}
+function currentApiStandingOptions(){
+ return (worldLeagues||[]).flatMap(item=>{
+  const seasons=Array.isArray(item.seasons)?item.seasons:[];
+  const season=seasons.find(x=>x.current)||seasons.slice().sort((a,b)=>Number(b.year||0)-Number(a.year||0))[0];
+  if(!item.league?.id||!season?.year||season.coverage?.standings!==true)return [];
+  const name=frenchCompetitionName(item.league.name,item.country?.name);
+  return [{value:'api:'+item.league.id+':'+season.year,label:name+' · '+season.year,search:name+' '+(item.country?.name||'')+' '+season.year}];
+ });
+}
+function allStandingsOptions(){
+ return standingsLeagues.map(([value,label])=>({value,label,search:value+' '+label})).concat(currentApiStandingOptions());
+}
+function populateStandingsCompetitionOptions(){
+ const select=$('standings-league');if(!select)return;
+ const current=select.value,staticOptions=standingsLeagues.map(([value,label])=>'<option value="'+safe(value)+'">'+safe(label)+'</option>').join('');
+ const apiOptions=currentApiStandingOptions().sort((a,b)=>a.label.localeCompare(b.label,'fr')).map(x=>'<option value="'+safe(x.value)+'">'+safe(x.label)+'</option>').join('');
+ select.innerHTML='<optgroup label="Compétitions ESPN">'+staticOptions+'</optgroup>'+(apiOptions?'<optgroup label="Classements API-Football vérifiables">'+apiOptions+'</optgroup>':'');
+ if([...select.options].some(o=>o.value===current))select.value=current;
+}
+function extractEspnStandingsGroups(data){
+ const groups=[],seen=new Set();
+ function walk(obj,path=[]){
+  if(!obj||typeof obj!=='object')return;
+  if(Array.isArray(obj.entries)&&obj.entries.some(e=>e?.team)){
+   const rows=obj.entries.filter(e=>e?.team);
+   const name=obj.name||obj.displayName||obj.abbreviation||obj.group?.name||obj.group?.displayName||path[path.length-1]||'Classement général';
+   const key=String(name)+'|'+rows.map(e=>String(e.team?.id||teamName(e))).join(',');
+   if(!seen.has(key)){seen.add(key);groups.push({name:String(name),rows})}
+  }
+  if(Array.isArray(obj)){obj.forEach((x,i)=>walk(x,path));return}
+  for(const [key,value] of Object.entries(obj)){if(value&&typeof value==='object'&&key!=='team')walk(value,[...path,String(obj.name||obj.displayName||key)])}
+ }
+ walk(data);
+ if(!groups.length){const rows=standingsRows(data);if(rows.length)groups.push({name:'Classement général',rows})}
+ return groups;
+}
+function apiFootballStandingGroups(data){
+ const raw=Array.isArray(data?.groups)?data.groups:[];
+ return raw.map((rows,index)=>{
+  const list=Array.isArray(rows)?rows:Array.isArray(rows?.rows)?rows.rows:[];
+  const name=list.find(x=>x?.group)?.group||rows?.name||('Groupe '+String.fromCharCode(65+index));
+  return {name:String(name),rows:list.filter(x=>x?.team?.name)};
+ }).filter(g=>g.rows.length);
+}
+let lastStandingsGroups=[],lastStandingsTitle='',lastStandingsSource='',lastStandingsAt='';
+function standingNumber(value){const n=Number(value);return value!==null&&value!==undefined&&value!==''&&Number.isFinite(n)?n:null}
+function standingMetric(row,key){
+ if(key==='played')return row.all?.played??stat(row,['gamesplayed']);
+ if(key==='wins')return row.all?.win??stat(row,['wins']);
+ if(key==='draws')return row.all?.draw??stat(row,['ties']);
+ if(key==='losses')return row.all?.lose??stat(row,['losses']);
+ if(key==='gf')return row.goals?.for??stat(row,['pointsfor']);
+ if(key==='ga')return row.goals?.against??stat(row,['pointsagainst']);
+ if(key==='gd')return row.goalsDiff??'—';
+ if(key==='points')return row.points??stat(row,['points']);
+ return '—';
+}
+function renderStandingsGroups(groups,title,source,fetchedAt){
+ const box=$('standings');if(!box)return;
+ const query=normalizeStandingText($('standings-team-search')?.value||'');
+ const visible=groups.map(g=>({...g,rows:g.rows.filter(row=>!query||normalizeStandingText(row.team?.name||teamName(row)).includes(query))})).filter(g=>g.rows.length);
+ if(!visible.length){
+  box.innerHTML='<div class="standings-empty"><b>'+ (query?'Aucune équipe trouvée':'Classement non disponible') +'</b><p>'+(query?'Aucune équipe ne correspond à « '+safe(query)+' » dans cette compétition.':'La source n’a fourni aucun groupe exploitable.')+'</p><small>Aucune position ne sera inventée. Vérifie le nom de la compétition ou actualise les données.</small></div>';
+  return;
+ }
+ const found=query?visible.flatMap(g=>g.rows.map(row=>({row,group:g.name}))):[];
+ const lookup=found.length?'<div class="standings-team-found"><b>Résultat de recherche</b>'+found.map(x=>'<span>'+safe(x.row.team?.name||teamName(x.row))+' · '+safe(x.group)+' · '+(standingNumber(x.row.rank)!==null?'Position '+safe(x.row.rank):'Position non publiée')+'</span>').join('')+'</div>':'';
+ const national=/national|fifa\.|caf\.|afc\.|conmebol\.|concacaf\./i.test(title);
+ const groupHtml=visible.map(group=>{
+  const rows=group.rows;
+  const tableRows=rows.map(row=>{
+   const name=row.team?.name||teamName(row),logo=row.team?.logo||row.team?.crest||'';
+   const mark=national?teamFlagUrl(row.team):logo||crestUrl(row.team);
+   const rank=standingNumber(row.rank);
+   const team='<span class="standing-team">'+crestMarkup(name,mark,national?'standing-flag':'standing-crest')+'<b>'+safe(name)+'</b></span>';
+   const v=key=>safe(standingMetric(row,key));
+   return '<tr><td class="standing-rank">'+(rank===null?'—':safe(rank))+'</td><td>'+team+'</td><td>'+v('played')+'</td><td>'+v('wins')+'</td><td>'+v('draws')+'</td><td>'+v('losses')+'</td><td>'+v('gf')+'</td><td>'+v('ga')+'</td><td>'+v('gd')+'</td><td class="standing-points">'+v('points')+'</td></tr>';
+  }).join('');
+  const cards=rows.map(row=>{
+   const name=row.team?.name||teamName(row),logo=row.team?.logo||row.team?.crest||'',mark=national?teamFlagUrl(row.team):logo||crestUrl(row.team),rank=standingNumber(row.rank);
+   const v=key=>safe(standingMetric(row,key));
+   return '<article class="standing-mobile-card"><div class="standing-mobile-top"><span class="standing-mobile-rank">'+(rank===null?'—':'#'+safe(rank))+'</span><span class="standing-team">'+crestMarkup(name,mark,national?'standing-flag':'standing-crest')+'<b>'+safe(name)+'</b></span><strong class="standing-mobile-points">'+v('points')+' <small>PTS</small></strong></div><div class="standing-mobile-stats"><span><b>'+v('played')+'</b><small>MJ</small></span><span><b>'+v('wins')+'</b><small>V</small></span><span><b>'+v('draws')+'</b><small>N</small></span><span><b>'+v('losses')+'</b><small>D</small></span><span><b>'+v('gf')+'</b><small>BP</small></span><span><b>'+v('ga')+'</b><small>BC</small></span><span><b>'+v('gd')+'</b><small>Diff.</small></span></div></article>';
+  }).join('');
+  return '<section class="standings-group"><h4>'+safe(group.name)+'</h4><div class="standings-desktop"><div class="table-wrap"><table class="standings-table"><thead><tr><th>Pos.</th><th>Équipe</th><th>MJ</th><th>V</th><th>N</th><th>D</th><th>BP</th><th>BC</th><th>Diff.</th><th>Pts</th></tr></thead><tbody>'+tableRows+'</tbody></table></div></div><div class="standings-mobile">'+cards+'</div></section>';
+ }).join('');
+ box.innerHTML='<div class="standings-heading"><div><span>CLASSEMENT OFFICIEL</span><h3>'+safe(title)+'</h3><small>'+groups.reduce((n,g)=>n+g.rows.length,0)+' équipes · '+safe(source)+'</small></div><span class="standings-live-dot">● Source consultée</span></div>'+lookup+groupHtml+'<p class="standings-source">Source : '+safe(source)+' · Dernière consultation : '+safe(fetchedAt||new Date().toLocaleString(appLocale()))+'. Les positions non publiées et les statistiques absentes restent indiquées « — ».</p>';
 }
 async function loadStandings(){
- const code=$('standings-league')?.value,box=$('standings');if(!code||!box)return;activeLeague=code;
- const selectedName=standingsLeagues.find(x=>x[0]===code)?.[1]||code;
+ const select=$('standings-league'),code=select?.value,box=$('standings');if(!code||!box)return;activeLeague=code;
+ const selected=allStandingsOptions().find(x=>x.value===code);
+ const selectedName=selected?.label||code;
  box.innerHTML='<div class="loading">Chargement du classement officiel de '+safe(selectedName)+'…</div>';
  try{
-  let rows=[],lastError=null;
-  const urls=['https://site.api.espn.com/apis/v2/sports/soccer/'+encodeURIComponent(code)+'/standings','https://site.web.api.espn.com/apis/v2/sports/soccer/'+encodeURIComponent(code)+'/standings'];
-  for(const url of urls){try{const data=await get(url,15000);rows=standingsRows(data);if(rows.length)break}catch(error){lastError=error}}
-  if(!rows.length)throw lastError||Error('Aucune table officielle publiée');
-  rows.sort((a,b)=>{const rank=e=>Number(e.rank??e.position??e.stats?.find?.(x=>/rank|position/i.test(x.name||''))?.value??999);return rank(a)-rank(b)});
-  const val=(e,n)=>safe(stat(e,n)),rank=(e,i)=>safe(e.rank??e.position??(stat(e,['rank'])!=='—'?stat(e,['rank']):i+1));
-  const team=e=>'<span class="standing-team">'+crestMarkup(teamName(e),isNationalCompetition(code)?teamFlagUrl(e.team):crestUrl(e.team),isNationalCompetition(code)?'standing-flag':'standing-crest')+'<b>'+safe(teamName(e))+'</b></span>';
-  const trs=rows.map((e,i)=>'<tr><td class="standing-rank">'+rank(e,i)+'</td><td>'+team(e)+'</td><td>'+val(e,['gamesplayed'])+'</td><td>'+val(e,['wins'])+'</td><td>'+val(e,['ties'])+'</td><td>'+val(e,['losses'])+'</td><td>'+val(e,['pointsfor'])+'</td><td>'+val(e,['pointsagainst'])+'</td><td class="standing-points">'+val(e,['points'])+'</td></tr>').join('');
-  const cards=rows.map((e,i)=>'<article class="standing-mobile-card"><div class="standing-mobile-top"><span class="standing-mobile-rank">#'+rank(e,i)+'</span>'+team(e)+'<strong class="standing-mobile-points">'+val(e,['points'])+' <small>PTS</small></strong></div><div class="standing-mobile-stats"><span><b>'+val(e,['gamesplayed'])+'</b><small>MJ</small></span><span><b>'+val(e,['wins'])+'</b><small>V</small></span><span><b>'+val(e,['ties'])+'</b><small>N</small></span><span><b>'+val(e,['losses'])+'</b><small>D</small></span><span><b>'+val(e,['pointsfor'])+'</b><small>BP</small></span><span><b>'+val(e,['pointsagainst'])+'</b><small>BC</small></span></div></article>').join('');
-  box.innerHTML='<div class="standings-heading"><div><span>CLASSEMENT OFFICIEL</span><h3>'+safe(selectedName)+'</h3><small>'+rows.length+' équipes · Source ESPN</small></div><span class="standings-live-dot">● Données reçues</span></div><div class="standings-desktop"><div class="table-wrap"><table class="standings-table"><thead><tr><th>Pos.</th><th>Équipe</th><th>MJ</th><th>V</th><th>N</th><th>D</th><th>BP</th><th>BC</th><th>Pts</th></tr></thead><tbody>'+trs+'</tbody></table></div></div><div class="standings-mobile">'+cards+'</div><p class="standings-source">Source : ESPN · Dernière consultation : '+safe(new Date().toLocaleString(appLocale()))+'. Les statistiques non communiquées restent indiquées « — ».</p>';
- }catch(e){box.innerHTML='<div class="standings-empty"><b>Classement indisponible</b><p>La source ne fournit pas de tableau officiel exploitable pour cette compétition actuellement.</p><small>Aucun classement estimé ou inventé ne sera affiché. Essaie une autre compétition ou actualise plus tard.</small></div>'}
+  let groups=[],source='ESPN',fetchedAt='';
+  if(code.startsWith('api:')){
+   const parts=code.split(':'),leagueId=parts[1],season=Number(parts[2]);
+   const data=await apiFootballRequest({action:'standings',leagueId,season});
+   if(!data?.configured)throw Error(data?.error||'API-Football non configurée');
+   groups=apiFootballStandingGroups(data);
+   source='API-Football';
+   fetchedAt=data.fetched_at||'';
+  }else{
+   let lastError=null;
+   const urls=['https://site.api.espn.com/apis/v2/sports/soccer/'+encodeURIComponent(code)+'/standings','https://site.web.api.espn.com/apis/v2/sports/soccer/'+encodeURIComponent(code)+'/standings'];
+   for(const url of urls){try{const data=await get(url,15000);groups=extractEspnStandingsGroups(data);if(groups.length)break}catch(error){lastError=error}}
+   if(!groups.length)throw lastError||Error('Aucun classement officiel publié');
+  }
+  if(!groups.length)throw Error('Aucun tableau de classement officiel exploitable');
+  lastStandingsGroups=groups;lastStandingsTitle=selectedName;lastStandingsSource=source;lastStandingsAt=fetchedAt;
+  renderStandingsGroups(groups,selectedName,source,fetchedAt);
+ }catch(e){
+  box.innerHTML='<div class="standings-empty"><b>Classement indisponible</b><p>La source ne fournit pas de tableau officiel exploitable pour cette compétition actuellement.</p><small>Aucun classement estimé ou inventé ne sera affiché. Vérifie que la compétition publie un classement, puis actualise plus tard.</small></div>';
+ }
 }
 function renderTeamCatalog(unique,code,box,stale=false){
  const national=isNationalCompetition(code);
@@ -1238,7 +1341,7 @@ document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelect
 document.querySelectorAll('[data-news-filter]').forEach(b=>b.addEventListener('click',()=>{newsFilter=b.dataset.newsFilter;document.querySelectorAll('[data-news-filter]').forEach(x=>x.classList.toggle('active',x===b));renderNews()}));$('news-refresh')?.addEventListener('click',loadNews); $('search').oninput=render;$('refresh-live')?.addEventListener('click',refresh);$('manual-refresh')?.addEventListener('click',async()=>{const b=$('manual-refresh');if(b.dataset.busy==='1')return;b.dataset.busy='1';b.disabled=true;b.textContent='Actualisation…';let updateFound=false;navigator.serviceWorker?.addEventListener('controllerchange',()=>{if(updateFound)location.reload()},{once:true});try{const reg=await navigator.serviceWorker?.getRegistration();if(reg){reg.addEventListener('updatefound',()=>{updateFound=true;const worker=reg.installing;if(worker)worker.addEventListener('statechange',()=>{if(worker.state==='activated'&&navigator.serviceWorker.controller)location.reload()})},{once:true});await reg.update().catch(()=>{});}await refresh();await pollLiveScores(true);await pollOfficialLineups();await refreshOpenMatchDetail();if(!updateFound){b.textContent='✓ Actualisé';setTimeout(()=>{b.textContent='↻ Actualiser';b.disabled=false;delete b.dataset.busy},1800)}}catch(e){console.warn('Actualisation manuelle incomplète',e);b.textContent='Réessayer';b.disabled=false;delete b.dataset.busy}});$('vip-open-pronos')?.addEventListener('click',()=>document.querySelector('[data-page="pronos"]')?.click());$('save-notifications')?.addEventListener('click',saveNotificationPrefs);$('enable-background-push')?.addEventListener('click',enableBackgroundPush);$('settings-save')?.addEventListener('click',saveSettings);$('settings-edit-favorites')?.addEventListener('click',()=>$('account-open').click());$('settings-edit-alerts')?.addEventListener('click',()=>$('account-open').click());$('settings-reset-onboarding')?.addEventListener('click',()=>{localStorage.removeItem(PREF_KEY);showOnboarding(true)});$('date-filter').onchange=render;$('refresh').onclick=refresh;$('close-modal').onclick=()=>{if(window.goldPronosDetailTimer)clearInterval(window.goldPronosDetailTimer);$('match-modal').hidden=true};$('match-modal').onclick=e=>{if(e.target===$('match-modal')){if(window.goldPronosDetailTimer)clearInterval(window.goldPronosDetailTimer);$('match-modal').hidden=true}};
 const teamCatalogLeagues=leagues.filter(([c])=>!['uefa.champions','uefa.europa','uefa.europa.conf','afc.champions','fifa.world','fifa.worldq.uefa','fifa.worldq.conmebol','fifa.worldq.concacaf','fifa.worldq.afc','fifa.worldq.caf','fifa.worldq.ofc','fifa.friendly','fifa.friendly.w','caf.nations','uefa.wchampions','uefa.euro','uefa.nations','conmebol.copa','concacaf.gold','afc.asian','fifa.wwc','uefa.u21','fifa.world.u20','fifa.world.u17','fifa.wworld.u17','conmebol.america.femenina'].includes(c));
 const nationalTeamCatalog=leagues.filter(([c])=>['fifa.world','fifa.worldq.uefa','fifa.worldq.conmebol','fifa.worldq.concacaf','fifa.worldq.afc','fifa.worldq.caf','fifa.worldq.ofc','fifa.friendly','fifa.friendly.w','caf.nations','uefa.euro','uefa.nations','conmebol.copa','concacaf.gold','afc.asian','fifa.wwc','uefa.u21','fifa.world.u20','fifa.world.u17','fifa.wworld.u17','conmebol.america.femenina'].includes(c));
-$('teams-competition').innerHTML=teamCatalogLeagues.map(([c,n])=>'<option value="'+c+'">'+safe(n)+'</option>').join('')+nationalTeamCatalog.map(([c,n])=>'<option value="'+c+'">Sélections nationales · '+safe(n)+'</option>').join('');$('load-teams').onclick=loadTeams;$('teams-competition').onchange=loadTeams;$('competition-search')?.addEventListener('input',renderWorldCompetitionCatalog);loadApiFootballLeagues().catch(error=>{console.warn('Catalogue mondial indisponible',error?.message||error);const box=$('world-competition-list');if(box)box.innerHTML='<div class="notice">Catalogue mondial temporairement indisponible. Les calendriers ESPN et les matchs déjà reçus restent consultables.</div>'});$('competition-list').innerHTML=standingsLeagues.map(([c,n])=>'<div class="competition-item"><button class="competition" data-code="'+c+'">'+safe(n)+'</button><button class="favorite-competition" type="button" data-fav-comp="'+c+'" data-name="'+safe(n)+'">☆</button></div>').join('');$('standings-league').innerHTML=standingsLeagues.map(([c,n])=>'<option value="'+c+'">'+safe(n)+'</option>').join('');$('standings-search')?.addEventListener('input',()=>{const q=$('standings-search').value.trim().toLocaleLowerCase('fr'),select=$('standings-league'),current=select.value,filtered=standingsLeagues.filter(([c,n])=>(c+' '+n).toLocaleLowerCase('fr').includes(q));select.innerHTML=filtered.map(([c,n])=>'<option value="'+c+'">'+safe(n)+'</option>').join('');if(filtered.some(([c])=>c===current))select.value=current;else if(filtered.length)select.value=filtered[0][0];});$('standings-league').onchange=loadStandings;if($('leaders-league'))$('leaders-league').innerHTML=leagues.filter(([code])=>!['caf.nations','uefa.wchampions'].includes(code)).map(([code,name])=>'<option value="'+code+'">'+safe(name)+'</option>').join('');$('competition-list').querySelectorAll('.competition').forEach(b=>b.onclick=()=>{$('standings-league').value=b.dataset.code;loadStandings()});$('competition-list').querySelectorAll('[data-fav-comp]').forEach(b=>b.onclick=()=>toggleFavorite('favorite_competitions','competition_id',b.dataset.favComp,b.dataset.name));$('load-standings').onclick=loadStandings;if($('leaders-league'))$('leaders-league').onchange=loadLeaders;
+$('teams-competition').innerHTML=teamCatalogLeagues.map(([c,n])=>'<option value="'+c+'">'+safe(n)+'</option>').join('')+nationalTeamCatalog.map(([c,n])=>'<option value="'+c+'">Sélections nationales · '+safe(n)+'</option>').join('');$('load-teams').onclick=loadTeams;$('teams-competition').onchange=loadTeams;$('competition-search')?.addEventListener('input',renderWorldCompetitionCatalog);loadApiFootballLeagues().catch(error=>{console.warn('Catalogue mondial indisponible',error?.message||error);const box=$('world-competition-list');if(box)box.innerHTML='<div class="notice">Catalogue mondial temporairement indisponible. Les calendriers ESPN et les matchs déjà reçus restent consultables.</div>'});$('competition-list').innerHTML=standingsLeagues.map(([c,n])=>'<div class="competition-item"><button class="competition" data-code="'+c+'">'+safe(n)+'</button><button class="favorite-competition" type="button" data-fav-comp="'+c+'" data-name="'+safe(n)+'">☆</button></div>').join('');populateStandingsCompetitionOptions();$('standings-search')?.addEventListener('input',()=>{const q=normalizeStandingText($('standings-search').value),select=$('standings-league'),current=select.value,filtered=allStandingsOptions().filter(x=>normalizeStandingText(x.search).includes(q));select.innerHTML=filtered.map(x=>'<option value="'+safe(x.value)+'">'+safe(x.label)+'</option>').join('');if(filtered.some(x=>x.value===current))select.value=current;else if(filtered.length)select.value=filtered[0].value;});$('standings-league').onchange=loadStandings;$('standings-team-search')?.addEventListener('input',()=>{if(lastStandingsGroups.length)renderStandingsGroups(lastStandingsGroups,lastStandingsTitle,lastStandingsSource,lastStandingsAt)});if($('leaders-league'))$('leaders-league').innerHTML=leagues.filter(([code])=>!['caf.nations','uefa.wchampions'].includes(code)).map(([code,name])=>'<option value="'+code+'">'+safe(name)+'</option>').join('');$('competition-list').querySelectorAll('.competition').forEach(b=>b.onclick=()=>{$('standings-league').value=b.dataset.code;loadStandings()});$('competition-list').querySelectorAll('[data-fav-comp]').forEach(b=>b.onclick=()=>toggleFavorite('favorite_competitions','competition_id',b.dataset.favComp,b.dataset.name));$('load-standings').onclick=loadStandings;if($('leaders-league'))$('leaders-league').onchange=loadLeaders;
 let promptEvent=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvent=e;$('install').hidden=false});$('install').onclick=async()=>{if(promptEvent){promptEvent.prompt();await promptEvent.userChoice;promptEvent=null}else alert('Menu Chrome ⋮ puis Installer l’application.');};
 initOnboarding();$('account-open')?.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id==='page-account'));window.scrollTo({top:0,behavior:'smooth'});});if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));refresh().then(()=>pollLiveScores());scheduleRefresh();setInterval(pollLiveScores,15000);setInterval(pollOfficialLineups,45000);setTimeout(pollOfficialLineups,12000);setInterval(()=>{if(matches.some(m=>m.live)){render();renderLive();const box=$('match-detail'),modal=$('match-modal'),m=matches.find(x=>String(x.id)===String(box?.dataset.matchId));if(modal&&!modal.hidden&&m?.live){const head=box.querySelector('.md-head');if(head)head.outerHTML=detailHeader(m)}}},1000);setInterval(localMatchAlerts,60000);setInterval(pollLiveEventAlerts,60000);setTimeout(pollLiveEventAlerts,15000);function initAccountSync(){if(!window.GoldSupabase)return;window.GoldSupabase.auth.onAuthStateChange(()=>setTimeout(loadAccountFeatures,0));window.GoldSupabase.auth.getSession().then(({data})=>{if(data.session)loadAccountFeatures()})}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initAccountSync,{once:true});else initAccountSync();
 })();
