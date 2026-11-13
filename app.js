@@ -156,7 +156,7 @@ async function loadEspnTeamHistory(){
  for(const m of upcoming){
   const kickoff=Date.parse(m.date),national=!!(m.homeNational||m.awayNational||isNationalCompetition(m.code));
   const addTeam=(name,id,apiId,venue)=>{
-   if(!id||(recent(name,m.id).length>=5&&recent(name,m.id,venue,id,m.source).length>=2))return;
+   if(!id||(recent(name,m.id,null,id,m.source,apiId).length>=5&&recent(name,m.id,venue,id,m.source,apiId).length>=2))return;
    const key=String(m.code)+'|'+String(id),previous=teams.get(key);
    if(!previous||kickoff<previous.kickoff)teams.set(key,{code:String(m.code),id:String(id),team:name,apiFootballId:apiId||(String(m.code).startsWith('api-football:')?id:null),national,kickoff});
   };
@@ -190,7 +190,7 @@ async function loadEspnTeamHistory(){
  const apiCache=(()=>{try{return JSON.parse(localStorage.getItem(API_FOOTBALL_TEAM_HISTORY_CACHE_KEY)||'{}')}catch(_){return {}}})();
  const historyCacheKey=item=>providerNorm(item.team)+'|'+String(item.apiFootballId||'name');
  const missingByKey=new Map();
- for(const item of teams.values())if(recent(item.team,'__history_probe__').length<5){
+ for(const item of teams.values())if(recent(item.team,'__history_probe__',null,item.id,'espn',item.apiFootballId).length<5){
   const key=historyCacheKey(item),previous=missingByKey.get(key);
   if(!previous||(!previous.national&&item.national)||item.kickoff<previous.kickoff)missingByKey.set(key,item);
  }
@@ -250,7 +250,7 @@ async function loadEspnTeamHistory(){
  }
  try{localStorage.setItem(API_FOOTBALL_TEAM_HISTORY_CACHE_KEY,JSON.stringify(apiCache))}catch(_){}
  if(added||apiAdded)matches.sort((a,b)=>new Date(a.date)-new Date(b.date));
- const apiUnconfirmed=missing.filter(item=>recent(item.team,'__history_probe__').length<5).length;
+ const apiUnconfirmed=missing.filter(item=>recent(item.team,'__history_probe__',null,item.id,'espn',item.apiFootballId).length<5).length;
  return {teams:teams.size,requested:tasks.length,added,failed,apiRequested,apiAdded,apiFailed,apiUnconfirmed};
 }
 const API_FOOTBALL_LIVE_CACHE_KEY='gold-pronos-api-football-live-v1';
@@ -660,15 +660,20 @@ function trustedUpcomingFixture(x,now=Date.now(),horizon=now+7*86400000){
  const date=Date.parse(x?.date),sources=[x?.source,...(Array.isArray(x?.providers)?x.providers:[])].filter(Boolean).map(v=>String(v).toLowerCase());
  return !!x&&!x.live&&!x.finished&&!x.scoreConflict&&Number.isFinite(date)&&date>now&&date<=horizon&&sources.some(v=>v==='espn'||v==='api-football')&&!!providerNorm(x.home)&&!!providerNorm(x.away)&&!!x.league;
 }
-function recent(team,exclude,venue=null,teamId=null,teamSource=null){
- const now=Date.now(),source=String(teamSource||'').toLowerCase();
+function recent(team,exclude,venue=null,teamId=null,teamSource=null,apiTeamId=null){
+ const now=Date.now(),source=String(teamSource||'').toLowerCase(),teamKey=providerNorm(team);
  return matches.filter(x=>{
   if(!trustedFinishedResult(x,now)||x.id===exclude)return false;
   const sources=[x.source,...(Array.isArray(x.providers)?x.providers:[])].filter(Boolean).map(v=>String(v).toLowerCase());
-  const sameProvider=source==='espn'?sources.includes('espn'):source==='api-football'?sources.includes('api-football'):false;
-  const homeId=source==='api-football'?(x.apiHomeId||x.homeId):x.homeId,awayId=source==='api-football'?(x.apiAwayId||x.awayId):x.awayId;
-  const sameHome=!!(sameProvider&&teamId&&homeId&&String(homeId)===String(teamId))||providerNorm(x.home)===providerNorm(team);
-  const sameAway=!!(sameProvider&&teamId&&awayId&&String(awayId)===String(teamId))||providerNorm(x.away)===providerNorm(team);
+  const hasEspn=sources.includes('espn'),hasApi=sources.includes('api-football');
+  const espnHome=source==='espn'&&hasEspn&&teamId&&x.homeId&&String(x.homeId)===String(teamId);
+  const espnAway=source==='espn'&&hasEspn&&teamId&&x.awayId&&String(x.awayId)===String(teamId);
+  const fixtureHomeApiId=x.apiHomeId||(source==='api-football'?x.homeId:null);
+  const fixtureAwayApiId=x.apiAwayId||(source==='api-football'?x.awayId:null);
+  const apiHome=(apiTeamId||source==='api-football'&&teamId)&&hasApi&&fixtureHomeApiId&&String(fixtureHomeApiId)===String(apiTeamId||teamId);
+  const apiAway=(apiTeamId||source==='api-football'&&teamId)&&hasApi&&fixtureAwayApiId&&String(fixtureAwayApiId)===String(apiTeamId||teamId);
+  const sameHome=!!(espnHome||apiHome)||providerNorm(x.home)===teamKey;
+  const sameAway=!!(espnAway||apiAway)||providerNorm(x.away)===teamKey;
   return venue==='home'?sameHome:venue==='away'?sameAway:sameHome||sameAway;
  }).sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,8);
 }
@@ -733,8 +738,8 @@ function renderPicks(){
  const heading=document.createElement('div');heading.className='notice';heading.innerHTML='<b>PRONOSTICS · 7 PROCHAINS JOURS</b><br>'+dayMatches.length+' rencontre(s) à venir · '+safe(appDate(now,{weekday:'long',day:'numeric',month:'long'}))+' au '+safe(appDate(horizon,{day:'numeric',month:'long'}))+' · Sélections calculées à partir des résultats vérifiés disponibles.';box.append(heading);
  if(!dayMatches.length){const empty=document.createElement('div');empty.className='notice';empty.textContent='Aucun match à venir confirmé dans les sept prochains jours pour les compétitions suivies. Le calendrier sera actualisé automatiquement.';box.append(empty);return}
  for(const m of dayMatches){
-  const h=recent(m.home,m.id),a=recent(m.away,m.id),hs=matchStats(h,m.home),as=matchStats(a,m.away);
-  const hHome=recent(m.home,m.id,'home',m.homeId,m.source),aAway=recent(m.away,m.id,'away',m.awayId,m.source);
+  const h=recent(m.home,m.id,null,m.homeId,m.source,m.apiHomeId),a=recent(m.away,m.id,null,m.awayId,m.source,m.apiAwayId),hs=matchStats(h,m.home),as=matchStats(a,m.away);
+  const hHome=recent(m.home,m.id,'home',m.homeId,m.source,m.apiHomeId),aAway=recent(m.away,m.id,'away',m.awayId,m.source,m.apiAwayId);
   // Si l'échantillon domicile/extérieur est trop court, utiliser la forme globale vérifiée.
   // Les cartes indiquent explicitement ce repli et ne présentent pas la forme globale comme une statistique de lieu.
   const useHomeOverall=hHome.length<2,useAwayOverall=aAway.length<2;
