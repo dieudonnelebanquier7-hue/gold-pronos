@@ -195,7 +195,7 @@ async function loadEspnTeamHistory(){
   if(!previous||(!previous.national&&item.national)||item.kickoff<previous.kickoff)missingByKey.set(key,item);
  }
  const missing=[...missingByKey.values()].sort((a,b)=>a.kickoff-b.kickoff||Number(!!b.national)-Number(!!a.national));
- const cursorKey='gold-pronos-api-team-history-cursor-v1',cursorRaw=(()=>{try{return Number(localStorage.getItem(cursorKey)||0)}catch(_){return 0}})();
+ const cursorKey='gold-pronos-api-team-history-cursor-v2',cursorRaw=(()=>{try{return Number(localStorage.getItem(cursorKey)||0)}catch(_){return 0}})();
  const historyCursor=missing.length?((Number.isFinite(cursorRaw)?Math.max(0,Math.floor(cursorRaw)):0)%missing.length):0;
  const rotated=[...missing.slice(historyCursor),...missing.slice(0,historyCursor)],apiTasks=[];
  for(const item of rotated){
