@@ -27,8 +27,8 @@ function decode(value = '') {
 }
 
 function tag(block, name) {
-  const escaped = name.replace(':', '[:]');
-  const match = block.match(new RegExp('<(?:[\\w.-]+:)?' + escaped + '\\b[^>]*>([\\s\\S]*?)<\\/(?:[\\w.-]+:)?' + escaped + '\\s*>', 'i'));
+  const escaped = name.replace(':', '\\:');
+  const match = block.match(new RegExp('<' + escaped + '\\b[^>]*>([\\s\\S]*?)<\\/' + escaped + '\\s*>', 'i'));
   return match ? decode(match[1]) : '';
 }
 
