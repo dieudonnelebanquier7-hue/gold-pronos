@@ -28,6 +28,20 @@ const { chromium } = require('playwright');
     ,{id:'noid-future-1',utcDate:new Date(now+55*60000).toISOString(),status:'SCHEDULED',competition:{name:'Matchs amicaux masculins',code:'ESPN-int.friendly'},homeTeam:{name:'NoIdGoldAlpha'},awayTeam:{name:'NoIdGoldBeta'},score:{fullTime:{home:null,away:null}}}
   ];
   await page.route('**/matches.json', route => route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({generatedAt:new Date().toISOString(),matches:fixtures})}));
+  await page.route('**/news.json*', route => route.fulfill({
+    status:200,
+    contentType:'application/json',
+    body:JSON.stringify({
+      updatedAt:new Date().toISOString(),
+      articleCount:2,
+      language:'fr',
+      feeds:[{source:'Source de test',ok:true,count:2}],
+      articles:[
+        {title:'Actualité de test en français',description:'Résumé de test entièrement rédigé en français pour vérifier la lecture sur la page.',source:'Source de test',language:'fr',link:'https://example.com/actualite',date:new Date().toISOString()},
+        {title:'Mercato de test',description:'Information de transfert fictive utilisée uniquement pour le contrôle visuel.',source:'Source de test',language:'fr',link:'https://example.com/mercato',date:new Date().toISOString()}
+      ]
+    })
+  }));
   await page.route('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2', route => route.fulfill({status:200,contentType:'application/javascript',body:"\nwindow.supabase={createClient:()=>({\n  functions:{invoke:async(name,options={})=>{\n    const body=options.body||{};\n    if(name==='football-data-hub'&&body.action==='fixtures')return {data:{configured:true,fixtures:[{\n      fixture:{id:99001,date:new Date(Date.now()+60*60*1000).toISOString(),status:{short:'NS',long:'Not Started'}},\n      league:{id:990,name:'Friendlies',country:'World'},\n      teams:{home:{id:901,name:'APIGoldAlpha'},away:{id:902,name:'APIGoldBeta'}},\n      goals:{home:null,away:null}\n    }]},error:null};\n    if(name==='football-data-hub'&&body.action==='team-history')return {data:{configured:true,teams:(body.teams||[]).map((item,index)=>{\n      const teamName=item.name,teamId=Number(item.apiFootballId)||(9000+index);\n      if(!teamName.startsWith('APIGold')&&!teamName.startsWith('NoIdGold'))return {name:teamName,resolved:false,fixtures:[],error:'No mock history'};\n      const fixtures=Array.from({length:5},(_,i)=>{\n        const teamHome=i%2===0,opponent={id:teamId+100+i,name:'Opponent '+teamName+' '+i};\n        return {\n          fixture:{id:700000+teamId*10+i,date:new Date(Date.now()-(i+2)*86400000).toISOString(),status:{short:'FT',long:'Match Finished'}},\n          league:{id:991,name:'Friendlies',country:'World'},\n          teams:{home:teamHome?{id:teamId,name:teamName+' FC'}:opponent,away:teamHome?opponent:{id:teamId,name:teamName+' FC'}},\n          goals:teamHome?{home:2,away:1}:{home:0,away:1}\n        };\n      });\n      return {name:teamName,resolved:true,teamId:String(teamId),fixtures};\n    })},error:null};\n    return {data:null,error:{message:'Unmocked action'}};\n  }},\n  auth:{onAuthStateChange(){},getSession:async()=>({data:{session:null}}),getUser:async()=>({data:{user:null},error:null})}\n})};\n"}));
   await page.route('https://site.api.espn.com/**', route => route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({events:[],articles:[],items:[],leaders:[],children:[],entries:[]})}));
   await page.route('https://sportscore.com/**', route => route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({fixtures:[{id:'ss-live-1',slug:'global-live-fc-vs-world-live-united',home:'Global United FC',away:'World Athletic Club',home_score:2,away_score:1,status:'live',status_text:'30\u2032',time:new Date(now-50*60000).toISOString(),competition:'International Cup'}],updated:new Date().toISOString()})}));
