@@ -147,9 +147,10 @@ function mergeApiFootballFixtures(rows){
  return extras;
 }
 const ESPN_TEAM_HISTORY_CACHE_KEY='gold-pronos-espn-team-history-v1';
+const API_FOOTBALL_TEAM_HISTORY_CACHE_KEY='gold-pronos-api-team-history-v1';
 async function loadEspnTeamHistory(){
  const now=Date.now(),cache=(()=>{try{return JSON.parse(localStorage.getItem(ESPN_TEAM_HISTORY_CACHE_KEY)||'{}')}catch(_){return {}}})();
- // Les historiques doivent couvrir les clubs ET les sélections : le calendrier préchargé ne contient pas les résultats passés.
+ // Récupère les historiques des clubs et sélections. ESPN ne fournit pas toujours le calendrier passé des équipes nationales.
  const upcoming=matches.filter(m=>!m.live&&!m.finished&&Date.parse(m.date)>now&&Date.parse(m.date)<=now+7*86400000&&m.code&&!String(m.code).startsWith('api-football:')&&m.homeId&&m.awayId);
  const teams=new Map();
  for(const m of upcoming){
@@ -178,8 +179,40 @@ async function loadEspnTeamHistory(){
    matches.push(mapped);seen.add(String(mapped.id));added++;
   }
  }
- if(added)matches.sort((a,b)=>new Date(a.date)-new Date(b.date));
- return {teams:teams.size,requested:tasks.length,added,failed};
+ // Repli API-Football : recherche les équipes par nom puis récupère leurs 10 derniers matchs terminés.
+ // Limite de 12 équipes par passage pour protéger le quota du fournisseur.
+ let apiRequested=0,apiAdded=0,apiFailed=0;
+ const apiCache=(()=>{try{return JSON.parse(localStorage.getItem(API_FOOTBALL_TEAM_HISTORY_CACHE_KEY)||'{}')}catch(_){return {}}})();
+ const missing=[...teams.values()].filter(item=>recent(item.team,'__history_probe__').length<5);
+ const apiTasks=missing.filter(item=>{
+  const key=providerNorm(item.team),entry=apiCache[key],age=entry?now-Number(entry.at||0):Infinity;
+  return !(entry&&age<(Array.isArray(entry.fixtures)&&entry.fixtures.length?6*60*60*1000:30*60*1000));
+ }).slice(0,12);
+ if(apiTasks.length){
+  apiRequested=apiTasks.length;
+  try{
+   const data=await apiFootballRequest({action:'team-history',teams:apiTasks.map(item=>({name:item.team}))},45000);
+   if(!data?.configured||!Array.isArray(data.teams))throw new Error(data?.error||'Historique API-Football indisponible');
+   for(let i=0;i<apiTasks.length;i++){
+    const item=apiTasks[i],result=data.teams[i],key=providerNorm(item.team);
+    if(!result?.resolved||!Array.isArray(result.fixtures)){apiFailed++;apiCache[key]={at:now,fixtures:[],error:result?.error||'Équipe non résolue'};continue}
+    apiCache[key]={at:now,fixtures:result.fixtures,teamId:result.teamId||null}; 
+   }
+  }catch(error){apiFailed+=apiTasks.length;console.warn('Repli API-Football historique indisponible',error?.message||error)}
+ }
+ const apiSeen=new Set(matches.map(m=>String(m.apiFootballId||m.id)));
+ for(const item of missing){
+  const entry=apiCache[providerNorm(item.team)];if(!Array.isArray(entry?.fixtures))continue;
+  for(const raw of entry.fixtures){
+   const mapped=mapApiFootballFixture(raw);
+   if(!mapped||!mapped.apiFootballId||apiSeen.has(String(mapped.apiFootballId))||!mapped.finished||mapped.homeScore===null||mapped.awayScore===null)continue;
+   const time=Date.parse(mapped.date);if(!Number.isFinite(time)||time>now||time<now-400*86400000)continue;
+   matches.push(mapped);apiSeen.add(String(mapped.apiFootballId));apiAdded++;
+  }
+ }
+ try{localStorage.setItem(API_FOOTBALL_TEAM_HISTORY_CACHE_KEY,JSON.stringify(apiCache))}catch(_){}
+ if(added||apiAdded)matches.sort((a,b)=>new Date(a.date)-new Date(b.date));
+ return {teams:teams.size,requested:tasks.length,added,failed,apiRequested,apiAdded,apiFailed};
 }
 const API_FOOTBALL_LIVE_CACHE_KEY='gold-pronos-api-football-live-v1';
 async function loadApiFootballLive(force=false){
