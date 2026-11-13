@@ -76,11 +76,12 @@ async function translateToFrench(value) {
 }
 
 async function translateArticlesToFrench(items) {
-  const translated = [];
+  const translated = new Array(items.length);
   let cursor = 0;
   const workers = Array.from({ length: 4 }, async () => {
     while (cursor < items.length) {
-      const item = items[cursor++];
+      const index = cursor++;
+      const item = items[index];
       const title = await translateToFrench(item.title);
       const description = item.description
         ? await translateToFrench(item.description)
@@ -89,16 +90,11 @@ async function translateArticlesToFrench(items) {
         console.warn('Article ignoré : traduction française indisponible pour', item.source);
         continue;
       }
-      translated.push({
-        ...item,
-        title,
-        description,
-        language: 'fr'
-      });
+      translated[index] = { ...item, title, description, language: 'fr' };
     }
   });
   await Promise.all(workers);
-  return translated;
+  return translated.filter(Boolean);
 }
 
 async function main() {
