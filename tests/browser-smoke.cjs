@@ -61,6 +61,7 @@ const { chromium } = require('playwright');
   await apiOnlyPick.waitFor({state:'visible',timeout:10000});
   const apiOnlyText=await apiOnlyPick.innerText();
   if(apiOnlyText.includes('Analyse en attente')||!apiOnlyText.includes('5 matchs récents')) throw new Error('API-only fixture must recover team history and become analyzable: '+apiOnlyText);
+  await page.locator('.tab[data-page="home"]').click();
   const liveText = await page.locator('#live-matches').innerText();
   if (!liveText.includes('Global United FC') || !liveText.includes('World Athletic Club')) throw new Error('Live page must add live fixtures supplied outside the ESPN calendar: '+liveText);
   await page.locator('#personalized-home .personalized-matches > div').first().waitFor({state:'visible',timeout:5000});
