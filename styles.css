@@ -906,3 +906,120 @@ a{color:#f0cf65}
 .news-card a{color:#f0c86b!important;font-weight:800;text-decoration:underline}
 .news-card .news-summary-label{display:block;color:#e2b95e;font-weight:850;font-size:12px;letter-spacing:.08em;margin:14px 0 5px}
 @media(max-width:650px){.news-filters{display:flex;flex-wrap:wrap;overflow:visible}.news-filter{flex:1 1 auto}.news-card{padding:16px!important}.news-card h3{font-size:18px!important}}
+
+
+/* Version 208 : calendrier football repensé, priorité à la lisibilité */
+#page-home .match-list,#page-drama .match-list{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+}
+#page-home .match,#page-drama .match{
+  position:relative;
+  min-width:0;
+  min-height:126px;
+  padding:15px 16px;
+  border:1px solid #e7d9b7;
+  border-radius:15px;
+  background:linear-gradient(145deg,#111722 0%,#080c13 100%);
+  color:#f5f6f8;
+  grid-template-columns:minmax(0,1fr) auto;
+  grid-template-rows:auto 1fr;
+  grid-template-areas:"league league" "teams result";
+  align-items:center;
+  gap:10px 14px;
+  box-shadow:0 3px 12px #1018280b;
+  transition:border-color .18s,transform .18s,box-shadow .18s;
+}
+#page-home .match:hover,#page-drama .match:hover{
+  background:linear-gradient(145deg,#182131 0%,#0b1019 100%);
+  border-color:#c9a653;
+  transform:translateY(-1px);
+  box-shadow:0 7px 18px #10182820;
+}
+#page-home .match.is-live{border-color:#b94b4b}
+#page-home .match .league,#page-drama .match .league{
+  grid-area:league;
+  color:#d7b86b;
+  font-size:10px;
+  letter-spacing:.045em;
+  text-transform:uppercase;
+  line-height:1.4;
+  padding-bottom:8px;
+  border-bottom:1px solid #ffffff18;
+}
+#page-home .match .teams,#page-drama .match .teams{
+  grid-area:teams;
+  display:flex;
+  flex-direction:column;
+  gap:9px;
+  min-width:0;
+  font-weight:700;
+  line-height:1.25;
+}
+#page-home .match .match-side,#page-drama .match .match-side{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  min-width:0;
+}
+#page-home .match .team-name,#page-drama .match .team-name{
+  display:block;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:13px;
+  color:#f3f4f6;
+}
+#page-home .match .match-crest,#page-home .match .match-flag,
+#page-drama .match .match-crest,#page-drama .match .match-flag{
+  width:23px;height:23px;object-fit:contain;flex:0 0 23px;
+}
+#page-home .match .match-result,#page-drama .match .match-result{
+  grid-area:result;
+  min-width:76px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  padding-left:12px;
+  border-left:1px solid #ffffff20;
+}
+#page-home .match .score,#page-drama .match .score{
+  color:#e6c36d;
+  font-size:20px;
+  font-weight:900;
+  white-space:nowrap;
+  line-height:1.1;
+}
+#page-home .match .state,#page-drama .match .state{
+  color:#b7c0cc;
+  font-size:10px;
+  text-align:center;
+  line-height:1.35;
+  max-width:115px;
+}
+#page-home .match .live-state,#page-drama .match .live-state{color:#ff8585;font-weight:850}
+#page-home .match .score-conflict,#page-drama .match .score-conflict{color:#ffd18a}
+#page-home .day-heading{
+  margin:22px 0 0;
+  padding:12px 15px;
+  border:1px solid #e5d5ad;
+  border-left:4px solid #b58a35;
+  border-radius:11px;
+  background:#171d28;
+  color:#e6c36d;
+  font-size:13px;
+  font-weight:900;
+  letter-spacing:.035em;
+}
+@media(max-width:760px){
+  #page-home .match-list,#page-drama .match-list{grid-template-columns:1fr;gap:9px}
+  #page-home .match,#page-drama .match{min-height:112px;padding:13px 14px}
+  #page-home .match .team-name,#page-drama .match .team-name{font-size:13px}
+  #page-home .match .score,#page-drama .match .score{font-size:19px}
+}
+@media(min-width:761px) and (max-width:980px){
+  #page-home .match-list,#page-drama .match-list{grid-template-columns:1fr}
+}
