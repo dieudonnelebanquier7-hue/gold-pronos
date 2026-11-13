@@ -250,7 +250,8 @@ async function loadEspnTeamHistory(){
  }
  try{localStorage.setItem(API_FOOTBALL_TEAM_HISTORY_CACHE_KEY,JSON.stringify(apiCache))}catch(_){}
  if(added||apiAdded)matches.sort((a,b)=>new Date(a.date)-new Date(b.date));
- return {teams:teams.size,requested:tasks.length,added,failed,apiRequested,apiAdded,apiFailed};
+ const apiUnconfirmed=missing.filter(item=>recent(item.team,'__history_probe__').length<5).length;
+ return {teams:teams.size,requested:tasks.length,added,failed,apiRequested,apiAdded,apiFailed,apiUnconfirmed};
 }
 const API_FOOTBALL_LIVE_CACHE_KEY='gold-pronos-api-football-live-v1';
 async function loadApiFootballLive(force=false){
@@ -1138,14 +1139,15 @@ async function refresh(){
   if(!matches.length)throw Error('Aucun calendrier récent vérifié disponible');
   const apiRows=await loadApiFootballFixtures().catch(error=>{console.warn('API-Football indisponible',error?.message||error);return []});
   const extras=mergeApiFootballFixtures(apiRows);matches=[...matches,...extras];
-  const nationalHistory=await loadEspnTeamHistory().catch(error=>{console.warn('Historique des sélections indisponible',error?.message||error);return {teams:0,added:0}});
+  const nationalHistory=await loadEspnTeamHistory().catch(error=>{console.warn('Historique des équipes indisponible',error?.message||error);return {teams:0,added:0,apiUnconfirmed:null,apiFailed:1}});
   const apiLiveRows=await loadApiFootballLive().catch(error=>{console.warn('API-Football live indisponible',error?.message||error);return []});
   const apiLiveCheck=mergeApiFootballLiveFixtures(apiLiveRows);
   const sportScore=await loadSportScoreLive().catch(error=>{console.warn('SportScore indisponible, scores ESPN conservés',error?.message||error);return null});
   const sportScoreCheck=mergeSportScoreLive(sportScore);
   render();renderLive();renderPicks();renderVIP();renderPersonalizedHome();localMatchAlerts();
   const providers=['ESPN'];if(apiRows.length)providers.push('API-Football');if(sportScoreCheck.confirmed)providers.push('SportScore');
-  $('updated').textContent='Données actualisées · '+matches.length+' rencontres · '+providers.join(' + ')+' · '+appDate(new Date(),{dateStyle:'medium',timeStyle:'short'});
+  const historyStatus=nationalHistory.apiUnconfirmed===null?'Vérification des historiques indisponible':nationalHistory.apiUnconfirmed>0?'Historique incomplet pour '+nationalHistory.apiUnconfirmed+' équipe(s) · pronostics concernés ignorés':'Historiques suffisants';
+  $('updated').textContent='Données actualisées · '+matches.length+' rencontres · '+providers.join(' + ')+' · '+historyStatus+' · '+appDate(new Date(),{dateStyle:'medium',timeStyle:'short'});
  }catch(e){
   console.warn('Actualisation du calendrier incomplète',e?.message||e);
   if(matches.length){render();renderLive();renderPicks();$('updated').textContent='Calendrier préchargé · '+matches.length+' rencontres · sources complémentaires indisponibles'}
