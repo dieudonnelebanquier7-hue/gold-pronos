@@ -955,7 +955,7 @@ function standingMetric(row,key){
 }
 function renderStandingsGroups(groups,title,source,fetchedAt){
  const box=$('standings');if(!box)return;
- const national=/national|fifa\.|caf\.|afc\.|conmebol\.|concacaf\./i.test(title);
+ const national=/national|fifa|caf|afc|conmebol|concacaf/i.test(title);
  const query=normalizeStandingText($('standings-team-search')?.value||'');
  const visible=groups.map(g=>({...g,rows:g.rows.filter(row=>!query||normalizeStandingText(standingTeamDisplayName(row,national)).includes(query))})).filter(g=>g.rows.length);
  if(!visible.length){
