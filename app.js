@@ -163,7 +163,7 @@ async function loadEspnTeamHistory(){
   };
   addTeam(m.home,m.homeId,m.apiHomeId,'home');addTeam(m.away,m.awayId,m.apiAwayId,'away');
  }
- const tasks=[...teams.values()].filter(x=>x.id&&!String(x.code).startsWith('api-football:')).filter(x=>{const e=cache[x.code+'|'+x.id];return !(e&&now-Number(e.at||0)<6*60*60*1000&&Array.isArray(e.events))}).slice(0,30);
+ const tasks=[...teams.values()].filter(x=>x.id&&!String(x.code).startsWith('api-football:')).filter(x=>{const e=cache[x.code+'|'+x.id];return !(e&&now-Number(e.at||0)<(e.events?.length?6*60*60*1000:10*60*1000)&&Array.isArray(e.events))}).slice(0,30);
  let cursor=0,added=0,failed=0;
  const workers=Array.from({length:6},async()=>{while(true){
   const i=cursor++;if(i>=tasks.length)break;const item=tasks[i],key=item.code+'|'+item.id;
