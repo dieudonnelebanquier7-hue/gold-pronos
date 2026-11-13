@@ -101,7 +101,9 @@ async function main() {
 
   const output = {
     updatedAt: new Date().toISOString(),
-    articleCount: articles.length,\n    language: 'fr',\n    note: 'Titres et résumés traduits en français. Les articles complets restent la propriété de leurs médias éditeurs.',
+    articleCount: articles.length,
+    language: 'fr',
+    note: 'Titres et résumés traduits en français. Les articles complets restent la propriété de leurs médias éditeurs.',
     feeds: results.map(x => ({ source: x.feed.name, ok: !x.error, count: x.articles.length, error: x.error })),
     articles
   };
