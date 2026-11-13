@@ -48,13 +48,17 @@ function parseFeed(xml, source) {
   return blocks.map((match) => {
     const b = match[2];
     const title = tag(b, 'title');
-    const description = tag(b, 'description') || tag(b, 'summary') || tag(b, 'content:encoded') || tag(b, 'content');
+    // Certains médias placent le texte le plus riche dans content:encoded plutôt que description.
+    // Conserver le champ le plus complet disponible dans le flux RSS, sans inventer le reste de l'article.
+    const descriptions = [tag(b, 'description'), tag(b, 'summary'), tag(b, 'content:encoded'), tag(b, 'content')]
+      .map(value => value.trim()).filter(Boolean).sort((a, z) => z.length - a.length);
+    const description = descriptions[0] || '';
     const rawDate = tag(b, 'pubDate') || tag(b, 'published') || tag(b, 'updated') || tag(b, 'dc:date');
     const link = getLink(b);
     const date = rawDate && !Number.isNaN(Date.parse(rawDate)) ? new Date(rawDate).toISOString() : null;
     let host = '';
     try { host = new URL(link).hostname.replace(/^www\./, ''); } catch (_) {}
-    return { title, description: description.slice(0, 1800), link, date, source, domain: host };
+    return { title, description: description.slice(0, 4500), link, date, source, domain: host };
   }).filter(x => x.title && /^https?:\/\//i.test(x.link));
 }
 
@@ -127,7 +131,7 @@ async function main() {
     updatedAt: new Date().toISOString(),
     articleCount: frenchArticles.length,
     language: 'fr',
-    note: 'Titres et résumés traduits en français. Les articles complets restent la propriété de leurs médias éditeurs.',
+    note: 'Titres et contenu disponible dans les flux RSS traduits en français. Lorsque le média ne fournit qu’un extrait, celui-ci est présenté comme tel ; le texte intégral reste la propriété de son éditeur.',
     feeds: results.map(x => ({ source: x.feed.name, ok: !x.error, count: x.articles.length, error: x.error })),
     articles: frenchArticles
   };
