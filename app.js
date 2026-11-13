@@ -188,13 +188,13 @@ async function loadEspnTeamHistory(){
  // Limite de 12 équipes par passage pour protéger le quota du fournisseur.
  let apiRequested=0,apiAdded=0,apiFailed=0;
  const apiCache=(()=>{try{return JSON.parse(localStorage.getItem(API_FOOTBALL_TEAM_HISTORY_CACHE_KEY)||'{}')}catch(_){return {}}})();
- const historyCacheKey=item=>providerNorm(item.team)+'|'+String(item.apiFootballId||'name');
+ const historyCacheKey=item=>providerNorm(item.team)+'|'+String(item.apiFootballId|| (item.id?'espn:'+item.id:'name'));
  const missingByKey=new Map();
  for(const item of teams.values())if(recent(item.team,'__history_probe__',null,item.id,'espn',item.apiFootballId).length<5){
   const key=historyCacheKey(item),previous=missingByKey.get(key);
   if(!previous||(!previous.national&&item.national)||item.kickoff<previous.kickoff)missingByKey.set(key,item);
  }
- const missing=[...missingByKey.values()].sort((a,b)=>Number(!!b.national)-Number(!!a.national)||a.kickoff-b.kickoff);
+ const missing=[...missingByKey.values()].sort((a,b)=>a.kickoff-b.kickoff||Number(!!b.national)-Number(!!a.national));
  const cursorKey='gold-pronos-api-team-history-cursor-v1',cursorRaw=(()=>{try{return Number(localStorage.getItem(cursorKey)||0)}catch(_){return 0}})();
  const historyCursor=missing.length?((Number.isFinite(cursorRaw)?Math.max(0,Math.floor(cursorRaw)):0)%missing.length):0;
  const rotated=[...missing.slice(historyCursor),...missing.slice(0,historyCursor)],apiTasks=[];
