@@ -1128,7 +1128,7 @@ function renderNews(){
   const tag=kind==='official'?'SOURCE OFFICIELLE · CONFIRMÉ':kind==='rumour'?'MERCATO · INFORMATION À VÉRIFIER':kind==='squad'?'BLESSURES & EFFECTIFS':kind==='international'?'FOOTBALL INTERNATIONAL':'ACTUALITÉ MONDIALE';
   const stamp=date&&Number.isFinite(Date.parse(date))?appDate(date,{dateStyle:'medium',timeStyle:'short'}):'Date non communiquée';
   const source=x.source||x.domain||'Source non précisée';
-  return '<article class="news-card"><span class="eyebrow">'+tag+'</span><h3>'+safe(title)+'</h3><p>'+safe(desc)+'</p><small>Source : '+safe(source)+' · '+safe(stamp)+'</small>'+(link?'<p><a href="'+safe(link)+'" target="_blank" rel="noopener noreferrer">Lire l’article original ↗</a></p>':'')+'</article>';
+  return '<article class="news-card"><span class="eyebrow">'+tag+'</span><h3>'+safe(title)+'</h3><span class="news-summary-label">RÉSUMÉ EN FRANÇAIS</span><p>'+safe(desc||'Résumé détaillé non fourni par la source.')+'</p><small>Source : '+safe(source)+' · '+safe(stamp)+'</small>'+(link?'<p><a href="'+safe(link)+'" target="_blank" rel="noopener noreferrer">Consulter la publication originale (facultatif) ↗</a></p>':'')+'</article>';
  }).join('');
  const status=$('news-status');
  if(status){
