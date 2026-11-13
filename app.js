@@ -1094,8 +1094,7 @@ async function loadCommunity(){
 }
 let newsFilter='all',cachedNewsItems=[],newsFeedMeta=null;
 const NEWS_ENDPOINTS=[
- 'https://site.api.espn.com/apis/site/v2/sports/soccer/news?limit=40&region=fr&lang=fr',
- 'https://site.api.espn.com/apis/site/v2/sports/soccer/news?limit=40&region=us&lang=en'
+ 'https://site.api.espn.com/apis/site/v2/sports/soccer/news?limit=40&region=fr&lang=fr'
 ];
 function newsKind(x){
  const title=String(x.headline||x.title||x.story?.headline||'');
@@ -1119,7 +1118,7 @@ function renderNews(){
  });
  if(!filtered.length){box.innerHTML='<div class="notice">Aucun article reçu dans cette catégorie lors de la dernière collecte. Réessaie après actualisation.</div>';return}
  box.innerHTML=filtered.slice(0,80).map(x=>{
-  const title=x.headline||x.title||x.story?.headline||'Actualité football';
+  const title=x.title||x.headline||x.story?.headline||'Actualité football';
   const desc=x.description||x.summary||x.story?.summary||'';
   const rawLink=x.link||x.links?.web?.href||x.links?.api?.news?.href||'';
   let link='';try{const u=new URL(rawLink);if(u.protocol==='https:'||u.protocol==='http:')link=u.href}catch(_){}
@@ -1139,28 +1138,20 @@ function renderNews(){
 }
 async function loadNews(){
  const box=$('news-list');if(!box)return;
- box.innerHTML='<div class="loading">Chargement des informations du football mondial…</div>';
+ box.innerHTML='<div class="loading">Chargement des actualités en français…</div>';
  try{
-  const data=await get('./news.json',15000);
-  if(data&&Array.isArray(data.articles)){
-   newsFeedMeta=data;
-   cachedNewsItems=data.articles;
-  }
- }catch(error){console.warn('Flux mondial news.json indisponible',error)}
- if(!cachedNewsItems.length){
-  const responses=await Promise.allSettled(NEWS_ENDPOINTS.map(url=>get(url,10000)));
-  const items=responses.flatMap(r=>{if(r.status!=='fulfilled')return [];const d=r.value;return d.articles||d.items||d.feed?.entries||[]});
-  cachedNewsItems=[...new Map(items.map(x=>[String(x.id||x.guid||x.headline||x.title||''),x])).values()]
-   .filter(x=>(x.headline||x.title||x.story?.headline)&&((x.links?.web?.href||x.links?.api?.news?.href||x.link)||x.description||x.summary));
-  cachedNewsItems.forEach(x=>{x.source=x.source||'ESPN';x.date=x.date||x.published||x.lastModified});
-  cachedNewsItems.sort((a,b)=>Date.parse(b.date||0)-Date.parse(a.date||0));
+  const data=await get('./news.json?v=fr-only-1',20000);
+  if(!data||data.language!=='fr'||!Array.isArray(data.articles))throw Error('Le flux français n’est pas disponible.');
+  newsFeedMeta=data;
+  cachedNewsItems=data.articles.filter(x=>x.language==='fr'&&x.title&&x.description);
+  if(!cachedNewsItems.length)throw Error('Aucun article entièrement traduit en français n’est disponible pour le moment.');
+  renderNews();
+ }catch(error){
+  console.warn('Actualités françaises indisponibles',error);
+  cachedNewsItems=[];
+  box.innerHTML='<div class="notice">Les actualités en français sont en cours de préparation ou de traduction. Aucun article en anglais ne sera affiché. Réessaie après actualisation.</div>';
+  const status=$('news-status');if(status)status.textContent='Flux français indisponible · aucun contenu anglais affiché.';
  }
- if(!cachedNewsItems.length){
-  box.innerHTML='<div class="notice">Les sources d’actualités ne répondent pas pour le moment. Aucun article ni transfert ne sera inventé. Réessaie plus tard.</div>';
-  const status=$('news-status');if(status)status.textContent='Collecte indisponible · aucune donnée inventée.';
-  return;
- }
- renderNews();
 }
 async function loadLeaders(){
  const box=$('leaders');if(!box)return;const code=$('leaders-league')?.value||'eng.1';
