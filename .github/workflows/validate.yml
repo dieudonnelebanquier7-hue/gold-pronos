@@ -39,11 +39,11 @@ jobs:
           }
           console.log('Navigation OK: ' + new Set(tabs).size + ' tabs, ' + pages.size + ' pages; static selectors OK.');
           if (!app.includes("news.json?v=fr-only-1")) throw new Error('French-only world football news feed is not connected to the app');
-if (!app.includes("x.language==='fr'&&x.title&&x.description")) throw new Error('App does not enforce French-only complete articles');
+          if (!app.includes("x.language==='fr'&&x.title&&x.description")) throw new Error('App does not enforce French-only complete articles');
           if (!html.includes('data-news-filter="mercato"')) throw new Error('Mercato filter is missing');
           if (!fs.existsSync('fetch-news.cjs')) throw new Error('News collector is missing');
-const collector = fs.readFileSync('fetch-news.cjs', 'utf8');
-if (!collector.includes('translateArticlesToFrench') || !collector.includes("language: 'fr'")) throw new Error('News collector does not enforce French translation');
+          const collector = fs.readFileSync('fetch-news.cjs', 'utf8');
+          if (!collector.includes('translateArticlesToFrench') || !collector.includes("language: 'fr'")) throw new Error('News collector does not enforce French translation');
           console.log('World football news integration OK.');
           NODE
       - name: Check required app files
