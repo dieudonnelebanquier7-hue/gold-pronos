@@ -1095,14 +1095,15 @@ async function loadCommunity(){
 let newsFilter='all',cachedNewsItems=[];
 const NEWS_ENDPOINTS=[
  'https://site.api.espn.com/apis/site/v2/sports/soccer/news?limit=50&region=us&lang=en',
+ 'https://site.api.espn.com/apis/site/v2/sports/soccer/news?limit=30&region=fr&lang=fr',
  ...['eng.1','esp.1','fra.1','ita.1','ger.1','ned.1','por.1','tur.1','ksa.1','usa.1','bra.1','arg.1','uefa.champions','uefa.europa','uefa.europa.conf','caf.nations','afc.champions','fifa.world'].map(code=>API+code+'/news?limit=20&region=us&lang=en')
 ];
 function newsKind(x){
  const title=String(x.headline||x.title||x.story?.headline||'');
  const desc=String(x.description||x.summary||x.story?.summary||'');
  const all=title+' '+desc;
- const transfer=/transfer|transfers|loan|signing|signed|mercato|transfert|prêt|recrut|deal|contract|negotiat|negociation|négociation|rumou?r|linked with|move to/i.test(all);
- const official=/official|confirmed|announced|signs for|joins|has signed|club confirms|official statement|transfert official|officially/i.test(title);
+ const transfer=/transfer|transfers|loan|signing|signed|mercato|transfert|prêt|recrut|deal|contract|negotiat|negociation|négociation|rumou?r|rumeur|piste|intérêt|approche|interest|interested|target|eyeing|monitoring|linked with|move to/i.test(all);
+ const official=/official|officiel|confirmed|confirmé|announced|annonce|officialisé|signs for|joins|has signed|club confirms|official statement|transfert official|officially/i.test(title);
  if(transfer)return official?'official':'rumour';
  if(/injur|fitness|suspension|return to training|ruled out|blessé|blessure|suspendu/i.test(all))return 'squad';
  if(/national team|international|world cup|afcon|africa cup|nations league|fifa|uefa|caf|afc|conmebol/i.test(all))return 'international';
