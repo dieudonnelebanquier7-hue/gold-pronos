@@ -884,7 +884,7 @@ function currentApiStandingOptions(){
   const season=seasons.find(x=>x.current)||seasons.slice().sort((a,b)=>Number(b.year||0)-Number(a.year||0))[0];
   if(!item.league?.id||!season?.year||season.coverage?.standings!==true)return [];
   const name=frenchCompetitionName(item.league.name,item.country?.name);
-  const aliases=/africa cup of nations.*qualif/i.test(String(item.league.name||''))?' Bénin Benin Groupe F Qualifications CAN 2027':'';return [{value:'api:'+item.league.id+':'+season.year,label:name+' · '+season.year,search:name+' '+(item.country?.name||'')+' '+season.year+aliases}];
+  return [{value:'api:'+item.league.id+':'+season.year,label:name+' · '+season.year,search:name+' '+(item.country?.name||'')+' '+season.year}];
  });
 }
 function allStandingsOptions(){
