@@ -145,6 +145,24 @@ const { chromium } = require('playwright');
   await page.evaluate(() => { const el=document.createElement('div'); el.id='dynamic-translation-check'; el.textContent='Fouls · Corner Kicks · Yellow Cards'; document.body.appendChild(el); });
   await page.waitForFunction(() => document.querySelector('#dynamic-translation-check')?.textContent === 'Fautes · Corners · Cartons jaunes');
   await page.locator('#dynamic-translation-check').evaluate(el=>el.remove());
+  await page.locator('.tab[data-page="news"]').click();
+  await page.locator('#news-list .news-card').first().waitFor({state:'visible',timeout:15000});
+  const newsCards = page.locator('#news-list .news-card');
+  const newsCount = await newsCards.count();
+  const summaryLabels = await page.locator('#news-list .news-summary-label').evaluateAll(nodes => nodes.map(node => node.textContent.trim()));
+  if (!newsCount || summaryLabels.length !== newsCount || summaryLabels.some(label => label !== 'RÉSUMÉ EN FRANÇAIS')) {
+    throw new Error('French news page did not render complete, clearly labelled French summaries: '+newsCount+' card(s), '+summaryLabels.length+' label(s)');
+  }
+  const newsColors = await newsCards.first().evaluate(el => ({
+    background: getComputedStyle(el).backgroundColor,
+    title: getComputedStyle(el.querySelector('h3')).color,
+    summary: getComputedStyle(el.querySelector('p')).color
+  }));
+  if (newsColors.background !== 'rgb(17, 25, 35)' || newsColors.title !== 'rgb(255, 255, 255)' || newsColors.summary !== 'rgb(215, 221, 230)') {
+    throw new Error('French news cards have unreadable contrast: '+JSON.stringify(newsColors));
+  }
+  await page.locator('[data-news-filter="all"]').click();
+  console.log('French news cards checked:', newsCount, '· contrast:', JSON.stringify(newsColors));
   const pages = await page.locator('.tab[data-page]').evaluateAll(nodes => nodes.map(node => node.dataset.page));
   for (const name of pages) {
     await page.locator('.tab[data-page="'+name+'"]').click();
