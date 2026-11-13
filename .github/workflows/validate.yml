@@ -18,6 +18,7 @@ jobs:
           node --check i18n.js
           node --check sw.js
           node --check fetch-matches.cjs
+          node --check fetch-news.cjs
       - name: Smoke-check every navigation page and static element
         run: |
           node <<'NODE'
@@ -37,6 +38,10 @@ jobs:
             if (!pages.has(required)) throw new Error('Missing application page: ' + required);
           }
           console.log('Navigation OK: ' + new Set(tabs).size + ' tabs, ' + pages.size + ' pages; static selectors OK.');
+          if (!app.includes("get('./news.json'")) throw new Error('World football news feed is not connected to the app');
+          if (!html.includes('data-news-filter="mercato"')) throw new Error('Mercato filter is missing');
+          if (!fs.existsSync('fetch-news.cjs')) throw new Error('News collector is missing');
+          console.log('World football news integration OK.');
           NODE
       - name: Check required app files
         run: |
