@@ -75,6 +75,32 @@ async function translateToFrench(value) {
   return '';
 }
 
+async function translateArticlesToFrench(items) {
+  const translated = [];
+  let cursor = 0;
+  const workers = Array.from({ length: 4 }, async () => {
+    while (cursor < items.length) {
+      const item = items[cursor++];
+      const title = await translateToFrench(item.title);
+      const description = item.description
+        ? await translateToFrench(item.description)
+        : 'Aucun résumé détaillé n’a été fourni par le média.';
+      if (!title || (item.description && !description)) {
+        console.warn('Article ignoré : traduction française indisponible pour', item.source);
+        continue;
+      }
+      translated.push({
+        ...item,
+        title,
+        description,
+        language: 'fr'
+      });
+    }
+  });
+  await Promise.all(workers);
+  return translated;
+}
+
 async function main() {
   const results = await Promise.all(FEEDS.map(async feed => {
     try {
@@ -99,13 +125,15 @@ async function main() {
     return true;
   }).sort((a, b) => (Date.parse(b.date || 0) || 0) - (Date.parse(a.date || 0) || 0)).slice(0, 120);
 
+  const frenchArticles = await translateArticlesToFrench(articles);
+
   const output = {
     updatedAt: new Date().toISOString(),
-    articleCount: articles.length,
+    articleCount: frenchArticles.length,
     language: 'fr',
     note: 'Titres et résumés traduits en français. Les articles complets restent la propriété de leurs médias éditeurs.',
     feeds: results.map(x => ({ source: x.feed.name, ok: !x.error, count: x.articles.length, error: x.error })),
-    articles
+    articles: frenchArticles
   };
   fs.writeFileSync('news.json', JSON.stringify(output, null, 2) + '\n');
   console.log('Football news generated:', articles.length, 'articles from', results.filter(x => !x.error).length, '/', FEEDS.length, 'feeds');
