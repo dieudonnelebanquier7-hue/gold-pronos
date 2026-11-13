@@ -156,7 +156,7 @@ async function loadEspnTeamHistory(){
  for(const m of upcoming){
   const kickoff=Date.parse(m.date),national=!!(m.homeNational||m.awayNational||isNationalCompetition(m.code));
   const addTeam=(name,id,apiId,venue)=>{
-   if(!id||(recent(name,m.id).length>=5&&recent(name,m.id,venue,id).length>=2))return;
+   if(!id||(recent(name,m.id).length>=5&&recent(name,m.id,venue,id,m.source).length>=2))return;
    const key=String(m.code)+'|'+String(id),previous=teams.get(key);
    if(!previous||kickoff<previous.kickoff)teams.set(key,{code:String(m.code),id:String(id),team:name,apiFootballId:apiId||(String(m.code).startsWith('api-football:')?id:null),national,kickoff});
   };
@@ -546,7 +546,7 @@ function teamSeriesHtml(teamName,teamId,excludeId){
  const rows=[['Sans défaite consécutive',noLoss],['Sans victoire consécutive',noWin],['Défaites consécutives',losses],['Sans but marqué',noGoal],['Sans encaisser de but',clean],['Plus de 2,5 buts',over25+'/5'],['Les deux équipes marquent',btts+'/5']];
  return '<section class="md-stat-card"><h3>'+safe(teamName)+' · séries récentes</h3><p class="md-note">Calculs sur les cinq derniers résultats vérifiés disponibles, du plus récent au plus ancien. Un échantillon incomplet est signalé.</p><div class="md-series-grid">'+rows.map(([label,value])=>'<div class="md-series-item"><span>'+safe(label)+'</span><b>'+safe(value)+'</b></div>').join('')+'</div><div class="md-form-list">'+list.map(m=>{const x=result(m);return '<article class="md-form-row"><span class="md-form-result '+(x.outcome==='V'?'win':x.outcome==='D'?'loss':'draw')+'">'+x.outcome+'</span><span>'+(providerNorm(m.home)===providerNorm(teamName)||teamId&&m.homeId&&String(m.homeId)===String(teamId)?'Domicile':'Extérieur')+'</span><b>'+x.gf+' – '+x.ga+'</b><small>'+safe(appDate(m.date,{day:'2-digit',month:'short'}))+'</small></article>'}).join('')+'</div></section>';
 }
-function matchSeries(m){const home=recent(m.home,m.id,null,m.homeId),away=recent(m.away,m.id,null,m.awayId);if(!home.length&&!away.length)return '<div class="md-empty">Aucune série récente vérifiable pour ces deux équipes dans le calendrier chargé. Les séries seront affichées dès que des résultats terminés et confirmés seront disponibles.</div>';return '<div class="md-form-grid"><section><h3>'+safe(m.home)+' · séries récentes</h3>'+(home.length?teamSeriesHtml(m.home,m.homeId,m.id):'<div class="md-empty">Aucun résultat récent vérifié pour '+safe(m.home)+'.</div>')+'</section><section><h3>'+safe(m.away)+' · séries récentes</h3>'+(away.length?teamSeriesHtml(m.away,m.awayId,m.id):'<div class="md-empty">Aucun résultat récent vérifié pour '+safe(m.away)+'.</div>')+'</section></div>'}
+function matchSeries(m){const home=recent(m.home,m.id,null,m.homeId,m.source),away=recent(m.away,m.id,null,m.awayId,m.source);if(!home.length&&!away.length)return '<div class="md-empty">Aucune série récente vérifiable pour ces deux équipes dans le calendrier chargé. Les séries seront affichées dès que des résultats terminés et confirmés seront disponibles.</div>';return '<div class="md-form-grid"><section><h3>'+safe(m.home)+' · séries récentes</h3>'+(home.length?teamSeriesHtml(m.home,m.homeId,m.id):'<div class="md-empty">Aucun résultat récent vérifié pour '+safe(m.home)+'.</div>')+'</section><section><h3>'+safe(m.away)+' · séries récentes</h3>'+(away.length?teamSeriesHtml(m.away,m.awayId,m.id):'<div class="md-empty">Aucun résultat récent vérifié pour '+safe(m.away)+'.</div>')+'</section></div>'}
 function headToHead(m){
  const same=(x,id,name)=>id&&x.homeId&&x.awayId?(String(x.homeId)===String(id)||String(x.awayId)===String(id)):(x.home===name||x.away===name);
  const list=matches.filter(x=>x.id!==m.id&&x.finished&&x.homeScore!=null&&x.awayScore!=null&&same(x,m.homeId,m.home)&&same(x,m.awayId,m.away)).sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,5);
@@ -659,12 +659,15 @@ function trustedUpcomingFixture(x,now=Date.now(),horizon=now+7*86400000){
  const date=Date.parse(x?.date),sources=[x?.source,...(Array.isArray(x?.providers)?x.providers:[])].filter(Boolean).map(v=>String(v).toLowerCase());
  return !!x&&!x.live&&!x.finished&&!x.scoreConflict&&Number.isFinite(date)&&date>now&&date<=horizon&&sources.some(v=>v==='espn'||v==='api-football')&&!!providerNorm(x.home)&&!!providerNorm(x.away)&&!!x.league;
 }
-function recent(team,exclude,venue=null,teamId=null){
- const now=Date.now();
+function recent(team,exclude,venue=null,teamId=null,teamSource=null){
+ const now=Date.now(),source=String(teamSource||'').toLowerCase();
  return matches.filter(x=>{
   if(!trustedFinishedResult(x,now)||x.id===exclude)return false;
-  const sameHome=!!(teamId&&x.homeId&&String(x.homeId)===String(teamId))||providerNorm(x.home)===providerNorm(team);
-  const sameAway=!!(teamId&&x.awayId&&String(x.awayId)===String(teamId))||providerNorm(x.away)===providerNorm(team);
+  const sources=[x.source,...(Array.isArray(x.providers)?x.providers:[])].filter(Boolean).map(v=>String(v).toLowerCase());
+  const sameProvider=source==='espn'?sources.includes('espn'):source==='api-football'?sources.includes('api-football'):false;
+  const homeId=source==='api-football'?(x.apiHomeId||x.homeId):x.homeId,awayId=source==='api-football'?(x.apiAwayId||x.awayId):x.awayId;
+  const sameHome=!!(sameProvider&&teamId&&homeId&&String(homeId)===String(teamId))||providerNorm(x.home)===providerNorm(team);
+  const sameAway=!!(sameProvider&&teamId&&awayId&&String(awayId)===String(teamId))||providerNorm(x.away)===providerNorm(team);
   return venue==='home'?sameHome:venue==='away'?sameAway:sameHome||sameAway;
  }).sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,8);
 }
@@ -720,7 +723,7 @@ function renderPicks(){
  if(!dayMatches.length){const empty=document.createElement('div');empty.className='notice';empty.textContent='Aucun match à venir confirmé dans les sept prochains jours pour les compétitions suivies. Le calendrier sera actualisé automatiquement.';box.append(empty);return}
  for(const m of dayMatches){
   const h=recent(m.home,m.id),a=recent(m.away,m.id),hs=matchStats(h,m.home),as=matchStats(a,m.away);
-  const hHome=recent(m.home,m.id,'home',m.homeId),aAway=recent(m.away,m.id,'away',m.awayId);
+  const hHome=recent(m.home,m.id,'home',m.homeId,m.source),aAway=recent(m.away,m.id,'away',m.awayId,m.source);
   // Si l'échantillon domicile/extérieur est trop court, utiliser la forme globale vérifiée.
   // Les cartes indiquent explicitement ce repli et ne présentent pas la forme globale comme une statistique de lieu.
   const useHomeOverall=hHome.length<2,useAwayOverall=aAway.length<2;
