@@ -982,6 +982,35 @@ function renderStandingsGroups(groups,title,source,fetchedAt){
  }).join('');
  box.innerHTML='<div class="standings-heading"><div><span>CLASSEMENT OFFICIEL</span><h3>'+safe(title)+'</h3><small>'+groups.reduce((n,g)=>n+g.rows.length,0)+' équipes · '+safe(source)+'</small></div><span class="standings-live-dot">● Source consultée</span></div>'+lookup+groupHtml+'<p class="standings-source">Source : '+safe(source)+' · Dernière consultation : '+safe(fetchedAt||new Date().toLocaleString(appLocale()))+'. Les positions non publiées et les statistiques absentes restent indiquées « — ».</p>';
 }
+function apiQualifierRegion(code){
+ const key=String(code||'');
+ if(key.endsWith('.caf'))return ['africa','caf'];
+ if(key.endsWith('.afc'))return ['asia','afc'];
+ if(key.endsWith('.uefa'))return ['europe','uefa'];
+ if(key.endsWith('.conmebol'))return ['south america','conmebol'];
+ if(key.endsWith('.concacaf'))return ['north america','central america','concacaf'];
+ if(key.endsWith('.ofc'))return ['oceania','ofc'];
+ return [];
+}
+async function findApiFootballQualifierStanding(code){
+ if(!Array.isArray(worldLeagues)||!worldLeagues.length)await loadApiFootballLeagues(false);
+ const regions=apiQualifierRegion(code);
+ if(!regions.length)return null;
+ const candidates=(worldLeagues||[]).filter(item=>{
+  const name=normalizeStandingText(item?.league?.name||'');
+  const country=normalizeStandingText(item?.country?.name||'');
+  const full=name+' '+country;
+  const isWorldCup=/world cup|coupe du monde/.test(full);
+  const regionMatch=regions.some(region=>full.includes(region));
+  const seasons=Array.isArray(item.seasons)?item.seasons:[];
+  return item?.league?.id&&isWorldCup&&regionMatch&&seasons.some(season=>season?.coverage?.standings===true);
+ }).map(item=>{
+  const seasons=(item.seasons||[]).filter(season=>season?.coverage?.standings===true).sort((a,b)=>Number(b.year||0)-Number(a.year||0));
+  const season=seasons.find(x=>x.current)||seasons[0];
+  return season?{leagueId:String(item.league.id),season:Number(season.year),name:item.league.name}:null;
+ }).filter(Boolean);
+ return candidates[0]||null;
+}
 async function loadStandings(){
  const select=$('standings-league'),code=select?.value,box=$('standings');if(!code||!box)return;activeLeague=code;
  const selected=allStandingsOptions().find(x=>x.value===code);
@@ -1000,13 +1029,24 @@ async function loadStandings(){
    let lastError=null;
    const urls=['https://site.api.espn.com/apis/v2/sports/soccer/'+encodeURIComponent(code)+'/standings','https://site.web.api.espn.com/apis/v2/sports/soccer/'+encodeURIComponent(code)+'/standings'];
    for(const url of urls){try{const data=await get(url,15000);groups=extractEspnStandingsGroups(data);if(groups.length)break}catch(error){lastError=error}}
-   if(!groups.length)throw lastError||Error('Aucun classement officiel publié');
+   if(!groups.length){
+    const apiLeague=await findApiFootballQualifierStanding(code);
+    if(apiLeague){
+     const data=await apiFootballRequest({action:'standings',leagueId:apiLeague.leagueId,season:apiLeague.season});
+     if(data?.configured){
+      groups=apiFootballStandingGroups(data);
+      if(groups.length){source='API-Football';fetchedAt=data.fetched_at||''}
+     }
+    }
+   }
+   if(!groups.length)throw lastError||Error('Aucun classement officiel publié par les sources disponibles');
   }
   if(!groups.length)throw Error('Aucun tableau de classement officiel exploitable');
   lastStandingsGroups=groups;lastStandingsTitle=selectedName;lastStandingsSource=source;lastStandingsAt=fetchedAt;
   renderStandingsGroups(groups,selectedName,source,fetchedAt);
  }catch(e){
-  box.innerHTML='<div class="standings-empty"><b>Classement indisponible</b><p>La source ne fournit pas de tableau officiel exploitable pour cette compétition actuellement.</p><small>Aucun classement estimé ou inventé ne sera affiché. Vérifie que la compétition publie un classement, puis actualise plus tard.</small></div>';
+  console.warn('[GOLD PRONOS] Classement indisponible pour '+code,e);
+  box.innerHTML='<div class="standings-empty"><b>Classement officiel momentanément indisponible</b><p>Les sources consultées ne fournissent pas de tableau exploitable pour cette compétition.</p><small>Aucun classement estimé ou inventé ne sera affiché. Réessaie après actualisation des données.</small></div>';
  }
 }
 function renderTeamCatalog(unique,code,box,stale=false){
