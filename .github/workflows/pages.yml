@@ -10,6 +10,7 @@ on:
       - 'styles.css'
       - 'sw.js'
       - 'fetch-matches.cjs'
+      - 'fetch-news.cjs'
       - 'manifest.webmanifest'
       - 'icon.svg'
       - '.github/workflows/pages.yml'
@@ -37,6 +38,10 @@ jobs:
         run: node fetch-matches.cjs
       - name: Verify generated football calendar
         run: node -e "const d=require('./matches.json'); if(!Array.isArray(d.matches)||d.matches.length===0) throw new Error('Verified calendar is empty'); console.log('Verified calendar:', d.matches.length, 'matches across', d.sources?.competitions, 'competitions')"
+      - name: Generate multi-source world football news
+        run: node fetch-news.cjs
+      - name: Verify generated news feed
+        run: node -e "const d=require('./news.json'); if(!Array.isArray(d.articles)||!Array.isArray(d.feeds)) throw new Error('Invalid news feed'); console.log('Football news:', d.articleCount, 'articles; healthy feeds:', d.feeds.filter(x=>x.ok).length)"
       - name: Install browser verification tools
         uses: actions/setup-node@v4
         with:
