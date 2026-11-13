@@ -38,11 +38,45 @@ jobs:
       - name: Generate verified football calendar
         run: node fetch-matches.cjs
       - name: Verify generated football calendar
-        run: node -e "const d=require('./matches.json'); if(!Array.isArray(d.matches)||d.matches.length===0) throw new Error('Verified calendar is empty'); console.log('Verified calendar:', d.matches.length, 'matches across', d.sources?.competitions, 'competitions')"
+        run: |
+          node <<'NODE'
+          const d = require('./matches.json');
+          const rows = Array.isArray(d.matches) ? d.matches : [];
+          if (rows.length < 100) throw new Error('Calendrier trop incomplet : ' + rows.length + ' rencontres. Publication annulée.');
+          const ids = new Set();
+          let invalid = 0;
+          for (const m of rows) {
+            const id = String(m.id || '');
+            const date = Date.parse(m.utcDate || '');
+            const home = String(m.homeTeam?.name || '').trim();
+            const away = String(m.awayTeam?.name || '').trim();
+            const status = String(m.status || '');
+            if (!id || ids.has(id) || !Number.isFinite(date) || !home || !away ||
+                /^Équipe (domicile|extérieure)$/i.test(home) || /^Équipe (domicile|extérieure)$/i.test(away) ||
+                !['FINISHED', 'IN_PLAY', 'SCHEDULED'].includes(status)) invalid++;
+            ids.add(id);
+          }
+          if (invalid > Math.max(3, Math.floor(rows.length * 0.01))) {
+            throw new Error('Trop de rencontres mal formées : ' + invalid + '/' + rows.length + '. Publication annulée.');
+          }
+          console.log('Calendrier validé :', rows.length, 'rencontres ;', d.sources?.competitions, 'compétitions ;', invalid, 'anomalie(s).');
+          NODE
       - name: Generate multi-source world football news
         run: node fetch-news.cjs
       - name: Verify generated news feed
-        run: node -e "const d=require('./news.json'); if(!Array.isArray(d.articles)||!Array.isArray(d.feeds)||d.articleCount!==d.articles.length) throw new Error('Invalid news feed'); if(d.articles.some(x=>x.language!=='fr'||!x.title||!x.description)) throw new Error('News feed contains an incomplete or non-French article'); console.log('French football news:', d.articleCount, 'articles; healthy feeds:', d.feeds.filter(x=>x.ok).length)"
+        run: |
+          node <<'NODE'
+          const d = require('./news.json');
+          const articles = Array.isArray(d.articles) ? d.articles : [];
+          const healthyFeeds = Array.isArray(d.feeds) ? d.feeds.filter(x => x.ok).length : 0;
+          if (d.articleCount !== articles.length || articles.length < 20 || healthyFeeds < 3) {
+            throw new Error('Flux actualités trop faible : ' + articles.length + ' article(s), ' + healthyFeeds + ' source(s) actives. Publication annulée.');
+          }
+          if (articles.some(x => x.language !== 'fr' || !x.title?.trim() || !x.description?.trim())) {
+            throw new Error('Le flux contient un article incomplet ou non déclaré en français. Publication annulée.');
+          }
+          console.log('Actualités validées :', articles.length, 'articles en français ;', healthyFeeds, 'sources actives.');
+          NODE
       - name: Install browser verification tools
         uses: actions/setup-node@v4
         with:
