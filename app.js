@@ -1092,57 +1092,74 @@ async function loadCommunity(){
   $('community-refresh').onclick=loadCommunity;
  }catch(e){root.innerHTML='<div class="notice">Impossible de charger les discussions. Vérifie ta connexion et réessaie. ('+safe(e.message||'erreur')+')</div>'}
 }
-let newsFilter='all',cachedNewsItems=[];
+let newsFilter='all',cachedNewsItems=[],newsFeedMeta=null;
 const NEWS_ENDPOINTS=[
- 'https://site.api.espn.com/apis/site/v2/sports/soccer/news?limit=50&region=us&lang=en',
- 'https://site.api.espn.com/apis/site/v2/sports/soccer/news?limit=30&region=fr&lang=fr',
- ...['eng.1','esp.1','fra.1','ita.1','ger.1','ned.1','por.1','tur.1','ksa.1','usa.1','bra.1','arg.1','uefa.champions','uefa.europa','uefa.europa.conf','caf.nations','afc.champions','fifa.world'].map(code=>API+code+'/news?limit=20&region=us&lang=en')
+ 'https://site.api.espn.com/apis/site/v2/sports/soccer/news?limit=40&region=fr&lang=fr',
+ 'https://site.api.espn.com/apis/site/v2/sports/soccer/news?limit=40&region=us&lang=en'
 ];
 function newsKind(x){
  const title=String(x.headline||x.title||x.story?.headline||'');
  const desc=String(x.description||x.summary||x.story?.summary||'');
  const all=title+' '+desc;
- const transfer=/transfer|transfers|loan|signing|signed|mercato|transfert|prêt|recrut|deal|contract|negotiat|negociation|négociation|rumou?r|rumeur|piste|intérêt|approche|interest|interested|target|eyeing|monitoring|linked with|move to/i.test(all);
- const official=/official|officiel|confirmed|confirmé|announced|annonce|officialisé|signs for|joins|has signed|club confirms|official statement|transfert official|officially/i.test(title);
- if(transfer)return official?'official':'rumour';
- if(/injur|fitness|suspension|return to training|ruled out|blessé|blessure|suspendu/i.test(all))return 'squad';
- if(/national team|international|world cup|afcon|africa cup|nations league|fifa|uefa|caf|afc|conmebol/i.test(all))return 'international';
+ if(x.verifiedOfficial===true)return 'official';
+ if(/transfer|transfers|loan|signing|signed|mercato|transfert|prêt|recrut|deal|contract|negotiat|negociation|négociation|rumou?r|rumeur|piste|intérêt|approche|interest|interested|target|eyeing|monitoring|linked with|move to/i.test(all))return 'rumour';
+ if(/injur|fitness|suspension|return to training|ruled out|blessé|blessure|suspendu|indisponible/i.test(all))return 'squad';
+ if(/national team|international|world cup|afcon|africa cup|nations league|fifa|uefa|caf|afc|conmebol|coupe du monde|can 20/i.test(all))return 'international';
  return 'general';
 }
 function renderNews(){
  const box=$('news-list');if(!box)return;
  const filtered=cachedNewsItems.filter(x=>{
   const k=newsKind(x);
-  if(newsFilter==='mercato')return k==='official'||k==='rumour';
-  if(newsFilter==='official')return k==='official';
+  if(newsFilter==='mercato')return k==='rumour'||k==='official';
   if(newsFilter==='international')return k==='international';
   if(newsFilter==='squad')return k==='squad';
+  if(newsFilter==='general')return k==='general';
   return true;
  });
- if(!filtered.length){box.innerHTML='<div class="notice">Aucune information vérifiée disponible dans cette catégorie pour le moment. Réessaie après actualisation.</div>';return}
- box.innerHTML=filtered.slice(0,60).map(x=>{
+ if(!filtered.length){box.innerHTML='<div class="notice">Aucun article reçu dans cette catégorie lors de la dernière collecte. Réessaie après actualisation.</div>';return}
+ box.innerHTML=filtered.slice(0,80).map(x=>{
   const title=x.headline||x.title||x.story?.headline||'Actualité football';
   const desc=x.description||x.summary||x.story?.summary||'';
-  const rawLink=x.links?.web?.href||x.links?.api?.news?.href||x.link||'';
+  const rawLink=x.link||x.links?.web?.href||x.links?.api?.news?.href||'';
   let link='';try{const u=new URL(rawLink);if(u.protocol==='https:'||u.protocol==='http:')link=u.href}catch(_){}
-  const date=x.published||x.lastModified||x.date||'';
+  const date=x.date||x.published||x.lastModified||'';
   const kind=newsKind(x);
-  const tag=kind==='official'?'ANNONCE DE TRANSFERT · À RECROISER':kind==='rumour'?'MERCATO · RUMEUR':kind==='squad'?'BLESSURE / EFFECTIF':kind==='international'?'FOOTBALL INTERNATIONAL':'ACTUALITÉ MONDIALE';
+  const tag=kind==='official'?'SOURCE OFFICIELLE · CONFIRMÉ':kind==='rumour'?'MERCATO · INFORMATION À VÉRIFIER':kind==='squad'?'BLESSURES & EFFECTIFS':kind==='international'?'FOOTBALL INTERNATIONAL':'ACTUALITÉ MONDIALE';
   const stamp=date&&Number.isFinite(Date.parse(date))?appDate(date,{dateStyle:'medium',timeStyle:'short'}):'Date non communiquée';
-  return '<article class="news-card"><span class="eyebrow">'+tag+'</span><h3>'+safe(title)+'</h3><p>'+safe(desc)+'</p><small>Source : ESPN · '+safe(stamp)+'</small>'+(link?'<p><a href="'+safe(link)+'" target="_blank" rel="noopener noreferrer">Lire l’article original ↗</a></p>':'')+'</article>';
+  const source=x.source||x.domain||'Source non précisée';
+  return '<article class="news-card"><span class="eyebrow">'+tag+'</span><h3>'+safe(title)+'</h3><p>'+safe(desc)+'</p><small>Source : '+safe(source)+' · '+safe(stamp)+'</small>'+(link?'<p><a href="'+safe(link)+'" target="_blank" rel="noopener noreferrer">Lire l’article original ↗</a></p>':'')+'</article>';
  }).join('');
- const status=$('news-status');if(status)status.textContent='Flux consultés : actualités mondiales et compétitions · '+filtered.length+' article(s) affiché(s).';
+ const status=$('news-status');
+ if(status){
+  const updated=newsFeedMeta?.updatedAt?appDate(newsFeedMeta.updatedAt,{dateStyle:'medium',timeStyle:'short'}):'date inconnue';
+  const healthy=newsFeedMeta?.feeds?.filter(x=>x.ok).length;
+  status.textContent='Collecte : '+(healthy??'—')+' sources actives · '+filtered.length+' article(s) affiché(s) · mise à jour : '+updated;
+ }
 }
 async function loadNews(){
  const box=$('news-list');if(!box)return;
- box.innerHTML='<div class="loading">Collecte des actualités du football mondial…</div>';
- const responses=await Promise.allSettled(NEWS_ENDPOINTS.map(url=>get(url,12000)));
- const items=responses.flatMap(r=>{if(r.status!=='fulfilled')return [];const d=r.value;return d.articles||d.items||d.feed?.entries||[]});
- const unique=[...new Map(items.map(x=>[String(x.id||x.guid||x.headline||x.title||''),x])).values()]
-  .filter(x=>(x.headline||x.title||x.story?.headline)&&((x.links?.web?.href||x.links?.api?.news?.href||x.link)||x.description||x.summary));
- unique.sort((a,b)=>Date.parse(b.published||b.lastModified||b.date||0)-Date.parse(a.published||a.lastModified||a.date||0));
- if(!unique.length){box.innerHTML='<div class="notice">Les flux d’actualités sont momentanément inaccessibles. Aucun article ni transfert ne sera inventé. Vérifie ta connexion et réessaie.</div>';const status=$('news-status');if(status)status.textContent='Aucune source n’a répondu.';return}
- cachedNewsItems=unique;
+ box.innerHTML='<div class="loading">Chargement des informations du football mondial…</div>';
+ try{
+  const data=await get('./news.json',15000);
+  if(data&&Array.isArray(data.articles)){
+   newsFeedMeta=data;
+   cachedNewsItems=data.articles;
+  }
+ }catch(error){console.warn('Flux mondial news.json indisponible',error)}
+ if(!cachedNewsItems.length){
+  const responses=await Promise.allSettled(NEWS_ENDPOINTS.map(url=>get(url,10000)));
+  const items=responses.flatMap(r=>{if(r.status!=='fulfilled')return [];const d=r.value;return d.articles||d.items||d.feed?.entries||[]});
+  cachedNewsItems=[...new Map(items.map(x=>[String(x.id||x.guid||x.headline||x.title||''),x])).values()]
+   .filter(x=>(x.headline||x.title||x.story?.headline)&&((x.links?.web?.href||x.links?.api?.news?.href||x.link)||x.description||x.summary));
+  cachedNewsItems.forEach(x=>{x.source=x.source||'ESPN';x.date=x.date||x.published||x.lastModified});
+  cachedNewsItems.sort((a,b)=>Date.parse(b.date||0)-Date.parse(a.date||0));
+ }
+ if(!cachedNewsItems.length){
+  box.innerHTML='<div class="notice">Les sources d’actualités ne répondent pas pour le moment. Aucun article ni transfert ne sera inventé. Réessaie plus tard.</div>';
+  const status=$('news-status');if(status)status.textContent='Collecte indisponible · aucune donnée inventée.';
+  return;
+ }
  renderNews();
 }
 async function loadLeaders(){
