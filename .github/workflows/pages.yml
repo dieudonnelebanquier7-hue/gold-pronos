@@ -41,7 +41,7 @@ jobs:
       - name: Generate multi-source world football news
         run: node fetch-news.cjs
       - name: Verify generated news feed
-        run: node -e "const d=require('./news.json'); if(!Array.isArray(d.articles)||!Array.isArray(d.feeds)) throw new Error('Invalid news feed'); console.log('Football news:', d.articleCount, 'articles; healthy feeds:', d.feeds.filter(x=>x.ok).length)"
+        run: node -e "const d=require('./news.json'); if(!Array.isArray(d.articles)||!Array.isArray(d.feeds)||d.articleCount!==d.articles.length) throw new Error('Invalid news feed'); if(d.articles.some(x=>x.language!=='fr'||!x.title||!x.description)) throw new Error('News feed contains an incomplete or non-French article'); console.log('French football news:', d.articleCount, 'articles; healthy feeds:', d.feeds.filter(x=>x.ok).length)"
       - name: Install browser verification tools
         uses: actions/setup-node@v4
         with:
