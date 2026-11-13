@@ -163,15 +163,15 @@ async function loadEspnTeamHistory(){
   };
   addTeam(m.home,m.homeId,m.apiHomeId,'home');addTeam(m.away,m.awayId,m.apiAwayId,'away');
  }
- const tasks=[...teams.values()].filter(x=>x.id&&!String(x.code).startsWith('api-football:')).filter(x=>{const e=cache[x.code+'|'+x.id];return !(e&&now-Number(e.at||0)<6*60*60*1000&&Array.isArray(e.events)&&e.events.length>0)}).slice(0,200);
+ const tasks=[...teams.values()].filter(x=>x.id&&!String(x.code).startsWith('api-football:')).filter(x=>{const e=cache[x.code+'|'+x.id];return !(e&&now-Number(e.at||0)<6*60*60*1000&&Array.isArray(e.events))}).slice(0,30);
  let cursor=0,added=0,failed=0;
- const workers=Array.from({length:12},async()=>{while(true){
+ const workers=Array.from({length:6},async()=>{while(true){
   const i=cursor++;if(i>=tasks.length)break;const item=tasks[i],key=item.code+'|'+item.id;
   try{
    const data=await get(API+item.code+'/teams/'+encodeURIComponent(item.id)+'/schedule?region=fr&lang=fr',15000);
    const events=Array.isArray(data?.events)?data.events:Array.isArray(data?.items)?data.items:[];
-   if(events.length)cache[key]={at:now,events};else{delete cache[key];failed++;console.warn('Historique ESPN vide pour '+item.team+' ('+item.code+').')}
-  }catch(error){failed++;console.warn('Historique ESPN indisponible pour '+item.team,error?.message||error);delete cache[key]}
+   if(events.length)cache[key]={at:now,events};else{cache[key]={at:now,events:[]};failed++;console.warn('Historique ESPN vide pour '+item.team+' ('+item.code+').')}
+  }catch(error){failed++;console.warn('Historique ESPN indisponible pour '+item.team,error?.message||error);cache[key]={at:now,events:[]}}
  }});
  await Promise.all(workers);
  try{localStorage.setItem(ESPN_TEAM_HISTORY_CACHE_KEY,JSON.stringify(cache))}catch(_){}
@@ -218,7 +218,7 @@ async function loadEspnTeamHistory(){
     if(!result?.resolved||!Array.isArray(result.fixtures)){apiFailed++;apiCache[key]={at:now,fixtures:[],error:result?.error||'Équipe non résolue'};continue}
     apiCache[key]={at:now,fixtures:result.fixtures,teamId:result.teamId||null}; 
    }
-  }catch(error){apiFailed+=apiTasks.length;console.warn('Repli API-Football historique indisponible',error?.message||error)}
+  }catch(error){apiFailed+=apiTasks.length;console.warn('Repli API-Football historique indisponible',error?.message||error);for(const item of apiTasks)apiCache[historyCacheKey(item)]={at:now,fixtures:[],error:String(error?.message||error)}}
  }
  // Relie les identifiants API-Football résolus aux rencontres ESPN à venir.
  // Sans ce pont, un alias de nom (ex. nom court ESPN vs nom officiel API) fait perdre
@@ -303,7 +303,7 @@ function mergeApiFootballLiveFixtures(rows){
 }
 async function loadApiFootballFixtures(force=false){
  const now=Date.now();
- if(!force){try{const cache=JSON.parse(localStorage.getItem(API_FOOTBALL_CACHE_KEY)||'null');if(cache&&now-cache.at<6*60*60*1000&&Array.isArray(cache.fixtures))return cache.fixtures}catch(_){}}
+ if(!force){try{const cache=JSON.parse(localStorage.getItem(API_FOOTBALL_CACHE_KEY)||'null'),age=now-Number(cache?.at||0);if(cache&&Array.isArray(cache.fixtures)&&age<(cache.fixtures.length?6*60*60*1000:10*60*1000))return cache.fixtures}catch(_){}}
  const start=new Date();start.setUTCHours(0,0,0,0);start.setUTCDate(start.getUTCDate()-90);
  const end=new Date();end.setUTCHours(0,0,0,0);end.setUTCDate(end.getUTCDate()+14);
  // Historique partagé par toutes les compétitions : plages de 31 jours, cache long car les résultats passés changent rarement.
@@ -321,7 +321,6 @@ async function loadApiFootballFixtures(force=false){
  }).catch(error=>{console.warn('Plage API-Football indisponible',error?.message||error);return null})));
  const rows=results.flatMap(data=>data?.configured&&Array.isArray(data.fixtures)?data.fixtures:[]);
  const unique=[...new Map(rows.map(x=>[String(x.fixture?.id||x.fixture?.date+'-'+x.teams?.home?.id+'-'+x.teams?.away?.id),x])).values()];
- if(!unique.length)return [];
  try{localStorage.setItem(API_FOOTBALL_CACHE_KEY,JSON.stringify({at:now,fixtures:unique}))}catch(_){}
  return unique;
 }
@@ -1298,7 +1297,8 @@ async function loadEspnFixtures(todayOnly=false){
  if(todayOnly)dates.push(today.toISOString().slice(0,10).replace(/-/g,''));
  else for(let d=new Date(pastFrom);d<=futureTo;d.setUTCDate(d.getUTCDate()+1))dates.push(d.toISOString().slice(0,10).replace(/-/g,''));
  // ESPN a régressé sur les requêtes de plage avec tiret : une requête par jour est nécessaire.
- const tasks=leagues.flatMap(([code,label])=>dates.map(date=>({code,label,date})));
+ const fallbackLeagues=leagues.slice(0,24);
+ const tasks=fallbackLeagues.flatMap(([code,label])=>dates.map(date=>({code,label,date})));
  const found=[];let cursor=0,failed=0;
  const workers=Array.from({length:12},async()=>{while(true){
   const i=cursor++;if(i>=tasks.length)break;
@@ -1330,16 +1330,18 @@ async function refresh(){
    matches=preloaded;render();renderLive();renderPicks();renderVIP();renderPersonalizedHome();
    $('updated').textContent='Calendrier chargé · '+matches.length+' rencontres vérifiées · actualisation des sources…';
   }
-  let fresh=[];
-  try{fresh=await loadEspnFixtures(matches.length>0)}catch(error){console.warn('Calendrier ESPN indisponible',error?.message||error)}
+  const [freshResult,apiResult]=await Promise.all([
+   loadEspnFixtures(true).catch(error=>{console.warn('Calendrier ESPN indisponible',error?.message||error);return []}),
+   loadApiFootballFixtures().catch(error=>{console.warn('API-Football indisponible',error?.message||error);return []})
+  ]);
+  const fresh=freshResult,apiRows=apiResult;
   if(fresh.length){
    const byId=new Map(matches.map(m=>[String(m.id),m]));
    for(const item of fresh){const existing=byId.get(String(item.id));byId.set(String(item.id),existing?{...existing,...item,providers:[...new Set([...(existing.providers||['ESPN']),...(item.providers||['ESPN'])])]}:item)}
    matches=[...byId.values()].sort((a,b)=>new Date(a.date)-new Date(b.date));
   }
-  if(!matches.length)throw Error('Aucun calendrier récent vérifié disponible');
-  const apiRows=await loadApiFootballFixtures().catch(error=>{console.warn('API-Football indisponible',error?.message||error);return []});
   const extras=mergeApiFootballFixtures(apiRows);matches=[...matches,...extras];
+  if(!matches.length)throw Error('Aucun calendrier récent vérifié disponible');
   const nationalHistory=await loadEspnTeamHistory().catch(error=>{console.warn('Historique des équipes indisponible',error?.message||error);return {teams:0,added:0,apiUnconfirmed:null,apiFailed:1}});
   const apiLiveRows=await loadApiFootballLive().catch(error=>{console.warn('API-Football live indisponible',error?.message||error);return []});
   const apiLiveCheck=mergeApiFootballLiveFixtures(apiLiveRows);
