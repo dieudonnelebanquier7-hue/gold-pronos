@@ -4,7 +4,7 @@
 
 .day-heading{grid-column:1/-1;margin:18px 0 2px;padding:10px 12px;background:#edf6f0;border-left:4px solid var(--green);border-radius:8px;color:var(--green);font-size:14px;text-transform:capitalize}
 .news-card,.leader-group{border:1px solid var(--line);border-radius:14px;padding:16px;margin:12px 0;background:#fff}
-.news-card h3{margin:8px 0;font-size:17px}.news-card p{line-height:1.55;color:var(--muted)}.news-card a{color:var(--green);font-weight:800}
+.news-card h3{margin:8px 0;font-size:17px;color:#101828;line-height:1.4}.news-card p{line-height:1.65;color:#344054;font-size:15px}.news-card small{display:block;color:#475467;line-height:1.5}.news-card a{color:var(--green);font-weight:800}
 .leader-group ol{padding-left:24px}.leader-group li{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);align-items:center}.leader-group li span{color:var(--muted);font-size:12px}.leader-group li strong{color:var(--green)}
 @media(max-width:650px){.leader-group li{grid-template-columns:1fr auto}.leader-group li span{grid-column:1}.leader-group li strong{grid-column:2;grid-row:1/3}}
 
