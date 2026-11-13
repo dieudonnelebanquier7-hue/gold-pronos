@@ -132,7 +132,7 @@ function mapApiFootballFixture(x){
  const f=x.fixture||{},league=x.league||{},teams=x.teams||{},home=teams.home||{},away=teams.away||{},name=String(league.name||'Compétition');
  const code=API_LEAGUE_CODES[name.toLowerCase()]||('api-football:'+String(league.id||'unknown'));
  const statusCode=String(f.status?.short||'NS'),live=['1H','HT','2H','ET','BT','P','LIVE','INT','SUSP'].includes(statusCode),finished=['FT','AET','PEN'].includes(statusCode);
- const national=isNationalCompetition(code);
+ const national=isNationalCompetition(code)||/^(world|international)$/i.test(String(league.country||''))||/friendlies|world cup|nations league|european championship|africa cup|asian cup|copa america|gold cup/i.test(name);
  return {id:'af-'+String(f.id),apiFootballId:String(f.id),provider:'API-Football',providers:['API-Football'],code,league:name+(league.country?' · '+league.country:''),competition:name,home:home.name||'Équipe inconnue',away:away.name||'Équipe inconnue',homeLogo:national?(league.flag||''):(home.logo||''),awayLogo:national?(league.flag||''):(away.logo||''),homeNational:national,awayNational:national,homeId:home.id||null,awayId:away.id||null,apiHomeId:home.id||null,apiAwayId:away.id||null,homeScore:x.goals?.home??null,awayScore:x.goals?.away??null,date:f.date,status:live?'LIVE':finished?'FINISHED':'SCHEDULED',live,finished,periodDetail:f.status?.long||'',periodNumber:statusCode==='1H'?1:statusCode==='2H'?2:0,clockBaseSeconds:f.status?.elapsed!==null&&f.status?.elapsed!==undefined&&Number.isFinite(Number(f.status.elapsed))?(Number(f.status.elapsed)+Number(f.status.extra||0))*60:null,clockLabel:f.status?.extra&&f.status?.elapsed?String(f.status.elapsed)+'+'+String(f.status.extra):'',clockUpdatedAt:Date.now(),clockRunning:live&&statusCode!=='HT',venue:f.venue?.name||'',source:'API-Football',raw:x};
 }
 function mergeApiFootballFixtures(rows){
@@ -151,13 +151,18 @@ const API_FOOTBALL_TEAM_HISTORY_CACHE_KEY='gold-pronos-api-team-history-v1';
 async function loadEspnTeamHistory(){
  const now=Date.now(),cache=(()=>{try{return JSON.parse(localStorage.getItem(ESPN_TEAM_HISTORY_CACHE_KEY)||'{}')}catch(_){return {}}})();
  // Récupère les historiques des clubs et sélections. ESPN ne fournit pas toujours le calendrier passé des équipes nationales.
- const upcoming=matches.filter(m=>!m.live&&!m.finished&&Date.parse(m.date)>now&&Date.parse(m.date)<=now+7*86400000&&m.code&&!String(m.code).startsWith('api-football:')&&m.homeId&&m.awayId);
+ const upcoming=matches.filter(m=>!m.live&&!m.finished&&Date.parse(m.date)>now&&Date.parse(m.date)<=now+7*86400000&&m.code&&m.homeId&&m.awayId);
  const teams=new Map();
  for(const m of upcoming){
-  if(recent(m.home,m.id).length<5||recent(m.home,m.id,'home',m.homeId).length<2)teams.set(String(m.code)+'|'+String(m.homeId),{code:String(m.code),id:String(m.homeId),team:m.home,apiFootballId:m.apiHomeId||null});
-  if(recent(m.away,m.id).length<5||recent(m.away,m.id,'away',m.awayId).length<2)teams.set(String(m.code)+'|'+String(m.awayId),{code:String(m.code),id:String(m.awayId),team:m.away,apiFootballId:m.apiAwayId||null});
+  const kickoff=Date.parse(m.date),national=!!(m.homeNational||m.awayNational||isNationalCompetition(m.code));
+  const addTeam=(name,id,apiId,venue)=>{
+   if(!id||(recent(name,m.id).length>=5&&recent(name,m.id,venue,id).length>=2))return;
+   const key=String(m.code)+'|'+String(id),previous=teams.get(key);
+   if(!previous||kickoff<previous.kickoff)teams.set(key,{code:String(m.code),id:String(id),team:name,apiFootballId:apiId||(String(m.code).startsWith('api-football:')?id:null),national,kickoff});
+  };
+  addTeam(m.home,m.homeId,m.apiHomeId,'home');addTeam(m.away,m.awayId,m.apiAwayId,'away');
  }
- const tasks=[...teams.values()].filter(x=>{const e=cache[x.code+'|'+x.id];return !(e&&now-Number(e.at||0)<6*60*60*1000&&Array.isArray(e.events)&&e.events.length>0)}).slice(0,200);
+ const tasks=[...teams.values()].filter(x=>!String(x.code).startsWith('api-football:')).filter(x=>{const e=cache[x.code+'|'+x.id];return !(e&&now-Number(e.at||0)<6*60*60*1000&&Array.isArray(e.events)&&e.events.length>0)}).slice(0,200);
  let cursor=0,added=0,failed=0;
  const workers=Array.from({length:12},async()=>{while(true){
   const i=cursor++;if(i>=tasks.length)break;const item=tasks[i],key=item.code+'|'+item.id;
@@ -183,18 +188,19 @@ async function loadEspnTeamHistory(){
  // Limite de 12 équipes par passage pour protéger le quota du fournisseur.
  let apiRequested=0,apiAdded=0,apiFailed=0;
  const apiCache=(()=>{try{return JSON.parse(localStorage.getItem(API_FOOTBALL_TEAM_HISTORY_CACHE_KEY)||'{}')}catch(_){return {}}})();
+ const historyCacheKey=item=>providerNorm(item.team)+'|'+String(item.apiFootballId||'name');
  const missing=[...teams.values()].filter(item=>recent(item.team,'__history_probe__').length<5);
  const apiTasks=missing.filter(item=>{
-  const key=providerNorm(item.team),entry=apiCache[key],age=entry?now-Number(entry.at||0):Infinity;
+  const key=historyCacheKey(item),entry=apiCache[key],age=entry?now-Number(entry.at||0):Infinity;
   return !(entry&&age<(Array.isArray(entry.fixtures)&&entry.fixtures.length?6*60*60*1000:30*60*1000));
- }).sort((a,b)=>Number(isNationalCompetition(b.code))-Number(isNationalCompetition(a.code))).slice(0,12);
+ }).sort((a,b)=>Number(!!b.national)-Number(!!a.national)||a.kickoff-b.kickoff).slice(0,12);
  if(apiTasks.length){
   apiRequested=apiTasks.length;
   try{
    const data=await apiFootballRequest({action:'team-history',teams:apiTasks.map(item=>({name:item.team,apiFootballId:item.apiFootballId||undefined}))},45000);
    if(!data?.configured||!Array.isArray(data.teams))throw new Error(data?.error||'Historique API-Football indisponible');
    for(let i=0;i<apiTasks.length;i++){
-    const item=apiTasks[i],result=data.teams[i],key=providerNorm(item.team);
+    const item=apiTasks[i],result=data.teams[i],key=historyCacheKey(item);
     if(!result?.resolved||!Array.isArray(result.fixtures)){apiFailed++;apiCache[key]={at:now,fixtures:[],error:result?.error||'Équipe non résolue'};continue}
     apiCache[key]={at:now,fixtures:result.fixtures,teamId:result.teamId||null}; 
    }
@@ -202,12 +208,31 @@ async function loadEspnTeamHistory(){
  }
  const apiSeen=new Set(matches.map(m=>String(m.apiFootballId||m.id)));
  for(const item of missing){
-  const entry=apiCache[providerNorm(item.team)];if(!Array.isArray(entry?.fixtures))continue;
+  const entry=apiCache[historyCacheKey(item)];if(!Array.isArray(entry?.fixtures))continue;
   for(const raw of entry.fixtures){
    const mapped=mapApiFootballFixture(raw);
-   if(!mapped||!mapped.apiFootballId||apiSeen.has(String(mapped.apiFootballId))||!mapped.finished||mapped.homeScore===null||mapped.awayScore===null)continue;
+   if(!mapped||!mapped.apiFootballId||!mapped.finished||mapped.homeScore===null||mapped.awayScore===null)continue;
    const time=Date.parse(mapped.date);if(!Number.isFinite(time)||time>now||time<now-400*86400000)continue;
-   matches.push(mapped);apiSeen.add(String(mapped.apiFootballId));apiAdded++;
+   const id=String(mapped.apiFootballId);if(apiSeen.has(id))continue;
+   const duplicate=matches.find(existing=>{
+    if(Math.abs(Date.parse(existing.date)-time)>=5*3600000)return false;
+    const sameTeams=providerNorm(existing.home)===providerNorm(mapped.home)&&providerNorm(existing.away)===providerNorm(mapped.away);
+    const sameProviderIds=!!mapped.apiHomeId&&!!mapped.apiAwayId&&String(existing.apiHomeId||'')===String(mapped.apiHomeId)&&String(existing.apiAwayId||'')===String(mapped.apiAwayId);
+    return sameTeams||sameProviderIds;
+   });
+   if(duplicate){
+    duplicate.apiFootballId=id;duplicate.apiHomeId=mapped.apiHomeId;duplicate.apiAwayId=mapped.apiAwayId;
+    duplicate.providers=[...new Set([...(duplicate.providers||[duplicate.source||'ESPN']),'API-Football'])];
+    const hasScores=duplicate.homeScore!==null&&duplicate.homeScore!==undefined&&duplicate.awayScore!==null&&duplicate.awayScore!==undefined;
+    if(hasScores&&(Number(duplicate.homeScore)!==Number(mapped.homeScore)||Number(duplicate.awayScore)!==Number(mapped.awayScore))){
+     duplicate.scoreConflict={existing:[Number(duplicate.homeScore),Number(duplicate.awayScore)],apiFootball:[Number(mapped.homeScore),Number(mapped.awayScore)],updatedAt:now};
+    }else{
+     if(!hasScores){duplicate.homeScore=mapped.homeScore;duplicate.awayScore=mapped.awayScore;}
+     duplicate.finished=true;duplicate.live=false;duplicate.status='FINISHED';
+    }
+    apiSeen.add(id);continue;
+   }
+   matches.push(mapped);apiSeen.add(id);apiAdded++;
   }
  }
  try{localStorage.setItem(API_FOOTBALL_TEAM_HISTORY_CACHE_KEY,JSON.stringify(apiCache))}catch(_){}
@@ -310,12 +335,13 @@ function liveMinute(m){
  const detail=String(m.periodDetail||'').toLowerCase();
  if(/half.?time|mi-temps|break|interval/.test(detail))return 'Mi-temps';
  const period=Number(m.periodNumber||0);
- const phase=/second.?half|2nd.?half|deuxième.?mi.?temps|seconde.?mi.?temps/.test(detail)||period===2?'2e mi-temps':(/first.?half|1st.?half|première.?mi.?temps/.test(detail)||period===1?'1re mi-temps':'');
+ const phase=/second.?half|2nd.?half|deuxième.?mi.?temps|seconde.?mi.?temps/.test(detail)||period===2?'2e mi-temps':(/first.?half|1st.?half|première.?mi.?temps/.test(detail)||period===1?'1re mi-temps':period===3?'1re prolongation':period===4?'2e prolongation':'Période non confirmée');
  const base=Number(m.clockBaseSeconds);
- let seconds;
- let approximate=false;
- if(m.clockBaseSeconds===null||m.clockBaseSeconds===undefined||!Number.isFinite(base)||base<=0){
-  return 'Minute non confirmée';
+ let seconds,approximate=false;
+ if(m.clockBaseSeconds===null||m.clockBaseSeconds===undefined||!Number.isFinite(base)){
+  const kickoff=Date.parse(m.date),elapsed=Number.isFinite(kickoff)?Math.floor((Date.now()-kickoff)/1000):-1;
+  if(elapsed<0||elapsed>5*3600)return phase+' · Minute non confirmée';
+  seconds=elapsed;approximate=true;
  }else{
   const elapsed=Math.max(0,Math.floor((Date.now()-(m.clockUpdatedAt||Date.now()))/1000));
   seconds=base+(m.clockRunning?elapsed:0);
@@ -326,9 +352,9 @@ function liveMinute(m){
  const added=String(m.clockLabel||'').match(/^(\d{1,3})\+(\d{1,2})$/);
  if(added){
   const minute=Number(added[1]),extra=Math.max(Number(added[2]),Math.floor(total/60)-minute);
-  return (phase?phase+' · ':'')+(approximate?'~':'')+minute+'+'+extra+'′ '+ss+'s';
+  return phase+' · '+(approximate?'~':'')+minute+'+'+extra+'′ '+ss+'s';
  }
- return (phase?phase+' · ':'')+(approximate?'~':'')+mm+':'+ss;
+ return phase+' · '+(approximate?'~':'')+mm+':'+ss;
 }
 function status(m){
  if(m.live){const minute=liveMinute(m);return '● EN DIRECT · '+minute}
