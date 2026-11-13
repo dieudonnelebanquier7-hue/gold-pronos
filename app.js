@@ -151,18 +151,18 @@ const API_FOOTBALL_TEAM_HISTORY_CACHE_KEY='gold-pronos-api-team-history-v2';
 async function loadEspnTeamHistory(){
  const now=Date.now(),cache=(()=>{try{return JSON.parse(localStorage.getItem(ESPN_TEAM_HISTORY_CACHE_KEY)||'{}')}catch(_){return {}}})();
  // Récupère les historiques des clubs et sélections. ESPN ne fournit pas toujours le calendrier passé des équipes nationales.
- const upcoming=matches.filter(m=>!m.live&&!m.finished&&Date.parse(m.date)>now&&Date.parse(m.date)<=now+7*86400000&&m.code&&m.homeId&&m.awayId);
+ const upcoming=matches.filter(m=>!m.live&&!m.finished&&Date.parse(m.date)>now&&Date.parse(m.date)<=now+7*86400000&&m.code&&providerNorm(m.home)&&providerNorm(m.away));
  const teams=new Map();
  for(const m of upcoming){
   const kickoff=Date.parse(m.date),national=!!(m.homeNational||m.awayNational||isNationalCompetition(m.code));
   const addTeam=(name,id,apiId,venue)=>{
-   if(!id||(recent(name,m.id,null,id,m.source,apiId).length>=5&&recent(name,m.id,venue,id,m.source,apiId).length>=2))return;
-   const key=String(m.code)+'|'+String(id),previous=teams.get(key);
-   if(!previous||kickoff<previous.kickoff)teams.set(key,{code:String(m.code),id:String(id),team:name,apiFootballId:apiId||(String(m.code).startsWith('api-football:')?id:null),national,kickoff});
+   if(!providerNorm(name)||(id&&recent(name,m.id,null,id,m.source,apiId).length>=5&&recent(name,m.id,venue,id,m.source,apiId).length>=2))return;
+   const key=String(m.code)+'|'+(id?String(id):'name:'+providerNorm(name)),previous=teams.get(key);
+   if(!previous||kickoff<previous.kickoff)teams.set(key,{code:String(m.code),id:id?String(id):null,team:name,apiFootballId:apiId||(String(m.code).startsWith('api-football:')?id:null),national,kickoff});
   };
   addTeam(m.home,m.homeId,m.apiHomeId,'home');addTeam(m.away,m.awayId,m.apiAwayId,'away');
  }
- const tasks=[...teams.values()].filter(x=>!String(x.code).startsWith('api-football:')).filter(x=>{const e=cache[x.code+'|'+x.id];return !(e&&now-Number(e.at||0)<6*60*60*1000&&Array.isArray(e.events)&&e.events.length>0)}).slice(0,200);
+ const tasks=[...teams.values()].filter(x=>x.id&&!String(x.code).startsWith('api-football:')).filter(x=>{const e=cache[x.code+'|'+x.id];return !(e&&now-Number(e.at||0)<6*60*60*1000&&Array.isArray(e.events)&&e.events.length>0)}).slice(0,200);
  let cursor=0,added=0,failed=0;
  const workers=Array.from({length:12},async()=>{while(true){
   const i=cursor++;if(i>=tasks.length)break;const item=tasks[i],key=item.code+'|'+item.id;
@@ -227,8 +227,8 @@ async function loadEspnTeamHistory(){
   if(!entry?.teamId)continue;
   for(const fixture of upcoming){
    if(String(fixture.code)!==String(item.code))continue;
-   if(String(fixture.homeId||'')===String(item.id))fixture.apiHomeId=String(entry.teamId);
-   if(String(fixture.awayId||'')===String(item.id))fixture.apiAwayId=String(entry.teamId);
+   if((item.id&&String(fixture.homeId||'')===String(item.id))||(!item.id&&providerNorm(fixture.home)===providerNorm(item.team)))fixture.apiHomeId=String(entry.teamId);
+   if((item.id&&String(fixture.awayId||'')===String(item.id))||(!item.id&&providerNorm(fixture.away)===providerNorm(item.team)))fixture.apiAwayId=String(entry.teamId);
   }
  }
  const apiSeen=new Set(matches.map(m=>String(m.apiFootballId||m.id)));
