@@ -1267,6 +1267,34 @@ async function loadNews(){
   const status=$('news-status');if(status)status.textContent='Flux français indisponible · aucun contenu anglais affiché.';
  }
 }
+function normaliseLeaderGroups(data){
+ const groups=[];
+ const add=value=>{
+  if(Array.isArray(value)){groups.push(...value);return}
+  if(value&&typeof value==='object'){
+   for(const [key,item] of Object.entries(value)){
+    if(item&&typeof item==='object')groups.push({...item,name:item.name||item.displayName||key});
+   }
+  }
+ };
+ if(Array.isArray(data))add(data);
+ add(data?.leaders);
+ add(data?.categories);
+ add(data?.statistics?.leaders);
+ for(const sport of data?.sports||[])for(const league of sport?.leagues||[]){
+  add(league?.leaders);
+  add(league?.categories);
+ }
+ const seen=new Set();
+ return groups.map((group,index)=>{
+  const leaders=Array.isArray(group?.leaders)?group.leaders:Array.isArray(group?.athletes)?group.athletes:Array.isArray(group?.items)?group.items:[];
+  const name=String(group?.displayName||group?.name||group?.abbreviation||('Statistique '+(index+1)));
+  const key=name.toLowerCase();
+  if(!leaders.length||seen.has(key))return null;
+  seen.add(key);
+  return {...group,name,displayName:group?.displayName||name,leaders};
+ }).filter(Boolean);
+}
 async function loadLeaders(){
  const box=$('leaders');if(!box)return;const code=$('leaders-league')?.value||'eng.1';
  box.innerHTML='<div class="loading">Chargement des buteurs et passeurs…</div>';
