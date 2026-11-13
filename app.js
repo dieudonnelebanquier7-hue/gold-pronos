@@ -147,7 +147,7 @@ function mergeApiFootballFixtures(rows){
  return extras;
 }
 const ESPN_TEAM_HISTORY_CACHE_KEY='gold-pronos-espn-team-history-v1';
-const API_FOOTBALL_TEAM_HISTORY_CACHE_KEY='gold-pronos-api-team-history-v1';
+const API_FOOTBALL_TEAM_HISTORY_CACHE_KEY='gold-pronos-api-team-history-v2';
 async function loadEspnTeamHistory(){
  const now=Date.now(),cache=(()=>{try{return JSON.parse(localStorage.getItem(ESPN_TEAM_HISTORY_CACHE_KEY)||'{}')}catch(_){return {}}})();
  // Récupère les historiques des clubs et sélections. ESPN ne fournit pas toujours le calendrier passé des équipes nationales.
@@ -218,6 +218,18 @@ async function loadEspnTeamHistory(){
     apiCache[key]={at:now,fixtures:result.fixtures,teamId:result.teamId||null}; 
    }
   }catch(error){apiFailed+=apiTasks.length;console.warn('Repli API-Football historique indisponible',error?.message||error)}
+ }
+ // Relie les identifiants API-Football résolus aux rencontres ESPN à venir.
+ // Sans ce pont, un alias de nom (ex. nom court ESPN vs nom officiel API) fait perdre
+ // les historiques pourtant téléchargés pour la même équipe.
+ for(const item of missing){
+  const entry=apiCache[historyCacheKey(item)];
+  if(!entry?.teamId)continue;
+  for(const fixture of upcoming){
+   if(String(fixture.code)!==String(item.code))continue;
+   if(String(fixture.homeId||'')===String(item.id))fixture.apiHomeId=String(entry.teamId);
+   if(String(fixture.awayId||'')===String(item.id))fixture.apiAwayId=String(entry.teamId);
+  }
  }
  const apiSeen=new Set(matches.map(m=>String(m.apiFootballId||m.id)));
  for(const item of missing){
