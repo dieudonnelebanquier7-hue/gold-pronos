@@ -154,8 +154,8 @@ async function loadEspnTeamHistory(){
  const upcoming=matches.filter(m=>!m.live&&!m.finished&&Date.parse(m.date)>now&&Date.parse(m.date)<=now+7*86400000&&m.code&&!String(m.code).startsWith('api-football:')&&m.homeId&&m.awayId);
  const teams=new Map();
  for(const m of upcoming){
-  if(recent(m.home,m.id).length<5||recent(m.home,m.id,'home',m.homeId).length<2)teams.set(String(m.code)+'|'+String(m.homeId),{code:String(m.code),id:String(m.homeId),team:m.home});
-  if(recent(m.away,m.id).length<5||recent(m.away,m.id,'away',m.awayId).length<2)teams.set(String(m.code)+'|'+String(m.awayId),{code:String(m.code),id:String(m.awayId),team:m.away});
+  if(recent(m.home,m.id).length<5||recent(m.home,m.id,'home',m.homeId).length<2)teams.set(String(m.code)+'|'+String(m.homeId),{code:String(m.code),id:String(m.homeId),team:m.home,apiFootballId:m.apiHomeId||null});
+  if(recent(m.away,m.id).length<5||recent(m.away,m.id,'away',m.awayId).length<2)teams.set(String(m.code)+'|'+String(m.awayId),{code:String(m.code),id:String(m.awayId),team:m.away,apiFootballId:m.apiAwayId||null});
  }
  const tasks=[...teams.values()].filter(x=>{const e=cache[x.code+'|'+x.id];return !(e&&now-Number(e.at||0)<6*60*60*1000&&Array.isArray(e.events)&&e.events.length>0)}).slice(0,200);
  let cursor=0,added=0,failed=0;
@@ -187,11 +187,11 @@ async function loadEspnTeamHistory(){
  const apiTasks=missing.filter(item=>{
   const key=providerNorm(item.team),entry=apiCache[key],age=entry?now-Number(entry.at||0):Infinity;
   return !(entry&&age<(Array.isArray(entry.fixtures)&&entry.fixtures.length?6*60*60*1000:30*60*1000));
- }).slice(0,12);
+ }).sort((a,b)=>Number(isNationalCompetition(b.code))-Number(isNationalCompetition(a.code))).slice(0,12);
  if(apiTasks.length){
   apiRequested=apiTasks.length;
   try{
-   const data=await apiFootballRequest({action:'team-history',teams:apiTasks.map(item=>({name:item.team}))},45000);
+   const data=await apiFootballRequest({action:'team-history',teams:apiTasks.map(item=>({name:item.team,apiFootballId:item.apiFootballId||undefined}))},45000);
    if(!data?.configured||!Array.isArray(data.teams))throw new Error(data?.error||'Historique API-Football indisponible');
    for(let i=0;i<apiTasks.length;i++){
     const item=apiTasks[i],result=data.teams[i],key=providerNorm(item.team);
