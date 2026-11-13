@@ -1101,9 +1101,9 @@ function newsKind(x){
  const desc=String(x.description||x.summary||x.story?.summary||'');
  const all=title+' '+desc;
  if(x.verifiedOfficial===true)return 'official';
- if(/transfer|transfers|loan|signing|signed|mercato|transfert|prêt|recrut|deal|contract|negotiat|negociation|négociation|rumou?r|rumeur|piste|intérêt|approche|interest|interested|target|eyeing|monitoring|linked with|move to/i.test(all))return 'rumour';
- if(/injur|fitness|suspension|return to training|ruled out|blessé|blessure|suspendu|indisponible/i.test(all))return 'squad';
- if(/national team|international|world cup|afcon|africa cup|nations league|fifa|uefa|caf|afc|conmebol|coupe du monde|can 20/i.test(all))return 'international';
+ if(/transfer|transfers|loan|signing|signed|mercato|transfert|prêt|recrut|deal|contract|negotiat|negociation|négociation|rumou?r|rumeur|piste|intérêt|approche|interest|interested|target|eyeing|monitoring|linked with|move to|signé|signe|signature|officialisé|officialise|officiel|annonce|rejoint|arrivée|arrive|accord conclu|prolongation/i.test(all))return 'rumour';
+ if(/injur|fitness|suspension|return to training|ruled out|blessé|blessure|suspendu|indisponible|forfait|retour à l'entraînement/i.test(all))return 'squad';
+ if(/national team|international|world cup|afcon|africa cup|nations league|fifa|uefa|caf|afc|conmebol|coupe du monde|can 20|sélection nationale|mondial/i.test(all))return 'international';
  return 'general';
 }
 function renderNews(){
