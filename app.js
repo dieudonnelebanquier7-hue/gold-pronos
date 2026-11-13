@@ -1092,14 +1092,57 @@ async function loadCommunity(){
   $('community-refresh').onclick=loadCommunity;
  }catch(e){root.innerHTML='<div class="notice">Impossible de charger les discussions. Vérifie ta connexion et réessaie. ('+safe(e.message||'erreur')+')</div>'}
 }
+let newsFilter='all',cachedNewsItems=[];
+const NEWS_ENDPOINTS=[
+ 'https://site.api.espn.com/apis/site/v2/sports/soccer/news?limit=50&region=us&lang=en',
+ ...['eng.1','esp.1','fra.1','ita.1','ger.1','ned.1','por.1','tur.1','ksa.1','usa.1','bra.1','arg.1','uefa.champions','uefa.europa','uefa.europa.conf','caf.nations','afc.champions','fifa.world'].map(code=>API+code+'/news?limit=20&region=us&lang=en')
+];
+function newsKind(x){
+ const title=String(x.headline||x.title||x.story?.headline||'');
+ const desc=String(x.description||x.summary||x.story?.summary||'');
+ const all=title+' '+desc;
+ const transfer=/transfer|transfers|loan|signing|signed|mercato|transfert|prêt|recrut|deal|contract|negotiat|negociation|négociation|rumou?r|linked with|move to/i.test(all);
+ const official=/official|confirmed|announced|signs for|joins|has signed|club confirms|official statement|transfert official|officially/i.test(title);
+ if(transfer)return official?'official':'rumour';
+ if(/injur|fitness|suspension|return to training|ruled out|blessé|blessure|suspendu/i.test(all))return 'squad';
+ if(/national team|international|world cup|afcon|africa cup|nations league|fifa|uefa|caf|afc|conmebol/i.test(all))return 'international';
+ return 'general';
+}
+function renderNews(){
+ const box=$('news-list');if(!box)return;
+ const filtered=cachedNewsItems.filter(x=>{
+  const k=newsKind(x);
+  if(newsFilter==='mercato')return k==='official'||k==='rumour';
+  if(newsFilter==='official')return k==='official';
+  if(newsFilter==='international')return k==='international';
+  if(newsFilter==='squad')return k==='squad';
+  return true;
+ });
+ if(!filtered.length){box.innerHTML='<div class="notice">Aucune information vérifiée disponible dans cette catégorie pour le moment. Réessaie après actualisation.</div>';return}
+ box.innerHTML=filtered.slice(0,60).map(x=>{
+  const title=x.headline||x.title||x.story?.headline||'Actualité football';
+  const desc=x.description||x.summary||x.story?.summary||'';
+  const rawLink=x.links?.web?.href||x.links?.api?.news?.href||x.link||'';
+  let link='';try{const u=new URL(rawLink);if(u.protocol==='https:'||u.protocol==='http:')link=u.href}catch(_){}
+  const date=x.published||x.lastModified||x.date||'';
+  const kind=newsKind(x);
+  const tag=kind==='official'?'TRANSFERT OFFICIALISÉ':kind==='rumour'?'MERCATO · RUMEUR':kind==='squad'?'BLESSURE / EFFECTIF':kind==='international'?'FOOTBALL INTERNATIONAL':'ACTUALITÉ MONDIALE';
+  const stamp=date&&Number.isFinite(Date.parse(date))?appDate(date,{dateStyle:'medium',timeStyle:'short'}):'Date non communiquée';
+  return '<article class="news-card"><span class="eyebrow">'+tag+'</span><h3>'+safe(title)+'</h3><p>'+safe(desc)+'</p><small>Source : ESPN · '+safe(stamp)+'</small>'+(link?'<p><a href="'+safe(link)+'" target="_blank" rel="noopener noreferrer">Lire l’article original ↗</a></p>':'')+'</article>';
+ }).join('');
+ const status=$('news-status');if(status)status.textContent='Flux consultés : actualités mondiales et compétitions · '+filtered.length+' article(s) affiché(s).';
+}
 async function loadNews(){
- const box=$('news-list');if(!box)return;box.innerHTML='<div class="loading">Recherche des dernières actualités…</div>';
- const endpoints=[API+'eng.1/news?limit=20&region=fr&lang=fr',API+'esp.1/news?limit=20&region=fr&lang=fr',API+'ita.1/news?limit=20&region=fr&lang=fr','https://site.api.espn.com/apis/site/v2/sports/soccer/news?limit=30&region=fr&lang=fr'];
- const responses=await Promise.allSettled(endpoints.map(url=>get(url,10000)));
+ const box=$('news-list');if(!box)return;
+ box.innerHTML='<div class="loading">Collecte des actualités du football mondial…</div>';
+ const responses=await Promise.allSettled(NEWS_ENDPOINTS.map(url=>get(url,12000)));
  const items=responses.flatMap(r=>{if(r.status!=='fulfilled')return [];const d=r.value;return d.articles||d.items||d.feed?.entries||[]});
- const unique=[...new Map(items.map(x=>[String(x.id||x.guid||x.headline||x.title||''),x])).values()];
- if(!unique.length){box.innerHTML='<div class="notice">Le flux d’actualités football est momentanément inaccessible. Réessaie plus tard. Aucun article ni transfert ne sera inventé.</div>';return}
- box.innerHTML=unique.slice(0,25).map(x=>{const title=x.headline||x.title||x.story?.headline||'Actualité football';const desc=x.description||x.summary||x.story?.summary||'';const rawLink=x.links?.web?.href||x.links?.api?.news?.href||x.link||'';let link='#';try{const u=new URL(rawLink);if(u.protocol==='https:'||u.protocol==='http:')link=u.href}catch(_){}const date=x.published||x.lastModified||x.date||'';const mercato=/transfer|transfers|loan|signing|signed|mercato|transfert|prêt|recrut|deal|contract/i.test(title+' '+desc);return '<article class="news-card"><span class="eyebrow">'+(mercato?'MERCATO':'ACTUALITÉ FOOTBALL')+'</span><h3>'+safe(title)+'</h3><p>'+safe(desc)+'</p><small>'+safe(date?appDate(date,{dateStyle:'medium',timeStyle:'short'}):'Date non communiquée')+'</small>'+(link!=='#'?'<p><a href="'+safe(link)+'" target="_blank" rel="noopener">Lire l’article</a></p>':'')+'</article>'}).join('');
+ const unique=[...new Map(items.map(x=>[String(x.id||x.guid||x.headline||x.title||''),x])).values()]
+  .filter(x=>(x.headline||x.title||x.story?.headline)&&((x.links?.web?.href||x.links?.api?.news?.href||x.link)||x.description||x.summary));
+ unique.sort((a,b)=>Date.parse(b.published||b.lastModified||b.date||0)-Date.parse(a.published||a.lastModified||a.date||0));
+ if(!unique.length){box.innerHTML='<div class="notice">Les flux d’actualités sont momentanément inaccessibles. Aucun article ni transfert ne sera inventé. Vérifie ta connexion et réessaie.</div>';const status=$('news-status');if(status)status.textContent='Aucune source n’a répondu.';return}
+ cachedNewsItems=unique;
+ renderNews();
 }
 async function loadLeaders(){
  const box=$('leaders');if(!box)return;const code=$('leaders-league')?.value||'eng.1';
@@ -1189,7 +1232,7 @@ async function refresh(){
  }finally{busy=false}
 }
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id==='page-'+b.dataset.page));if(b.dataset.page==='competitions')loadStandings();if(b.dataset.page==='teams')loadTeams();if(b.dataset.page==='pronos')renderPicks();if(b.dataset.page==='news')loadNews();if(b.dataset.page==='leaders')loadLeaders();if(b.dataset.page==='community')loadCommunity();if(b.dataset.page==='settings')loadSettings();if(b.dataset.page==='vip'){renderVIP();}});
-$('search').oninput=render;$('refresh-live')?.addEventListener('click',refresh);$('manual-refresh')?.addEventListener('click',async()=>{const b=$('manual-refresh');if(b.dataset.busy==='1')return;b.dataset.busy='1';b.disabled=true;b.textContent='Actualisation…';let updateFound=false;navigator.serviceWorker?.addEventListener('controllerchange',()=>{if(updateFound)location.reload()},{once:true});try{const reg=await navigator.serviceWorker?.getRegistration();if(reg){reg.addEventListener('updatefound',()=>{updateFound=true;const worker=reg.installing;if(worker)worker.addEventListener('statechange',()=>{if(worker.state==='activated'&&navigator.serviceWorker.controller)location.reload()})},{once:true});await reg.update().catch(()=>{});}await refresh();await pollLiveScores(true);await pollOfficialLineups();await refreshOpenMatchDetail();if(!updateFound){b.textContent='✓ Actualisé';setTimeout(()=>{b.textContent='↻ Actualiser';b.disabled=false;delete b.dataset.busy},1800)}}catch(e){console.warn('Actualisation manuelle incomplète',e);b.textContent='Réessayer';b.disabled=false;delete b.dataset.busy}});$('vip-open-pronos')?.addEventListener('click',()=>document.querySelector('[data-page="pronos"]')?.click());$('save-notifications')?.addEventListener('click',saveNotificationPrefs);$('enable-background-push')?.addEventListener('click',enableBackgroundPush);$('settings-save')?.addEventListener('click',saveSettings);$('settings-edit-favorites')?.addEventListener('click',()=>$('account-open').click());$('settings-edit-alerts')?.addEventListener('click',()=>$('account-open').click());$('settings-reset-onboarding')?.addEventListener('click',()=>{localStorage.removeItem(PREF_KEY);showOnboarding(true)});$('date-filter').onchange=render;$('refresh').onclick=refresh;$('close-modal').onclick=()=>{if(window.goldPronosDetailTimer)clearInterval(window.goldPronosDetailTimer);$('match-modal').hidden=true};$('match-modal').onclick=e=>{if(e.target===$('match-modal')){if(window.goldPronosDetailTimer)clearInterval(window.goldPronosDetailTimer);$('match-modal').hidden=true}};
+document.querySelectorAll('[data-news-filter]').forEach(b=>b.addEventListener('click',()=>{newsFilter=b.dataset.newsFilter;document.querySelectorAll('[data-news-filter]').forEach(x=>x.classList.toggle('active',x===b));renderNews()}));$('news-refresh')?.addEventListener('click',loadNews); $('search').oninput=render;$('refresh-live')?.addEventListener('click',refresh);$('manual-refresh')?.addEventListener('click',async()=>{const b=$('manual-refresh');if(b.dataset.busy==='1')return;b.dataset.busy='1';b.disabled=true;b.textContent='Actualisation…';let updateFound=false;navigator.serviceWorker?.addEventListener('controllerchange',()=>{if(updateFound)location.reload()},{once:true});try{const reg=await navigator.serviceWorker?.getRegistration();if(reg){reg.addEventListener('updatefound',()=>{updateFound=true;const worker=reg.installing;if(worker)worker.addEventListener('statechange',()=>{if(worker.state==='activated'&&navigator.serviceWorker.controller)location.reload()})},{once:true});await reg.update().catch(()=>{});}await refresh();await pollLiveScores(true);await pollOfficialLineups();await refreshOpenMatchDetail();if(!updateFound){b.textContent='✓ Actualisé';setTimeout(()=>{b.textContent='↻ Actualiser';b.disabled=false;delete b.dataset.busy},1800)}}catch(e){console.warn('Actualisation manuelle incomplète',e);b.textContent='Réessayer';b.disabled=false;delete b.dataset.busy}});$('vip-open-pronos')?.addEventListener('click',()=>document.querySelector('[data-page="pronos"]')?.click());$('save-notifications')?.addEventListener('click',saveNotificationPrefs);$('enable-background-push')?.addEventListener('click',enableBackgroundPush);$('settings-save')?.addEventListener('click',saveSettings);$('settings-edit-favorites')?.addEventListener('click',()=>$('account-open').click());$('settings-edit-alerts')?.addEventListener('click',()=>$('account-open').click());$('settings-reset-onboarding')?.addEventListener('click',()=>{localStorage.removeItem(PREF_KEY);showOnboarding(true)});$('date-filter').onchange=render;$('refresh').onclick=refresh;$('close-modal').onclick=()=>{if(window.goldPronosDetailTimer)clearInterval(window.goldPronosDetailTimer);$('match-modal').hidden=true};$('match-modal').onclick=e=>{if(e.target===$('match-modal')){if(window.goldPronosDetailTimer)clearInterval(window.goldPronosDetailTimer);$('match-modal').hidden=true}};
 const teamCatalogLeagues=leagues.filter(([c])=>!['uefa.champions','uefa.europa','uefa.europa.conf','afc.champions','fifa.world','fifa.worldq.uefa','fifa.worldq.conmebol','fifa.worldq.concacaf','fifa.worldq.afc','fifa.worldq.caf','fifa.worldq.ofc','fifa.friendly','fifa.friendly.w','caf.nations','uefa.wchampions','uefa.euro','uefa.nations','conmebol.copa','concacaf.gold','afc.asian','fifa.wwc','uefa.u21','fifa.world.u20','fifa.world.u17','fifa.wworld.u17','conmebol.america.femenina'].includes(c));
 const nationalTeamCatalog=leagues.filter(([c])=>['fifa.world','fifa.worldq.uefa','fifa.worldq.conmebol','fifa.worldq.concacaf','fifa.worldq.afc','fifa.worldq.caf','fifa.worldq.ofc','fifa.friendly','fifa.friendly.w','caf.nations','uefa.euro','uefa.nations','conmebol.copa','concacaf.gold','afc.asian','fifa.wwc','uefa.u21','fifa.world.u20','fifa.world.u17','fifa.wworld.u17','conmebol.america.femenina'].includes(c));
 $('teams-competition').innerHTML=teamCatalogLeagues.map(([c,n])=>'<option value="'+c+'">'+safe(n)+'</option>').join('')+nationalTeamCatalog.map(([c,n])=>'<option value="'+c+'">Sélections nationales · '+safe(n)+'</option>').join('');$('load-teams').onclick=loadTeams;$('teams-competition').onchange=loadTeams;$('competition-search')?.addEventListener('input',renderWorldCompetitionCatalog);loadApiFootballLeagues().catch(error=>{console.warn('Catalogue mondial indisponible',error?.message||error);const box=$('world-competition-list');if(box)box.innerHTML='<div class="notice">Catalogue mondial temporairement indisponible. Les calendriers ESPN et les matchs déjà reçus restent consultables.</div>'});$('competition-list').innerHTML=standingsLeagues.map(([c,n])=>'<div class="competition-item"><button class="competition" data-code="'+c+'">'+safe(n)+'</button><button class="favorite-competition" type="button" data-fav-comp="'+c+'" data-name="'+safe(n)+'">☆</button></div>').join('');$('standings-league').innerHTML=standingsLeagues.map(([c,n])=>'<option value="'+c+'">'+safe(n)+'</option>').join('');if($('leaders-league'))$('leaders-league').innerHTML=leagues.filter(([code])=>!['caf.nations','uefa.wchampions'].includes(code)).map(([code,name])=>'<option value="'+code+'">'+safe(name)+'</option>').join('');$('competition-list').querySelectorAll('.competition').forEach(b=>b.onclick=()=>{$('standings-league').value=b.dataset.code;loadStandings()});$('competition-list').querySelectorAll('[data-fav-comp]').forEach(b=>b.onclick=()=>toggleFavorite('favorite_competitions','competition_id',b.dataset.favComp,b.dataset.name));$('load-standings').onclick=loadStandings;if($('leaders-league'))$('leaders-league').onchange=loadLeaders;
