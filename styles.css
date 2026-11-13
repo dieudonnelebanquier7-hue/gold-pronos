@@ -889,3 +889,20 @@ a{color:#f0cf65}
 .news-card small{display:block;color:var(--muted);margin-top:10px}
 .news-card a{display:inline-block;margin-top:5px}
 @media(max-width:650px){.news-toolbar{align-items:stretch}.news-filters{width:100%}.news-toolbar>#news-refresh{align-self:flex-start}}
+
+
+/* GOLD PRONOS — actualités lisibles sur fond sombre et mobile */
+.news-toolbar{display:flex;flex-direction:column;align-items:stretch;gap:12px}
+.news-filters{display:flex;flex-wrap:wrap;overflow:visible;width:100%;gap:8px}
+.news-filter{flex:0 0 auto;white-space:normal;min-height:44px;padding:11px 15px;background:#18202b!important;color:#f5f0e5!important;border:1px solid #536071!important;border-radius:10px;font-size:14px;font-weight:800}
+.news-filter.active{background:#c49a45!important;color:#11151b!important;border-color:#e0b85e!important}
+#news-refresh{align-self:flex-start;min-height:44px}
+#news-status{color:#d0d5de!important;line-height:1.6;overflow-wrap:anywhere}
+.news-card{background:#111923!important;border:1px solid #344050!important;border-radius:16px!important;padding:18px!important;margin:16px 0!important;color:#f4f5f7!important}
+.news-card .eyebrow{color:#e2b95e!important;font-weight:850;letter-spacing:.08em}
+.news-card h3{color:#fff!important;font-size:19px!important;line-height:1.4!important;margin:12px 0!important}
+.news-card p{color:#d7dde6!important;font-size:16px!important;line-height:1.75!important;white-space:normal;overflow-wrap:anywhere}
+.news-card small{color:#aeb9c8!important;line-height:1.6}
+.news-card a{color:#f0c86b!important;font-weight:800;text-decoration:underline}
+.news-card .news-summary-label{display:block;color:#e2b95e;font-weight:850;font-size:12px;letter-spacing:.08em;margin:14px 0 5px}
+@media(max-width:650px){.news-filters{display:flex;flex-wrap:wrap;overflow:visible}.news-filter{flex:1 1 auto}.news-card{padding:16px!important}.news-card h3{font-size:18px!important}}
