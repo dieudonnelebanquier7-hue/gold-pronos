@@ -8,7 +8,11 @@ const FEEDS = [
   { name: 'Reuters via Google News', url: 'https://news.google.com/rss/search?q=when:7d+site:reuters.com/sports/soccer&hl=en-US&gl=US&ceid=US:en' },
   { name: 'Mercato francophone · Google News', url: 'https://news.google.com/rss/search?q=football+mercato+OR+transfert+football&hl=fr&gl=FR&ceid=FR:fr' },
   { name: 'Médias français · Google News', url: 'https://news.google.com/rss/search?q=site:lequipe.fr+OR+site:rmcsport.bfmtv.com+OR+site:eurosport.fr+football&hl=fr&gl=FR&ceid=FR:fr' },
-  { name: 'Football africain · Google News', url: 'https://news.google.com/rss/search?q=football+Afrique+CAF+CAN&hl=fr&gl=BJ&ceid=BJ:fr' }
+  { name: 'Football africain · Google News', url: 'https://news.google.com/rss/search?q=football+Afrique+CAF+CAN&hl=fr&gl=BJ&ceid=BJ:fr' },
+  { name: 'Football européen · Google News', url: 'https://news.google.com/rss/search?q=football+Ligue+des+Champions+Europe&hl=fr&gl=FR&ceid=FR:fr' },
+  { name: 'Football mondial · Google News', url: 'https://news.google.com/rss/search?q=football+international+résultats+actualité&hl=fr&gl=FR&ceid=FR:fr' },
+  { name: 'Blessures et effectifs · Google News', url: 'https://news.google.com/rss/search?q=football+blessure+joueur+effectif&hl=fr&gl=FR&ceid=FR:fr' },
+  { name: 'Transferts internationaux · Google News', url: 'https://news.google.com/rss/search?q=transfert+football+international+mercato&hl=fr&gl=FR&ceid=FR:fr' }
 ];
 
 function decode(value = '') {
@@ -50,8 +54,25 @@ function parseFeed(xml, source) {
     const date = rawDate && !Number.isNaN(Date.parse(rawDate)) ? new Date(rawDate).toISOString() : null;
     let host = '';
     try { host = new URL(link).hostname.replace(/^www\./, ''); } catch (_) {}
-    return { title, description: description.slice(0, 650), link, date, source, domain: host };
+    return { title, description: description.slice(0, 1800), link, date, source, domain: host };
   }).filter(x => x.title && /^https?:\/\//i.test(x.link));
+}
+
+async function translateToFrench(value) {
+  if (!value || !/[a-zA-Z]/.test(value)) return value;
+  const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=fr&dt=t&q=' + encodeURIComponent(value.slice(0, 4500));
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const response = await fetch(url, { signal: AbortSignal.timeout(12000), headers: { 'user-agent': 'Mozilla/5.0 GOLD-PRONOS' } });
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      const data = await response.json();
+      const translated = (data[0] || []).map(part => part[0] || '').join('').trim();
+      if (translated) return translated;
+    } catch (error) {
+      if (attempt === 1) return '';
+    }
+  }
+  return '';
 }
 
 async function main() {
@@ -80,7 +101,7 @@ async function main() {
 
   const output = {
     updatedAt: new Date().toISOString(),
-    articleCount: articles.length,
+    articleCount: articles.length,\n    language: 'fr',\n    note: 'Titres et résumés traduits en français. Les articles complets restent la propriété de leurs médias éditeurs.',
     feeds: results.map(x => ({ source: x.feed.name, ok: !x.error, count: x.articles.length, error: x.error })),
     articles
   };
