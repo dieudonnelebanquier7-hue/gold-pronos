@@ -13,6 +13,7 @@ on:
       - 'fetch-news.cjs'
       - 'manifest.webmanifest'
       - 'icon.svg'
+      - 'tests/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
   schedule:
@@ -53,12 +54,16 @@ jobs:
           npm init -y
           npm install playwright
           ./node_modules/.bin/playwright install --with-deps chromium
-      - name: Start application for real-calendar verification
+      - name: Start application for browser verification
         run: python3 -m http.server 4173 --directory . >/tmp/gold-pronos-real-calendar-http.log 2>&1 &
       - name: Verify real generated matches appear on the home page
         env:
           NODE_PATH: /tmp/gold-pronos-real-calendar/node_modules
         run: node tests/real-calendar-smoke.cjs
+      - name: Verify every page, match detail, predictions and mobile layout
+        env:
+          NODE_PATH: /tmp/gold-pronos-real-calendar/node_modules
+        run: node tests/browser-smoke.cjs
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
       - name: Upload static application
