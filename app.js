@@ -918,11 +918,29 @@ function apiFootballStandingGroups(data){
  const raw=Array.isArray(data?.groups)?data.groups:[];
  return raw.map((rows,index)=>{
   const list=Array.isArray(rows)?rows:Array.isArray(rows?.rows)?rows.rows:[];
-  const name=list.find(x=>x?.group)?.group||rows?.name||('Groupe '+String.fromCharCode(65+index));
-  return {name:String(name),rows:list.filter(x=>x?.team?.name)};
+  const rawName=list.find(x=>x?.group)?.group||rows?.name||('Groupe '+String.fromCharCode(65+index));
+  const name=String(rawName).replace(/^Group\s+/i,'Groupe ').replace(/^Conference\s+/i,'Conférence ');
+  return {name,rows:list.filter(x=>x?.team?.name)};
  }).filter(g=>g.rows.length);
 }
-let lastStandingsGroups=[],lastStandingsTitle='',lastStandingsSource='',lastStandingsAt='';
+function standingTeamDisplayName(row,national=false){
+ const name=row?.team?.displayName||row?.team?.name||teamName(row);
+ if(!national)return name;
+ const translations={
+  'benin':'Bénin','central african republic':'République centrafricaine','mauritania':'Mauritanie',
+  'burkina faso':'Burkina Faso','ivory coast':"Côte d’Ivoire",'cote d ivoire':"Côte d’Ivoire",
+  'dr congo':'RD Congo','democratic republic of the congo':'RD Congo','south africa':'Afrique du Sud',
+  'guinea bissau':'Guinée-Bissau','cape verde':'Cap-Vert','gambia':'Gambie','equatorial guinea':'Guinée équatoriale',
+  'sudan':'Soudan','tanzania':'Tanzanie','ethiopia':'Éthiopie','cameroon':'Cameroun','morocco':'Maroc',
+  'senegal':'Sénégal','egypt':'Égypte','somalia':'Somalie','algeria':'Algérie','tunisia':'Tunisie',
+  'libya':'Libye','kenya':'Kenya','uganda':'Ouganda','rwanda':'Rwanda','zimbabwe':'Zimbabwe',
+  'mozambique':'Mozambique','niger':'Niger','gabon':'Gabon','malawi':'Malawi','angola':'Angola',
+  'sierra leone':'Sierra Leone','guinea':'Guinée','eritrea':'Érythrée','madagascar':'Madagascar',
+  'liberia':'Liberia','burundi':'Burundi','zambia':'Zambie','comoros':'Comores','namibia':'Namibie',
+  'ghana':'Ghana','nigeria':'Nigeria','congo':'Congo','lesotho':'Lesotho','mali':'Mali'
+ };
+ return translations[normalizeStandingText(name)]||name;
+}
 function standingNumber(value){const n=Number(value);return value!==null&&value!==undefined&&value!==''&&Number.isFinite(n)?n:null}
 function standingMetric(row,key){
  if(key==='played')return row.all?.played??stat(row,['gamesplayed']);
@@ -937,19 +955,19 @@ function standingMetric(row,key){
 }
 function renderStandingsGroups(groups,title,source,fetchedAt){
  const box=$('standings');if(!box)return;
+ const national=/national|fifa\.|caf\.|afc\.|conmebol\.|concacaf\./i.test(title);
  const query=normalizeStandingText($('standings-team-search')?.value||'');
- const visible=groups.map(g=>({...g,rows:g.rows.filter(row=>!query||normalizeStandingText(row.team?.name||teamName(row)).includes(query))})).filter(g=>g.rows.length);
+ const visible=groups.map(g=>({...g,rows:g.rows.filter(row=>!query||normalizeStandingText(standingTeamDisplayName(row,national)).includes(query))})).filter(g=>g.rows.length);
  if(!visible.length){
   box.innerHTML='<div class="standings-empty"><b>'+ (query?'Aucune équipe trouvée':'Classement non disponible') +'</b><p>'+(query?'Aucune équipe ne correspond à « '+safe(query)+' » dans cette compétition.':'La source n’a fourni aucun groupe exploitable.')+'</p><small>Aucune position ne sera inventée. Vérifie le nom de la compétition ou actualise les données.</small></div>';
   return;
  }
  const found=query?visible.flatMap(g=>g.rows.map(row=>({row,group:g.name}))):[];
- const lookup=found.length?'<div class="standings-team-found"><b>Résultat de recherche</b>'+found.map(x=>'<span>'+safe(x.row.team?.name||teamName(x.row))+' · '+safe(x.group)+' · '+(standingNumber(x.row.rank)!==null?'Position '+safe(x.row.rank):'Position non publiée')+'</span>').join('')+'</div>':'';
- const national=/national|fifa\.|caf\.|afc\.|conmebol\.|concacaf\./i.test(title);
+ const lookup=found.length?'<div class="standings-team-found"><b>Résultat de recherche</b>'+found.map(x=>'<span>'+safe(standingTeamDisplayName(x.row,national))+' · '+safe(x.group)+' · '+(standingNumber(x.row.rank)!==null?'Position '+safe(x.row.rank):'Position non publiée')+'</span>').join('')+'</div>':'';
  const groupHtml=visible.map(group=>{
   const rows=group.rows;
   const tableRows=rows.map(row=>{
-   const name=row.team?.name||teamName(row),logo=row.team?.logo||row.team?.crest||'';
+   const name=standingTeamDisplayName(row,national),logo=row.team?.logo||row.team?.crest||'';
    const mark=national?teamFlagUrl(row.team):logo||crestUrl(row.team);
    const rank=standingNumber(row.rank);
    const team='<span class="standing-team">'+crestMarkup(name,mark,national?'standing-flag':'standing-crest')+'<b>'+safe(name)+'</b></span>';
@@ -957,7 +975,7 @@ function renderStandingsGroups(groups,title,source,fetchedAt){
    return '<tr><td class="standing-rank">'+(rank===null?'—':safe(rank))+'</td><td>'+team+'</td><td>'+v('played')+'</td><td>'+v('wins')+'</td><td>'+v('draws')+'</td><td>'+v('losses')+'</td><td>'+v('gf')+'</td><td>'+v('ga')+'</td><td>'+v('gd')+'</td><td class="standing-points">'+v('points')+'</td></tr>';
   }).join('');
   const cards=rows.map(row=>{
-   const name=row.team?.name||teamName(row),logo=row.team?.logo||row.team?.crest||'',mark=national?teamFlagUrl(row.team):logo||crestUrl(row.team),rank=standingNumber(row.rank);
+   const name=standingTeamDisplayName(row,national),logo=row.team?.logo||row.team?.crest||'',mark=national?teamFlagUrl(row.team):logo||crestUrl(row.team),rank=standingNumber(row.rank);
    const v=key=>safe(standingMetric(row,key));
    return '<article class="standing-mobile-card"><div class="standing-mobile-top"><span class="standing-mobile-rank">'+(rank===null?'—':'#'+safe(rank))+'</span><span class="standing-team">'+crestMarkup(name,mark,national?'standing-flag':'standing-crest')+'<b>'+safe(name)+'</b></span><strong class="standing-mobile-points">'+v('points')+' <small>PTS</small></strong></div><div class="standing-mobile-stats"><span><b>'+v('played')+'</b><small>MJ</small></span><span><b>'+v('wins')+'</b><small>V</small></span><span><b>'+v('draws')+'</b><small>N</small></span><span><b>'+v('losses')+'</b><small>D</small></span><span><b>'+v('gf')+'</b><small>BP</small></span><span><b>'+v('ga')+'</b><small>BC</small></span><span><b>'+v('gd')+'</b><small>Diff.</small></span></div></article>';
   }).join('');
