@@ -1127,7 +1127,7 @@ function renderNews(){
   let link='';try{const u=new URL(rawLink);if(u.protocol==='https:'||u.protocol==='http:')link=u.href}catch(_){}
   const date=x.published||x.lastModified||x.date||'';
   const kind=newsKind(x);
-  const tag=kind==='official'?'TRANSFERT OFFICIALISÉ':kind==='rumour'?'MERCATO · RUMEUR':kind==='squad'?'BLESSURE / EFFECTIF':kind==='international'?'FOOTBALL INTERNATIONAL':'ACTUALITÉ MONDIALE';
+  const tag=kind==='official'?'ANNONCE DE TRANSFERT · À RECROISER':kind==='rumour'?'MERCATO · RUMEUR':kind==='squad'?'BLESSURE / EFFECTIF':kind==='international'?'FOOTBALL INTERNATIONAL':'ACTUALITÉ MONDIALE';
   const stamp=date&&Number.isFinite(Date.parse(date))?appDate(date,{dateStyle:'medium',timeStyle:'short'}):'Date non communiquée';
   return '<article class="news-card"><span class="eyebrow">'+tag+'</span><h3>'+safe(title)+'</h3><p>'+safe(desc)+'</p><small>Source : ESPN · '+safe(stamp)+'</small>'+(link?'<p><a href="'+safe(link)+'" target="_blank" rel="noopener noreferrer">Lire l’article original ↗</a></p>':'')+'</article>';
  }).join('');
