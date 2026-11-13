@@ -879,3 +879,13 @@ a{color:#f0cf65}
 @media(prefers-color-scheme:light){:root{color-scheme:dark}}
 
 .md-player-stat{display:grid;gap:4px;padding:10px 12px;margin:7px 0;border:1px solid var(--line);border-radius:10px;background:rgba(181,138,53,.07)}.md-player-stat>b{color:var(--gold);font-weight:850}.md-player-stat>span,.md-player-stat>small{color:var(--muted);line-height:1.5}.md-player-stat>small{font-size:12px;overflow-wrap:anywhere}
+
+/* Actualités et mercato mondial */
+.news-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:16px 0}
+.news-filters{display:flex;gap:7px;overflow-x:auto;max-width:100%;padding:2px 0}
+.news-filter{white-space:nowrap;border:1px solid var(--line);border-radius:9px;padding:9px 12px;background:#f8f7f3;color:var(--ink);font-weight:750;cursor:pointer}
+.news-filter.active{background:#b58a35;border-color:#b58a35;color:#fff}
+.news-card .eyebrow{color:#9a711e}
+.news-card small{display:block;color:var(--muted);margin-top:10px}
+.news-card a{display:inline-block;margin-top:5px}
+@media(max-width:650px){.news-toolbar{align-items:stretch}.news-filters{width:100%}.news-toolbar>#news-refresh{align-self:flex-start}}
