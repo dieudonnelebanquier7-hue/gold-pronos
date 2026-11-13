@@ -7,13 +7,13 @@ const FEEDS = [
   { name: 'ESPN', url: 'https://www.espn.com/espn/rss/soccer/news' },
   { name: 'Reuters via Google News', url: 'https://news.google.com/rss/search?q=when:7d+site:reuters.com/sports/soccer&hl=en-US&gl=US&ceid=US:en' },
   { name: 'Mercato francophone · Google News', url: 'https://news.google.com/rss/search?q=football+mercato+OR+transfert+football&hl=fr&gl=FR&ceid=FR:fr' },
+  { name: 'Médias français · Google News', url: 'https://news.google.com/rss/search?q=site:lequipe.fr+OR+site:rmcsport.bfmtv.com+OR+site:eurosport.fr+football&hl=fr&gl=FR&ceid=FR:fr' },
   { name: 'Football africain · Google News', url: 'https://news.google.com/rss/search?q=football+Afrique+CAF+CAN&hl=fr&gl=BJ&ceid=BJ:fr' }
 ];
 
 function decode(value = '') {
   return String(value)
     .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
-    .replace(/<[^>]*>/g, ' ')
     .replace(/&nbsp;/gi, ' ')
     .replace(/&amp;/gi, '&')
     .replace(/&quot;/gi, '"')
@@ -22,6 +22,7 @@ function decode(value = '') {
     .replace(/&gt;/gi, '>')
     .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
     .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
+    .replace(/<[^>]*>/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
