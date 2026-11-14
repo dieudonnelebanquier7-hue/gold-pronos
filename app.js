@@ -639,12 +639,57 @@ async function loadMatchStandings(m){
  const table='<div class="table-wrap md-standing-table"><table><thead><tr><th>#</th><th>Équipe</th><th>MJ</th><th>Diff.</th><th>Pts</th></tr></thead><tbody>'+rows.map((e,i)=>{const name=teamName(e),isTarget=!!matchTeamStandingRow([e],m,'home')||!!matchTeamStandingRow([e],m,'away');return '<tr class="'+(isTarget?'md-standing-highlight':'')+'"><td>'+(rank(e)==='—'?i+1:rank(e))+'</td><td><b>'+safe(name)+'</b></td><td>'+safe(stat(e,['gamesplayed']))+'</td><td>'+safe(stat(e,['pointdifferential','goaldifference','gd']))+'</td><td><b>'+safe(stat(e,['points']))+'</b></td></tr>'}).join('')+'</tbody></table></div>';
  if(current())panel.innerHTML='<section class="md-stat-card md-match-standings"><h3>Classement · '+safe(m.competition||m.league)+'</h3>'+table+'<p class="md-note">Source : ESPN. Les clubs concernés par ce match sont surlignés. Les valeurs absentes ne sont pas estimées.</p></section>';
 }
+
+function trackingXY(point){
+ if(!point||typeof point!=="object")return null;
+ const x=Number(point.x??point.position?.x??point.coordinates?.[0]);
+ const y=Number(point.y??point.position?.y??point.coordinates?.[1]);
+ return Number.isFinite(x)&&Number.isFinite(y)?{x,y}:null;
+}
+function trackingPitchFrame(frame){
+ const W=760,H=470,px=x=>(x+52.5)/105*W,py=y=>(34-y)/68*H;
+ const players=Array.isArray(frame?.player_data)?frame.player_data:[];
+ const dots=players.map(p=>{const q=trackingXY(p);if(!q)return '';const group=String(p.group||p.team||p.team_name||p.side||'').toLowerCase();const fill=/away|extérieur|visitor|opponent/.test(group)?'#e9d8a5':'#d8ad52';return '<circle cx="'+px(q.x).toFixed(1)+'" cy="'+py(q.y).toFixed(1)+'" r="8" fill="'+fill+'" stroke="#111820" stroke-width="2"><title>'+safe(p.player_id||'Joueur')+'</title></circle>'}).join('');
+ const ball=trackingXY(frame?.ball_data);
+ const ballSvg=ball?'<circle cx="'+px(ball.x).toFixed(1)+'" cy="'+py(ball.y).toFixed(1)+'" r="6" fill="#ffffff" stroke="#111820" stroke-width="2"><title>Ballon · X '+ball.x.toFixed(1)+' m · Y '+ball.y.toFixed(1)+' m</title></circle>':'';
+ const possession=frame?.possession?.group||frame?.possession?.team||'Non communiqué';
+ return '<svg class="md-tracking-svg" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Terrain de football avec positions de tracking réelles"><rect width="'+W+'" height="'+H+'" rx="14" fill="#386b32"/><g fill="none" stroke="#e7eddf" stroke-width="2.2" opacity=".88"><rect x="5" y="5" width="'+(W-10)+'" height="'+(H-10)+'"/><line x1="'+(W/2)+'" y1="5" x2="'+(W/2)+'" y2="'+(H-5)+'"/><circle cx="'+(W/2)+'" cy="'+(H/2)+'" r="58"/><circle cx="'+(W/2)+'" cy="'+(H/2)+'" r="3" fill="#e7eddf"/><rect x="5" y="'+(H/2-100)+'" width="105" height="200"/><rect x="'+(W-110)+'" y="'+(H/2-100)+'" width="105" height="200"/><rect x="5" y="'+(H/2-55)+'" width="42" height="110"/><rect x="'+(W-47)+'" y="'+(H/2-55)+'" width="42" height="110"/></g><g>'+dots+ballSvg+'</g></svg><div class="md-tracking-meta"><span>Frame '+safe(frame.frame??'—')+'</span><span>'+safe(frame.timestamp??'')+'</span><span>Possession : '+safe(possession)+'</span></div>';
+}
+async function loadMatchTracking(m,providedId){
+ const box=$('match-detail');if(!box||box.dataset.matchId!==m.id)return;
+ const statusEl=box.querySelector('#md-tracking-status'),pitch=box.querySelector('#md-tracking-pitch'),input=box.querySelector('#skillcorner-match-id');
+ const matchId=String(providedId||input?.value||m.skillcornerId||'').trim();
+ if(!/^\d{1,12}$/.test(matchId)){if(statusEl)statusEl.textContent='Saisis l’identifiant du match SkillCorner. Il est différent de l’identifiant ESPN ou API-Football.';return}
+ if(statusEl)statusEl.textContent='Récupération des positions auprès de SkillCorner…';
+ if(pitch)pitch.innerHTML='';
+ try{
+  const db=window.GoldSupabase;if(!db?.functions)throw new Error('Le service sécurisé de données est indisponible.');
+  const result=await withTimeout(db.functions.invoke('skillcorner-tracking',{body:{matchId,dataVersion:3}}),30000,'Le fournisseur de tracking ne répond pas.');
+  if(result.error)throw result.error;const data=result.data||{};
+  if(!data.configured)throw new Error(data.error||'Accès SkillCorner non configuré.');
+  if(!Array.isArray(data.frames)||!data.frames.length)throw new Error(data.error||'Aucune frame de tracking n’est disponible pour ce match.');
+  if(box.dataset.matchId!==m.id)return;box.dataset.trackingLoaded='1';const frames=data.frames;
+  if(statusEl)statusEl.textContent='Données SkillCorner reçues : '+frames.length+' frames. Lecture des positions mesurées — horodatage fournisseur.';
+  if(window.goldPronosTrackingTimer)clearInterval(window.goldPronosTrackingTimer);let index=0;
+  const draw=()=>{if(!box.isConnected||box.dataset.matchId!==m.id){clearInterval(window.goldPronosTrackingTimer);return;}const frame=frames[index];if(pitch)pitch.innerHTML=trackingPitchFrame(frame);index=(index+1)%frames.length;};
+  draw();window.goldPronosTrackingTimer=setInterval(draw,100);
+ }catch(error){if(statusEl)statusEl.textContent=String(error?.message||error||'Tracking momentanément indisponible.');if(pitch)pitch.innerHTML='';}
+}
+
 async function openMatch(m){
  if(window.goldPronosDetailTimer)clearInterval(window.goldPronosDetailTimer);
+ if(window.goldPronosTrackingTimer){clearInterval(window.goldPronosTrackingTimer);window.goldPronosTrackingTimer=null;}
  const box=$('match-detail');box.dataset.matchId=m.id;$('match-modal').hidden=false;
  window.goldPronosDetailTimer=setInterval(refreshOpenMatchDetail,25000);
- box.innerHTML=detailHeader(m)+'<nav class="md-tabs"><button class="active" data-md-tab="overview">Résumé</button><button data-md-tab="standings">Classement</button><button data-md-tab="stats">Statistiques</button><button data-md-tab="lineups">Compositions</button><button data-md-tab="events">Commentaires</button><button data-md-tab="players">Joueurs</button><button data-md-tab="form">Forme</button><button data-md-tab="series">Séries</button><button data-md-tab="h2h">Face-à-face</button></nav><div class="md-panel" data-md-panel="overview"><div class="md-loading">Chargement des données officielles…</div></div><div class="md-panel" data-md-panel="standings" hidden></div><div class="md-panel" data-md-panel="stats" hidden></div><div class="md-panel" data-md-panel="lineups" hidden></div><div class="md-panel" data-md-panel="events" hidden></div><div class="md-panel" data-md-panel="players" hidden></div><div class="md-panel" data-md-panel="form" hidden></div><div class="md-panel" data-md-panel="series" hidden></div><div class="md-panel" data-md-panel="h2h" hidden></div>';
+ box.innerHTML=detailHeader(m)+'<nav class="md-tabs"><button class="active" data-md-tab="overview">Résumé</button><button data-md-tab="standings">Classement</button><button data-md-tab="stats">Statistiques</button><button data-md-tab="lineups">Compositions</button><button data-md-tab="events">Commentaires</button><button data-md-tab="players">Joueurs</button><button data-md-tab="form">Forme</button><button data-md-tab="series">Séries</button><button data-md-tab="h2h">Face-à-face</button><button data-md-tab="tracking">Terrain & tracking</button></nav><div class="md-panel" data-md-panel="tracking" hidden><div class="md-tracking-intro"><b>Tracking XY du ballon et des joueurs</b><p>Positions mesurées par le fournisseur. Aucun déplacement n'est inventé.</p><label for="skillcorner-match-id">Identifiant du match SkillCorner</label><div class="md-tracking-controls"><input id="skillcorner-match-id" inputmode="numeric" placeholder="Identifiant SkillCorner" value="'+safe(m.skillcornerId||'')+'"><button type="button" id="load-skillcorner-tracking">Charger le tracking</button></div><div id="md-tracking-status" class="md-empty">Connexion aux données de tracking à activer.</div><div id="md-tracking-pitch"></div></div></div><div class="md-panel" data-md-panel="overview"><div class="md-loading">Chargement des données officielles…</div></div><div class="md-panel" data-md-panel="standings" hidden></div><div class="md-panel" data-md-panel="stats" hidden></div><div class="md-panel" data-md-panel="lineups" hidden></div><div class="md-panel" data-md-panel="events" hidden></div><div class="md-panel" data-md-panel="players" hidden></div><div class="md-panel" data-md-panel="form" hidden></div><div class="md-panel" data-md-panel="series" hidden></div><div class="md-panel" data-md-panel="h2h" hidden></div>';
  const tabs=[...box.querySelectorAll("[data-md-tab]")],panels=[...box.querySelectorAll("[data-md-panel]")];tabs.forEach(b=>b.onclick=()=>{tabs.forEach(t=>t.classList.toggle("active",t===b));panels.forEach(p=>p.hidden=p.dataset.mdPanel!==b.dataset.mdTab)});
+ const trackingButton=box.querySelector("#load-skillcorner-tracking");
+ const trackingInput=box.querySelector("#skillcorner-match-id");
+ if(trackingInput&&m.skillcornerId)trackingInput.value=String(m.skillcornerId);
+ if(trackingButton)trackingButton.onclick=()=>loadMatchTracking(m,trackingInput?.value);
+ const trackingTab=box.querySelector('[data-md-tab="tracking"]');
+ if(trackingTab)trackingTab.onclick=()=>{tabs.forEach(t=>t.classList.toggle("active",t===trackingTab));panels.forEach(p=>p.hidden=p.dataset.mdPanel!=="tracking");if(!box.dataset.trackingLoaded)loadMatchTracking(m,trackingInput?.value);};
+
  if(String(m.code||'').startsWith('sportscore:')){const local={match:m};for(const k of ['overview','standings','stats','lineups','events','players','form','series','h2h']){const panel=box.querySelector('[data-md-panel="'+k+'"]');if(panel)panel.innerHTML=mdPanel(local,k)}const overview=box.querySelector('[data-md-panel="overview"]');if(overview)overview.insertAdjacentHTML('afterbegin','<p class="md-note">Score en direct fourni par SportScore. Les détails supplémentaires ne sont pas publiés dans le flux en direct.</p>');return;}
  try{if(!m.apiFootballId){try{const cachedFixtures=await loadApiFootballFixtures();mergeApiFootballFixtures(cachedFixtures);}catch(enrichError){console.warn('Rapprochement API-Football indisponible',enrichError?.message||enrichError)}}if(m.apiFootballId){try{const detailSections=['fixture','events','lineups','statistics','players'];const providerData=await apiFootballRequest({action:'fixture',fixtureId:m.apiFootballId,sections:detailSections},30000);if(box.dataset.matchId!==m.id)return;if(providerData?.configured){
  renderApiFootballDetail(m,providerData);
