@@ -1050,3 +1050,16 @@ a{color:#f0cf65}
 .standings-mobile-stats{grid-template-columns:repeat(7,minmax(0,1fr))}
 @media(max-width:900px){.standings-controls{grid-template-columns:1fr 1fr}.standings-controls .standings-refresh{grid-column:1/-1}}
 @media(max-width:720px){.standings-controls{grid-template-columns:1fr}.standings-controls .standings-refresh{grid-column:auto}.standings-mobile-stats{grid-template-columns:repeat(4,minmax(0,1fr));row-gap:9px}.standings-group h4{font-size:14px}.standings-team-found{font-size:12px}}
+
+/* GOLD PRONOS — terrain et tracking XY réel */
+.md-tracking-intro{display:flex;flex-direction:column;gap:10px;padding:4px 0}
+.md-tracking-intro>b{color:#e7c779;font-size:16px}
+.md-tracking-intro p{margin:0;color:#aeb8c6;font-size:12px;line-height:1.5}
+.md-tracking-intro label{font-size:11px;color:#d7bd7b;font-weight:800}
+.md-tracking-controls{display:flex;gap:8px;flex-wrap:wrap}
+.md-tracking-controls input{flex:1 1 180px;min-width:0;background:#0b1118;color:#edf0f4;border:1px solid #465263;border-radius:9px;padding:10px}
+.md-tracking-controls button{background:linear-gradient(135deg,#e8c777,#b78939);color:#17130a;border:1px solid #e7c477;border-radius:9px;padding:10px 14px;font-weight:900}
+#md-tracking-pitch{width:100%;overflow:hidden;border:1px solid #65532d;border-radius:15px;background:#17231b}
+.md-tracking-svg{display:block;width:100%;height:auto;min-height:190px}
+.md-tracking-meta{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:9px 11px;color:#e5d29c;font-size:10px;background:#111821}
+@media(max-width:600px){.md-tracking-controls{flex-direction:column}.md-tracking-controls button{width:100%}.md-tracking-meta{font-size:9px}}
