@@ -148,8 +148,8 @@ function mergeApiFootballFixtures(rows){
  return extras;
 }
 function nowDateYear(timestamp=Date.now()){return new Date(timestamp).getUTCFullYear()}
-const ESPN_TEAM_HISTORY_CACHE_KEY='gold-pronos-espn-team-history-v2';
-const API_FOOTBALL_TEAM_HISTORY_CACHE_KEY='gold-pronos-api-team-history-v2';
+const ESPN_TEAM_HISTORY_CACHE_KEY='gold-pronos-espn-team-history-v3';
+const API_FOOTBALL_TEAM_HISTORY_CACHE_KEY='gold-pronos-api-team-history-v3';
 async function loadEspnTeamHistory(){
  const now=Date.now(),cache=(()=>{try{return JSON.parse(localStorage.getItem(ESPN_TEAM_HISTORY_CACHE_KEY)||'{}')}catch(_){return {}}})();
  // Récupère les historiques des clubs et sélections. ESPN ne fournit pas toujours le calendrier passé des équipes nationales.
@@ -216,7 +216,7 @@ async function loadEspnTeamHistory(){
  const rotated=[...missing.slice(historyCursor),...missing.slice(0,historyCursor)],apiTasks=[];
  for(const item of rotated){
   const entry=apiCache[historyCacheKey(item)],age=entry?now-Number(entry.at||0):Infinity;
-  if(!(entry&&age<(Array.isArray(entry.fixtures)&&entry.fixtures.length?6*60*60*1000:30*60*1000)))apiTasks.push(item);
+  if(!(entry&&age<(Array.isArray(entry.fixtures)&&entry.fixtures.length?6*60*60*1000:5*60*1000)))apiTasks.push(item);
   if(apiTasks.length>=12)break;
  }
  if(apiTasks.length&&missing.length){
@@ -226,7 +226,7 @@ async function loadEspnTeamHistory(){
  if(apiTasks.length){
   apiRequested=apiTasks.length;
   try{
-   const data=await apiFootballRequest({action:'team-history',teams:apiTasks.map(item=>({name:item.team,apiFootballId:item.apiFootballId||undefined}))},45000);
+   const data=await apiFootballRequest({action:'team-history',teams:apiTasks.map(item=>({name:item.team,apiFootballId:item.apiFootballId||undefined,national:!!item.national}))},45000);
    if(!data?.configured||!Array.isArray(data.teams))throw new Error(data?.error||'Historique API-Football indisponible');
    for(let i=0;i<apiTasks.length;i++){
     const item=apiTasks[i],result=data.teams[i],key=historyCacheKey(item);
