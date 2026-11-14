@@ -89,24 +89,14 @@ function mergeSportScoreLive(snapshot){
 }
 const API_LEAGUE_CODES={'premier league':'eng.1','championship':'eng.2','la liga':'esp.1','laliga':'esp.1','la liga 2':'esp.2','bundesliga':'ger.1','serie a':'ita.1','ligue 1':'fra.1','eredivisie':'ned.1','primeira liga':'por.1','super lig':'tur.1','eliteserien':'nor.1','allsvenskan':'swe.1','super league':'sui.1','saudi pro league':'ksa.1','pro league':'ksa.1','czech liga':'cze.1','fortuna liga':'cze.1','major league soccer':'usa.1','liga i':'rou.1','russian premier league':'rus.1','premier league':'eng.1','chinese super league':'chn.1','j1 league':'jpn.1','brasileirao serie a':'bra.1','serie a':'ita.1','liga profesional argentina':'arg.1','liga profesional':'arg.1','liga mx':'mex.1','uefa champions league':'uefa.champions','uefa europa league':'uefa.europa','uefa conference league':'uefa.europa.conf','afc champions league':'afc.champions','afc champions league elite':'afc.champions','africa cup of nations':'caf.nations','fifa world cup':'fifa.world','world cup':'fifa.world','european championship':'uefa.euro','uefa nations league':'uefa.nations'};
 function providerNorm(v){return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'')}
-const API_FOOTBALL_BACKOFF_KEY='gold-pronos-api-football-backoff-v1';
-function readApiFootballBackoff(){
- try{const value=JSON.parse(localStorage.getItem(API_FOOTBALL_BACKOFF_KEY)||'null');if(value&&Number(value.until)>Date.now())return value;if(value)localStorage.removeItem(API_FOOTBALL_BACKOFF_KEY)}catch(_){}
- return null;
-}
-function setApiFootballBackoff(reason){
- apiFootballUnavailableReason=String(reason||'API-Football indisponible');
- try{localStorage.setItem(API_FOOTBALL_BACKOFF_KEY,JSON.stringify({until:Date.now()+10*60*1000,reason:apiFootballUnavailableReason}))}catch(_){}
-}
 async function apiFootballRequest(body,ms=22000){
  if(API_FOOTBALL_TEMPORARILY_DISABLED){apiFootballUnavailableReason='API-Football temporairement désactivé';return null}
- const backoff=readApiFootballBackoff();if(backoff){apiFootballUnavailableReason=backoff.reason||'API-Football indisponible';return null}
- const db=window.GoldSupabase;if(!db?.functions){setApiFootballBackoff('Service de données sécurisé indisponible');return null}
+ const db=window.GoldSupabase;if(!db?.functions){apiFootballUnavailableReason='Service de données sécurisé indisponible';return null}
  const result=await withTimeout(db.functions.invoke('football-data-hub',{body}),ms,'Le fournisseur API-Football ne répond pas.');
- if(result.error){setApiFootballBackoff(String(result.error.message||result.error));throw result.error}
+ if(result.error){apiFootballUnavailableReason=String(result.error.message||result.error);throw result.error}
  const data=result.data||null;
- if(data?.error){setApiFootballBackoff(String(data.error));}
- else if(data?.configured){apiFootballUnavailableReason='';try{localStorage.removeItem(API_FOOTBALL_BACKOFF_KEY)}catch(_){}}
+ if(data?.error)apiFootballUnavailableReason=String(data.error);
+ else if(data?.configured)apiFootballUnavailableReason='';
  return data;
 }
 function buildStaticWorldCompetitionCatalog(){
