@@ -67,6 +67,7 @@ const { chromium } = require('playwright');
   const worldCatalogueText=await page.locator('#world-competition-list').innerText();
   const worldCatalogueCount=await page.locator('#world-competition-list .world-competition').count();
   if(!worldCatalogueText.includes('source ESPN')||worldCatalogueCount<30) throw new Error('World competition catalogue must fall back to the ESPN competition list when API-Football is unavailable: '+worldCatalogueCount+' competitions · '+worldCatalogueText.slice(0,300));
+  await page.evaluate(() => localStorage.removeItem('gold-pronos-api-football-backoff-v1'));
   await page.locator('.tab[data-page="home"]').click();
   await page.locator('#home-matches .match').first().waitFor({state:'visible',timeout:15000});
   if (!(await page.locator('#home-matches .match').count())) throw new Error('Home page did not render match cards');
