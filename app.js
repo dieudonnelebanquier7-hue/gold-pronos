@@ -167,7 +167,7 @@ async function loadEspnTeamHistory(){
   };
   addTeam(m.home,m.homeId,m.apiHomeId,'home');addTeam(m.away,m.awayId,m.apiAwayId,'away');
  }
- const tasks=[...teams.values()].filter(x=>x.id&&!String(x.code).startsWith('api-football:')).filter(x=>{const e=cache[x.code+'|'+x.id];return !(e&&now-Number(e.at||0)<(e.events?.length?6*60*60*1000:10*60*1000)&&Array.isArray(e.events))}).slice(0,30);
+ const allTasks=[...teams.values()].filter(x=>x.id&&!String(x.code).startsWith('api-football:'));const espnHistoryCursorKey='gold-pronos-espn-team-history-cursor-v1',cursorValue=(()=>{try{return Number(localStorage.getItem(espnHistoryCursorKey)||0)}catch(_){return 0}})(),taskOffset=allTasks.length?((Number.isFinite(cursorValue)?Math.max(0,Math.floor(cursorValue)):0)%allTasks.length):0;const rotatedTasks=[...allTasks.slice(taskOffset),...allTasks.slice(0,taskOffset)];const tasks=rotatedTasks.filter(x=>{const e=cache[x.code+'|'+x.id];return !(e&&now-Number(e.at||0)<(e.events?.length?6*60*60*1000:10*60*1000)&&Array.isArray(e.events))}).slice(0,30);
  let cursor=0,added=0,failed=0;
  const workers=Array.from({length:6},async()=>{while(true){
   const i=cursor++;if(i>=tasks.length)break;const item=tasks[i],key=item.code+'|'+item.id;
@@ -192,6 +192,7 @@ async function loadEspnTeamHistory(){
   }catch(error){failed++;console.warn('Historique ESPN indisponible pour '+item.team,error?.message||error);cache[key]={at:now,events:[]}}
  }});
  await Promise.all(workers);
+ if(allTasks.length){try{localStorage.setItem(espnHistoryCursorKey,String((taskOffset+30)%allTasks.length))}catch(_){}}
  try{localStorage.setItem(ESPN_TEAM_HISTORY_CACHE_KEY,JSON.stringify(cache))}catch(_){}
  const seen=new Set(matches.map(m=>String(m.id)));
  for(const item of teams.values()){
