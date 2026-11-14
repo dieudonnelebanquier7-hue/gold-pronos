@@ -166,7 +166,7 @@ function mergeApiFootballFixtures(rows){
  return extras;
 }
 function nowDateYear(timestamp=Date.now()){return new Date(timestamp).getUTCFullYear()}
-const ESPN_TEAM_HISTORY_CACHE_KEY='gold-pronos-espn-team-history-v3';
+const ESPN_TEAM_HISTORY_CACHE_KEY='gold-pronos-espn-team-history-v4';
 const API_FOOTBALL_TEAM_HISTORY_CACHE_KEY='gold-pronos-api-team-history-v3';
 async function loadEspnTeamHistory(){
  const now=Date.now(),cache=(()=>{try{return JSON.parse(localStorage.getItem(ESPN_TEAM_HISTORY_CACHE_KEY)||'{}')}catch(_){return {}}})();
@@ -182,28 +182,50 @@ async function loadEspnTeamHistory(){
   };
   addTeam(m.home,m.homeId,m.apiHomeId,'home');addTeam(m.away,m.awayId,m.apiAwayId,'away');
  }
- const allTasks=[...teams.values()].filter(x=>x.id&&!String(x.code).startsWith('api-football:'));const espnHistoryCursorKey='gold-pronos-espn-team-history-cursor-v1',cursorValue=(()=>{try{return Number(localStorage.getItem(espnHistoryCursorKey)||0)}catch(_){return 0}})(),taskOffset=allTasks.length?((Number.isFinite(cursorValue)?Math.max(0,Math.floor(cursorValue)):0)%allTasks.length):0;const rotatedTasks=[...allTasks.slice(taskOffset),...allTasks.slice(0,taskOffset)];const tasks=rotatedTasks.filter(x=>{const e=cache[x.code+'|'+x.id];return !(e&&now-Number(e.at||0)<(e.events?.length?6*60*60*1000:10*60*1000)&&Array.isArray(e.events))}).slice(0,30);
+ const allTasks=[...teams.values()].filter(x=>x.id&&!String(x.code).startsWith('api-football:'));const espnHistoryCursorKey='gold-pronos-espn-team-history-cursor-v1',cursorValue=(()=>{try{return Number(localStorage.getItem(espnHistoryCursorKey)||0)}catch(_){return 0}})(),taskOffset=allTasks.length?((Number.isFinite(cursorValue)?Math.max(0,Math.floor(cursorValue)):0)%allTasks.length):0;const rotatedTasks=[...allTasks.slice(taskOffset),...allTasks.slice(0,taskOffset)];const tasks=[];let nationalTaskCount=0;
+ for(const item of rotatedTasks){
+  const e=cache[item.code+'|'+item.id],fresh=e&&now-Number(e.at||0)<(e.events?.length?6*60*60*1000:10*60*1000)&&Array.isArray(e.events);
+  if(fresh)continue;
+  if(item.national&&nationalTaskCount>=10)continue;
+  tasks.push(item);if(item.national)nationalTaskCount++;
+  if(tasks.length>=30)break;
+ }
  let cursor=0,added=0,failed=0;
  const workers=Array.from({length:6},async()=>{while(true){
   const i=cursor++;if(i>=tasks.length)break;const item=tasks[i],key=item.code+'|'+item.id;
   try{
-   // Les calendriers nationaux sont souvent découpés par année civile chez ESPN.
-   // On interroge les trois saisons récentes au lieu de ne récupérer que la saison courante.
-   const years=item.national?[nowDateYear(now),nowDateYear(now)-1,nowDateYear(now)-2]:[null];
-   const responses=await Promise.allSettled(years.map(year=>{
-    const query=year?'?season='+encodeURIComponent(String(year))+'&region=fr&lang=fr':'?region=fr&lang=fr';
-    return get(API+item.code+'/teams/'+encodeURIComponent(item.id)+'/schedule'+query,15000);
+   // Pour les sélections, un historique limité à la seule compétition (ex. Nations League)
+   // peut ne contenir que quatre matchs. On complète avec les autres compétitions officielles
+   // de la même confédération et les amicaux, sans mélanger les identifiants d'équipes.
+   const year=nowDateYear(now);
+   const seniorCodes=item.national
+    ? (String(item.code).includes('uefa')
+      ? ['uefa.nations','fifa.worldq.uefa','fifa.friendly','uefa.euro','fifa.world']
+      : String(item.code).includes('caf')
+       ? ['caf.nations','fifa.worldq.caf','fifa.friendly','fifa.world']
+       : String(item.code).includes('conmebol')
+        ? ['conmebol.copa','fifa.worldq.conmebol','fifa.friendly','fifa.world']
+        : String(item.code).includes('concacaf')
+         ? ['concacaf.gold','fifa.worldq.concacaf','fifa.friendly','fifa.world']
+         : String(item.code).includes('afc')
+          ? ['afc.asian','fifa.worldq.afc','fifa.friendly','fifa.world']
+          : [item.code,'fifa.friendly','fifa.world'])
+    : [item.code];
+   const requests=[...new Set(seniorCodes)].flatMap(code=>(item.national?(code===item.code?[year,year-1,year-2]:[year,year-1]):[null]).map(season=>({code,season})));
+   const responses=await Promise.allSettled(requests.map(({code,season})=>{
+    const query=season?'?season='+encodeURIComponent(String(season))+'&region=fr&lang=fr':'?region=fr&lang=fr';
+    return get(API+code+'/teams/'+encodeURIComponent(item.id)+'/schedule'+query,15000);
    }));
    const byId=new Map();let successful=0;
-   for(const response of responses){
-    if(response.status!=='fulfilled')continue;
+   for(let j=0;j<responses.length;j++){
+    const response=responses[j];if(response.status!=='fulfilled')continue;
     successful++;
     const data=response.value,events=Array.isArray(data?.events)?data.events:Array.isArray(data?.items)?data.items:[];
-    for(const event of events){const id=String(event?.id||event?.uid||'');if(id)byId.set(id,event);}
+    for(const event of events){const id=String(event?.id||event?.uid||'');if(id&&!byId.has(id))byId.set(id,{event,code:requests[j].code});}
    }
    const events=[...byId.values()];
-   if(events.length)cache[key]={at:now,events,seasons:years.filter(Boolean),successfulSeasons:successful};
-   else{cache[key]={at:now,events:[],seasons:years.filter(Boolean),successfulSeasons:successful};failed++;console.warn('Historique ESPN vide pour '+item.team+' ('+item.code+'), saisons '+years.filter(Boolean).join(', ')+'.')}
+   if(events.length)cache[key]={at:now,events,seasons:requests.map(x=>x.season).filter(Boolean),historyCodes:seniorCodes,successfulSeasons:successful};
+   else{cache[key]={at:now,events:[],seasons:requests.map(x=>x.season).filter(Boolean),historyCodes:seniorCodes,successfulSeasons:successful};failed++;console.warn('Historique ESPN vide pour '+item.team+' ('+seniorCodes.join(', ')+'), saisons '+year+', '+(year-1)+', '+(year-2)+'.')}
   }catch(error){failed++;console.warn('Historique ESPN indisponible pour '+item.team,error?.message||error);cache[key]={at:now,events:[]}}
  }});
  await Promise.all(workers);
@@ -212,8 +234,9 @@ async function loadEspnTeamHistory(){
  const seen=new Set(matches.map(m=>String(m.id)));
  for(const item of teams.values()){
   const entry=cache[item.code+'|'+item.id];if(!Array.isArray(entry?.events))continue;
-  for(const event of entry.events){
-   const mapped=mapEvent(event,item.code,'Historique des équipes');
+  for(const historyEntry of entry.events){
+   const event=historyEntry?.event||historyEntry,historyCode=historyEntry?.code||item.code;
+   const mapped=mapEvent(event,historyCode,'Historique des équipes');
    if(!mapped||!mapped.id||seen.has(String(mapped.id))||!mapped.finished||mapped.homeScore===null||mapped.awayScore===null)continue;
    const time=Date.parse(mapped.date);if(!Number.isFinite(time)||time>now||time<now-730*86400000)continue;
    matches.push(mapped);seen.add(String(mapped.id));added++;
