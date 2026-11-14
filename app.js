@@ -147,7 +147,8 @@ function mergeApiFootballFixtures(rows){
  }
  return extras;
 }
-const ESPN_TEAM_HISTORY_CACHE_KEY='gold-pronos-espn-team-history-v1';
+function nowDateYear(timestamp=Date.now()){return new Date(timestamp).getUTCFullYear()}
+const ESPN_TEAM_HISTORY_CACHE_KEY='gold-pronos-espn-team-history-v2';
 const API_FOOTBALL_TEAM_HISTORY_CACHE_KEY='gold-pronos-api-team-history-v2';
 async function loadEspnTeamHistory(){
  const now=Date.now(),cache=(()=>{try{return JSON.parse(localStorage.getItem(ESPN_TEAM_HISTORY_CACHE_KEY)||'{}')}catch(_){return {}}})();
@@ -168,9 +169,23 @@ async function loadEspnTeamHistory(){
  const workers=Array.from({length:6},async()=>{while(true){
   const i=cursor++;if(i>=tasks.length)break;const item=tasks[i],key=item.code+'|'+item.id;
   try{
-   const data=await get(API+item.code+'/teams/'+encodeURIComponent(item.id)+'/schedule?region=fr&lang=fr',15000);
-   const events=Array.isArray(data?.events)?data.events:Array.isArray(data?.items)?data.items:[];
-   if(events.length)cache[key]={at:now,events};else{cache[key]={at:now,events:[]};failed++;console.warn('Historique ESPN vide pour '+item.team+' ('+item.code+').')}
+   // Les calendriers nationaux sont souvent découpés par année civile chez ESPN.
+   // On interroge les trois saisons récentes au lieu de ne récupérer que la saison courante.
+   const years=item.national?[nowDateYear(now),nowDateYear(now)-1,nowDateYear(now)-2]:[null];
+   const responses=await Promise.allSettled(years.map(year=>{
+    const query=year?'?season='+encodeURIComponent(String(year))+'&region=fr&lang=fr':'?region=fr&lang=fr';
+    return get(API+item.code+'/teams/'+encodeURIComponent(item.id)+'/schedule'+query,15000);
+   }));
+   const byId=new Map();let successful=0;
+   for(const response of responses){
+    if(response.status!=='fulfilled')continue;
+    successful++;
+    const data=response.value,events=Array.isArray(data?.events)?data.events:Array.isArray(data?.items)?data.items:[];
+    for(const event of events){const id=String(event?.id||event?.uid||'');if(id)byId.set(id,event);}
+   }
+   const events=[...byId.values()];
+   if(events.length)cache[key]={at:now,events,seasons:years.filter(Boolean),successfulSeasons:successful};
+   else{cache[key]={at:now,events:[],seasons:years.filter(Boolean),successfulSeasons:successful};failed++;console.warn('Historique ESPN vide pour '+item.team+' ('+item.code+'), saisons '+years.filter(Boolean).join(', ')+'.')}
   }catch(error){failed++;console.warn('Historique ESPN indisponible pour '+item.team,error?.message||error);cache[key]={at:now,events:[]}}
  }});
  await Promise.all(workers);
@@ -181,7 +196,7 @@ async function loadEspnTeamHistory(){
   for(const event of entry.events){
    const mapped=mapEvent(event,item.code,'Historique des équipes');
    if(!mapped||!mapped.id||seen.has(String(mapped.id))||!mapped.finished||mapped.homeScore===null||mapped.awayScore===null)continue;
-   const time=Date.parse(mapped.date);if(!Number.isFinite(time)||time>now||time<now-400*86400000)continue;
+   const time=Date.parse(mapped.date);if(!Number.isFinite(time)||time>now||time<now-730*86400000)continue;
    matches.push(mapped);seen.add(String(mapped.id));added++;
   }
  }
@@ -238,7 +253,7 @@ async function loadEspnTeamHistory(){
   for(const raw of entry.fixtures){
    const mapped=mapApiFootballFixture(raw);
    if(!mapped||!mapped.apiFootballId||!mapped.finished||mapped.homeScore===null||mapped.awayScore===null)continue;
-   const time=Date.parse(mapped.date);if(!Number.isFinite(time)||time>now||time<now-400*86400000)continue;
+   const time=Date.parse(mapped.date);if(!Number.isFinite(time)||time>now||time<now-730*86400000)continue;
    const id=String(mapped.apiFootballId);if(apiSeen.has(id))continue;
    const duplicate=matches.find(existing=>{
     if(Math.abs(Date.parse(existing.date)-time)>=5*3600000)return false;
@@ -666,7 +681,7 @@ function trustedFinishedResult(x,now=Date.now()){
  const date=Date.parse(x?.date),hasScores=x?.homeScore!==null&&x?.homeScore!==undefined&&String(x.homeScore).trim()!==''&&x?.awayScore!==null&&x?.awayScore!==undefined&&String(x.awayScore).trim()!=='',home=Number(x?.homeScore),away=Number(x?.awayScore);
  const sources=[x?.source,...(Array.isArray(x?.providers)?x.providers:[])].filter(Boolean).map(v=>String(v).toLowerCase());
  const trustedSource=sources.some(v=>v==='espn'||v==='api-football');
- return !!x&&x.finished===true&&!x.live&&!x.scoreConflict&&trustedSource&&Number.isFinite(date)&&date<now&&date>=now-400*86400000&&hasScores&&Number.isInteger(home)&&Number.isInteger(away)&&home>=0&&away>=0&&!!providerNorm(x.home)&&!!providerNorm(x.away);
+ return !!x&&x.finished===true&&!x.live&&!x.scoreConflict&&trustedSource&&Number.isFinite(date)&&date<now&&date>=now-730*86400000&&hasScores&&Number.isInteger(home)&&Number.isInteger(away)&&home>=0&&away>=0&&!!providerNorm(x.home)&&!!providerNorm(x.away);
 }
 function trustedUpcomingFixture(x,now=Date.now(),horizon=now+7*86400000){
  const date=Date.parse(x?.date),sources=[x?.source,...(Array.isArray(x?.providers)?x.providers:[])].filter(Boolean).map(v=>String(v).toLowerCase());
