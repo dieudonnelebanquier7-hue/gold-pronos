@@ -12,7 +12,7 @@ const leagues=[['eng.1','Angleterre · Premier League'],['eng.2','Angleterre · 
  ['fifa.wworld.u17','FIFA · Coupe du monde U17 féminine'],['fifa.friendly','FIFA · Matchs amicaux masculins'],
  ['uefa.u21','UEFA · Compétitions U21'],['uefa.youthleague','UEFA · Youth League']];
 const standingsLeagues=leagues;
-let matches=[],worldLeagues=[],activeLeague='eng.1',busy=false;
+let matches=[],worldLeagues=[],worldLeaguesSource='API-Football',apiFootballUnavailableReason='',activeLeague='eng.1',busy=false;
 const dateKey=d=>{const x=new Date(d);return x.getFullYear()+String(x.getMonth()+1).padStart(2,'0')+String(x.getDate()).padStart(2,'0')};
 const safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function appLocale(){return ({fr:'fr-FR',en:'en-GB',es:'es-ES',pt:'pt-PT',de:'de-DE',it:'it-IT',ar:'ar'})[window.GoldI18n?.getLanguage?.()||readAppSettings().language||'fr']||'fr-FR'}
@@ -90,21 +90,36 @@ function mergeSportScoreLive(snapshot){
 const API_LEAGUE_CODES={'premier league':'eng.1','championship':'eng.2','la liga':'esp.1','laliga':'esp.1','la liga 2':'esp.2','bundesliga':'ger.1','serie a':'ita.1','ligue 1':'fra.1','eredivisie':'ned.1','primeira liga':'por.1','super lig':'tur.1','eliteserien':'nor.1','allsvenskan':'swe.1','super league':'sui.1','saudi pro league':'ksa.1','pro league':'ksa.1','czech liga':'cze.1','fortuna liga':'cze.1','major league soccer':'usa.1','liga i':'rou.1','russian premier league':'rus.1','premier league':'eng.1','chinese super league':'chn.1','j1 league':'jpn.1','brasileirao serie a':'bra.1','serie a':'ita.1','liga profesional argentina':'arg.1','liga profesional':'arg.1','liga mx':'mex.1','uefa champions league':'uefa.champions','uefa europa league':'uefa.europa','uefa conference league':'uefa.europa.conf','afc champions league':'afc.champions','afc champions league elite':'afc.champions','africa cup of nations':'caf.nations','fifa world cup':'fifa.world','world cup':'fifa.world','european championship':'uefa.euro','uefa nations league':'uefa.nations'};
 function providerNorm(v){return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'')}
 async function apiFootballRequest(body,ms=22000){
- if(API_FOOTBALL_TEMPORARILY_DISABLED)return null;
- const db=window.GoldSupabase;if(!db?.functions)return null;
+ if(API_FOOTBALL_TEMPORARILY_DISABLED){apiFootballUnavailableReason='API-Football temporairement désactivé';return null}
+ const db=window.GoldSupabase;if(!db?.functions){apiFootballUnavailableReason='Service de données sécurisé indisponible';return null}
  const result=await withTimeout(db.functions.invoke('football-data-hub',{body}),ms,'Le fournisseur API-Football ne répond pas.');
- if(result.error)throw result.error;return result.data||null;
+ if(result.error){apiFootballUnavailableReason=String(result.error.message||result.error);throw result.error}
+ const data=result.data||null;
+ if(data?.error)apiFootballUnavailableReason=String(data.error);
+ else if(data?.configured)apiFootballUnavailableReason='';
+ return data;
+}
+function buildStaticWorldCompetitionCatalog(){
+ const year=new Date().getUTCFullYear();
+ return leagues.map(([code,label])=>{
+  const parts=String(label).split(' · ');
+  return {league:{id:code,name:parts.slice(1).join(' · ')||label,type:'Football'},country:{name:parts[0]||'International'},seasons:[{year,current:true,coverage:{fixtures:{events:true,lineups:false,statistics_fixtures:false},standings:false}}]};
+ });
 }
 async function loadApiFootballLeagues(force=false){
- if(API_FOOTBALL_TEMPORARILY_DISABLED){worldLeagues=[];renderWorldCompetitionCatalog();populateStandingsCompetitionOptions();return []}
  const key='gold-pronos-world-leagues-v1',now=Date.now();
- if(!force){try{const c=JSON.parse(localStorage.getItem(key)||'null');if(c&&now-c.at<24*60*60*1000&&Array.isArray(c.leagues)){worldLeagues=c.leagues;renderWorldCompetitionCatalog();populateStandingsCompetitionOptions();return c.leagues}}catch(_){}}
- const data=await apiFootballRequest({action:'leagues'});
- if(!data?.configured||!Array.isArray(data.leagues))throw Error(data?.error||'Catalogue mondial API-Football indisponible');
- worldLeagues=data.leagues;
- try{localStorage.setItem(key,JSON.stringify({at:now,leagues:worldLeagues}))}catch(_){}
- renderWorldCompetitionCatalog();
- populateStandingsCompetitionOptions();
+ if(!force){try{const c=JSON.parse(localStorage.getItem(key)||'null');if(c&&now-c.at<24*60*60*1000&&Array.isArray(c.leagues)){worldLeagues=c.leagues;worldLeaguesSource='API-Football';renderWorldCompetitionCatalog();populateStandingsCompetitionOptions();return c.leagues}}catch(_){}}
+ try{
+  const data=await apiFootballRequest({action:'leagues'});
+  if(!data?.configured||!Array.isArray(data.leagues))throw Error(data?.error||'Catalogue mondial API-Football indisponible');
+  worldLeagues=data.leagues;worldLeaguesSource='API-Football';
+  try{localStorage.setItem(key,JSON.stringify({at:now,leagues:worldLeagues}))}catch(_){}
+ }catch(error){
+  apiFootballUnavailableReason=String(error?.message||error||'API-Football indisponible');
+  worldLeagues=buildStaticWorldCompetitionCatalog();worldLeaguesSource='ESPN';
+  console.warn('Catalogue mondial API-Football indisponible ; catalogue ESPN utilisé',apiFootballUnavailableReason);
+ }
+ renderWorldCompetitionCatalog();populateStandingsCompetitionOptions();
  return worldLeagues;
 }
 function classifyWorldCompetition(item){
@@ -130,7 +145,7 @@ function renderWorldCompetitionCatalog(){
   const cat=classifyWorldCompetition(x);
   return '<article class="world-competition"><div><b>'+safe(league.name||'Compétition')+'</b><small>'+safe(country.name||'International')+' · '+safe(league.type||'Football')+' · '+safe(cat)+'</small></div><span class="world-season">'+safe(season.year||'Saison non précisée')+'</span><small class="world-features">'+(features.length?safe(features.join(' · ')):'Couverture détaillée non publiée')+'</small></article>';
  }).join('');
- box.innerHTML='<p class="catalog-count">'+items.length+' compétitions disponibles dans le catalogue API-Football</p>'+rows+(items.length>1000?'<p class="notice">Affichage des 1 000 premières correspondances. Affine la recherche pour retrouver les autres.</p>':'');
+ box.innerHTML='<p class="catalog-count">'+items.length+' compétitions · source '+safe(worldLeaguesSource)+'</p>'+rows+(items.length>1000?'<p class="notice">Affichage des 1 000 premières correspondances. Affine la recherche pour retrouver les autres.</p>':'')+(worldLeaguesSource==='ESPN'?'<p class="notice">Catalogue de secours ESPN : les compétitions connues restent consultables. Les données détaillées API-Football sont momentanément indisponibles.</p>':'');
 }
 function mapApiFootballFixture(x){
  const f=x.fixture||{},league=x.league||{},teams=x.teams||{},home=teams.home||{},away=teams.away||{},name=String(league.name||'Compétition');
@@ -1442,7 +1457,7 @@ async function refresh(){
   render();renderLive();renderPicks();renderVIP();renderPersonalizedHome();localMatchAlerts();
   const providers=['ESPN'];if(apiRows.length)providers.push('API-Football');if(sportScoreCheck.confirmed)providers.push('SportScore');
   const historyStatus=nationalHistory.apiUnconfirmed===null?'Vérification des historiques indisponible':nationalHistory.apiUnconfirmed>0?'Historique incomplet pour '+nationalHistory.apiUnconfirmed+' équipe(s) · pronostics concernés ignorés':'Historiques suffisants';
-  const providerStatus=API_FOOTBALL_TEMPORARILY_DISABLED?'ESPN · API-Football suspendu · mode de secours actif':providers.join(' + ');
+  const providerStatus=apiFootballUnavailableReason?'ESPN · API-Football indisponible · mode de secours actif':providers.join(' + ');
   $('updated').textContent='Données actualisées · '+matches.length+' rencontres · '+providerStatus+' · '+historyStatus+' · '+appDate(new Date(),{dateStyle:'medium',timeStyle:'short'});
  }catch(e){
   console.warn('Actualisation du calendrier incomplète',e?.message||e);
