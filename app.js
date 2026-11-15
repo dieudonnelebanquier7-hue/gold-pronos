@@ -889,7 +889,7 @@ function renderPicks(){
   const el=document.createElement('article');el.className='pick-card';
   el.innerHTML='<span class="eyebrow">'+safe(m.league)+'</span><div class="pick-team-heading">'+crestMarkup(m.home,m.homeLogo,m.homeNational?'pick-flag':'pick-crest')+'<h3>'+safe(m.home)+' <span>—</span> '+safe(m.away)+'</h3>'+crestMarkup(m.away,m.awayLogo,m.awayNational?'pick-flag':'pick-crest')+'</div><p><b>Coup d’envoi :</b> '+safe(appDate(m.date,{hour:'2-digit',minute:'2-digit'}))+'</p>';
   if(!hs||!as||hs.n<3||as.n<3||!hhs||!aas){
-   el.innerHTML+='<div class="notice"><b>Analyse en attente</b><p>Il faut au moins 3 résultats terminés et vérifiés pour chaque équipe. Avec 3 ou 4 résultats, l'indication reste provisoire et de faible confiance.</p><small>'+h.length+' résultat(s) pour '+safe(m.home)+' · '+a.length+' pour '+safe(m.away)+' · domicile : '+hHome.length+' · extérieur : '+aAway.length+'. Aucun choix ne sera inventé.</small></div>';
+   el.innerHTML+='<div class="notice"><b>Analyse en attente</b><p>Il faut au moins 3 résultats terminés et vérifiés pour chaque équipe. Avec 3 ou 4 résultats, le choix reste provisoire et de faible confiance.</p><small>'+h.length+' résultat(s) pour '+safe(m.home)+' · '+a.length+' pour '+safe(m.away)+' · domicile : '+hHome.length+' · extérieur : '+aAway.length+'. Aucun choix ne sera inventé.</small></div>';
    box.append(el);continue;
   }
   if(hs.n<5||as.n<5){el.innerHTML+='<div class="notice"><b>Échantillon limité · confiance faible</b><p>Analyse provisoire fondée sur '+hs.n+' match(s) pour '+safe(m.home)+' et '+as.n+' pour '+safe(m.away)+'. Vérifie les informations avant toute décision.</p></div>';}
