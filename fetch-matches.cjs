@@ -51,7 +51,7 @@ function teamLogo(team){
 }
 async function fetchLeague(league,day){
  const [code,label]=league;
- const url='https://site.api.espn.com/apis/site/v2/sports/soccer/'+code+'/scoreboard?dates='+day+'&limit=100&region=fr&lang=fr';
+ const url='https://site.api.espn.com/apis/site/v2/sports/soccer/'+code+'/scoreboard?dates='+day+'&limit=1000&region=fr&lang=fr';
  for(let attempt=0;attempt<2;attempt++){
   try{
    const response=await fetch(url,{signal:AbortSignal.timeout(20000),headers:{'User-Agent':'GOLD-PRONOS/1.0'}});
