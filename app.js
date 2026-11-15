@@ -118,7 +118,7 @@ async function loadApiFootballLeagues(force=false){
    const slug=String(value.slug||value.abbreviation||value.shortName||'').trim();
    const name=String(value.name||value.displayName||value.shortName||'').trim();
    const country=String(value.country?.name||value.countryName||value.location||'').trim();
-   if(slug&&name&&/^[a-z0-9]+(?:\\.[a-z0-9]+){1,3}$/i.test(slug)&&!['soccer'].includes(slug.toLowerCase())){
+   if(slug&&name&&/^[a-z0-9]+(?:\.[a-z0-9]+){1,3}$/i.test(slug)&&!['soccer'].includes(slug.toLowerCase())){
     const label=(country?country+' · ':'')+name;
     discovered.push([slug,label]);
    }
