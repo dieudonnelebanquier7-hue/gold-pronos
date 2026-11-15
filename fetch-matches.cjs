@@ -36,6 +36,13 @@ const today=new Date();today.setUTCHours(0,0,0,0);
 const from=new Date(today);from.setUTCDate(from.getUTCDate()-30);
 const to=new Date(today);to.setUTCDate(to.getUTCDate()+14);
 const ymd=d=>d.toISOString().slice(0,10).replace(/-/g,'');
+function validTeamName(value){
+ const name=String(value||'').trim();
+ if(name.length<2||/^(?:tbd|unknown|to be announced|to be determined|équipe domicile|équipe extérieure)$/i.test(name))return false;
+ // Certaines réponses SportScore contiennent des identifiants générés présentés à tort comme des noms de clubs.
+ if(/^team\\s+[a-z0-9]{10,}$/i.test(name))return false;
+ return true;
+}
 function teamLogo(team){
  const logos=Array.isArray(team?.logos)?team.logos:[];
  const item=logos.find(x=>x?.href&&(/default|full|primary/i.test((x.rel||[]).join(' '))||!x.rel))||logos.find(x=>x?.href);
@@ -79,7 +86,7 @@ async function fetchSportScoreDay(day){
    const away=String(typeof row.away==='string'?row.away:row.away?.name||row.away_team?.name||row.teams?.away?.name||'').trim();
    const kickoff=row.time||row.date||row.utcDate||row.kickoff||row.fixture?.date||'';
    const timestamp=Date.parse(kickoff);
-   if(!home||!away||!Number.isFinite(timestamp))return null;
+   if(!validTeamName(home)||!validTeamName(away)||!Number.isFinite(timestamp))return null;
    const rawStatus=String(row.status?.short||row.status?.type||row.status||row.status_text||'').toLowerCase();
    const status=/live|in.?play|in.?progress|playing|1st half|2nd half|half.?time|extra time|penalt/.test(rawStatus)?'IN_PLAY':/finish|full.?time|ended|^ft$|^aet$|^pen$/.test(rawStatus)?'FINISHED':'SCHEDULED';
    const score=value=>value===null||value===undefined||value===''?null:Number(value);
