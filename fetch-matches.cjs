@@ -124,14 +124,19 @@ async function discoverEspnLeagues(){
   walk(data);
   const merged=new Map(leagues.map(x=>[x[0],x]));
   for(const item of found)if(!merged.has(item[0]))merged.set(item[0],item);
-  leagues=[...merged.values()];
-  console.log('Répertoire ESPN : '+found.length+' compétitions découvertes, '+leagues.length+' au total.');
+  // Garde les compétitions prioritaires, puis ajoute un échantillon mondial découvert.
+  // Cette limite évite une explosion du nombre de requêtes sur la source publique.
+  leagues=[...merged.values()].slice(0,100);
+  console.log('Répertoire ESPN : '+found.length+' compétitions découvertes, '+leagues.length+' retenues (maximum 100).');
  }catch(error){console.log('Répertoire ESPN indisponible, catalogue prioritaire conservé : '+error.message)}
 }
 (async()=>{
  await discoverEspnLeagues();
  // ESPN sert de source de contrôle pour les rencontres du jour. SportScore fournit le calendrier mondial sur toute la fenêtre.
- const tasks=leagues.map(league=>({league,day:ymd(today)}));
+ // Le calendrier préchargé doit couvrir les 14 prochains jours, pas seulement aujourd’hui.
+ // Les 30 jours passés restent collectés par SportScore ; ESPN complète les rencontres à venir.
+ const espnDates=dates.filter(day=>day>=ymd(today)&&day<=ymd(to));
+ const tasks=leagues.flatMap(league=>espnDates.map(day=>({league,day})));
  const results=new Array(tasks.length);let cursor=0,completed=0,nonEmpty=0;
  const workers=Array.from({length:10},async()=>{while(true){
   const i=cursor++;if(i>=tasks.length)break;
@@ -160,7 +165,7 @@ async function discoverEspnLeagues(){
  const unique=new Map(combined.map(m=>[m.id,m]));
  const matches=[...unique.values()].sort((a,b)=>new Date(a.utcDate)-new Date(b.utcDate));
  if(!matches.length)throw new Error('Aucune rencontre reçue après '+tasks.length+' requêtes ESPN et '+dates.length+' requêtes SportScore. Le calendrier existant ne sera pas remplacé.');
- const output={generatedAt:new Date().toISOString(),range:{from:from.toISOString(),to:to.toISOString()},sources:{espn:espnMatches.length,sportscore:sportMatches.length,competitions:leagues.length,days:dates.length,espnRequests:tasks.length,sportscoreRequests:sportDates.length},matches};
+ const output={generatedAt:new Date().toISOString(),range:{from:from.toISOString(),to:to.toISOString()},sources:{espn:espnMatches.length,sportscore:sportMatches.length,competitions:leagues.length,days:dates.length,espnDays:espnDates.length,espnCompetitions:leagues.length,espnRequests:tasks.length,sportscoreRequests:sportDates.length},matches};
  fs.writeFileSync('matches.json',JSON.stringify(output));
- console.log('Calendrier : '+matches.length+' rencontres uniques · ESPN '+espnMatches.length+' · SportScore '+sportMatches.length+' · '+leagues.length+' compétitions · '+dates.length+' dates.');
+ console.log('Calendrier : '+matches.length+' rencontres uniques · ESPN '+espnMatches.length+' sur '+espnDates.length+' jours et '+leagues.length+' compétitions · SportScore '+sportMatches.length+' sur '+dates.length+' jours.');
 })().catch(error=>{console.error(error);process.exit(1)});
