@@ -859,11 +859,11 @@ async function cornerHistory(teamMatches){
 function renderPicks(){
  const box=$('picks');if(!box)return;
  const now=Date.now(),horizon=now+7*86400000;
- const dayMatches=matches.filter(m=>trustedUpcomingFixture(m,now,horizon)).sort((a,b)=>new Date(a.date)-new Date(b.date));
+ const dayMatches=matches.filter(m=>trustedUpcomingFixture(m,now,horizon)).sort((a,b)=>new Date(a.date)-new Date(b.date));const picksToRender=dayMatches.slice(0,80);
  box.replaceChildren();
- const heading=document.createElement('div');heading.className='notice';heading.innerHTML='<b>PRONOSTICS · 7 PROCHAINS JOURS</b><br>'+dayMatches.length+' rencontre(s) à venir · '+safe(appDate(now,{weekday:'long',day:'numeric',month:'long'}))+' au '+safe(appDate(horizon,{day:'numeric',month:'long'}))+' · Sélections calculées à partir des résultats vérifiés disponibles.';box.append(heading);
+ const heading=document.createElement('div');heading.className='notice';heading.innerHTML='<b>PRONOSTICS · 7 PROCHAINS JOURS</b><br>'+dayMatches.length+' rencontre(s) à venir · analyse détaillée des '+picksToRender.length+' premières rencontres · '+safe(appDate(now,{weekday:'long',day:'numeric',month:'long'}))+' au '+safe(appDate(horizon,{day:'numeric',month:'long'}))+' · Sélections calculées à partir des résultats vérifiés disponibles.';box.append(heading);
  if(!dayMatches.length){const empty=document.createElement('div');empty.className='notice';empty.textContent='Aucun match à venir confirmé dans les sept prochains jours pour les compétitions suivies. Le calendrier sera actualisé automatiquement.';box.append(empty);return}
- for(const m of dayMatches){
+ for(const m of picksToRender){
   const h=recent(m.home,m.id,null,m.homeId,m.source,m.apiHomeId),a=recent(m.away,m.id,null,m.awayId,m.source,m.apiAwayId),hs=matchStats(h,m.home,m.homeId,m.source,m.apiHomeId),as=matchStats(a,m.away,m.awayId,m.source,m.apiAwayId);
   const hHome=recent(m.home,m.id,'home',m.homeId,m.source,m.apiHomeId),aAway=recent(m.away,m.id,'away',m.awayId,m.source,m.apiAwayId);
   // Si l'échantillon domicile/extérieur est trop court, utiliser la forme globale vérifiée.
