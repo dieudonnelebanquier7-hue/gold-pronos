@@ -24,14 +24,24 @@ const { chromium } = require('playwright');
     homeText: document.querySelector('#home-matches')?.innerText || '',
     firstCard: document.querySelector('#home-matches .match')?.innerText || '',
     matchCount: document.querySelector('#match-count')?.textContent || '',
-    updated: document.querySelector('#updated')?.textContent || ''
+    updated: document.querySelector('#updated')?.textContent || '',
+    now: Date.now()
   }));
   if (!rendered.cards || !rendered.firstCard) {
     throw new Error('Real calendar contains '+calendar.matches.length+' records but no rendered match card was found. Diagnostics: '+JSON.stringify(rendered));
   }
   const cards = rendered.cards;
   const firstCard = rendered.firstCard;
-  if (Number(rendered.matchCount) !== calendar.matches.length) throw new Error('Home match counter does not equal the full generated calendar: '+rendered.matchCount+' / '+calendar.matches.length);
+  // The application intentionally loads the verified rolling window (35 days back to 14 days ahead).
+  // Compare the home counter with that eligible window, not with older/far-future archive rows.
+  const minDate = rendered.now - 35 * 86400000;
+  const maxDate = rendered.now + 14 * 86400000;
+  const eligibleMatches = calendar.matches.filter(m => {
+    const date = Date.parse(m.utcDate || '');
+    return Number.isFinite(date) && date >= minDate && date <= maxDate &&
+      String(m.homeTeam?.name || '').trim() && String(m.awayTeam?.name || '').trim();
+  });
+  if (Number(rendered.matchCount) !== eligibleMatches.length) throw new Error('Home match counter does not equal the complete eligible calendar window: '+rendered.matchCount+' / '+eligibleMatches.length+' (full archive: '+calendar.matches.length+').');
   let expandedCards=cards;
   if (calendar.matches.length > 350) {
     const more = page.locator('#home-matches button').filter({hasText:'Afficher'}).first();
@@ -40,7 +50,7 @@ const { chromium } = require('playwright');
     expandedCards = await page.locator('#home-matches .match').count();
     if (expandedCards <= cards) throw new Error('The progressive-load control did not reveal additional fixtures.');
   }
-  const result = {ok:true, generatedMatches:calendar.matches.length, visibleHomeCards:cards, expandedHomeCards:expandedCards, firstVisibleMatch:firstCard.slice(0,220), mobileWidth:await page.evaluate(()=>document.documentElement.clientWidth), pageErrors:errors};
+  const result = {ok:true, generatedMatches:calendar.matches.length, eligibleMatches:eligibleMatches.length, visibleHomeCards:cards, expandedHomeCards:expandedCards, firstVisibleMatch:firstCard.slice(0,220), mobileWidth:await page.evaluate(()=>document.documentElement.clientWidth), pageErrors:errors};
   if (errors.length) throw new Error('Browser JavaScript errors with real calendar: '+errors.join(' | '));
   console.log(JSON.stringify(result,null,2));
   await browser.close();
