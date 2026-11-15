@@ -1523,7 +1523,7 @@ async function refresh(){
   const sportScore=await loadSportScoreLive().catch(error=>{console.warn('SportScore indisponible, scores ESPN conservés',error?.message||error);return null});
   const sportScoreCheck=mergeSportScoreLive(sportScore);
   render();renderLive();renderPicks();renderVIP();renderPersonalizedHome();localMatchAlerts();
-  const providers=['ESPN'];if(apiRows.length)providers.push('API-Football');if(sportScoreCheck.confirmed)providers.push('SportScore');
+  const providers=['ESPN'];if(apiRows.length)providers.push('API-Football');if(sportScoreCheck.confirmed||matches.some(m=>(m.providers||[]).some(p=>String(p).toLowerCase()==='sportscore')))providers.push('SportScore');
   const historyStatus=nationalHistory.apiUnconfirmed===null?'Vérification des historiques indisponible':nationalHistory.apiUnconfirmed>0?'Historique incomplet pour '+nationalHistory.apiUnconfirmed+' équipe(s) · pronostics concernés ignorés':'Historiques suffisants';
   const providerStatus=apiFootballUnavailableReason?'ESPN · API-Football indisponible · mode de secours actif':providers.join(' + ');
   $('updated').textContent='Données actualisées · '+matches.length+' rencontres · '+providerStatus+' · '+historyStatus+' · '+appDate(new Date(),{dateStyle:'medium',timeStyle:'short'});
