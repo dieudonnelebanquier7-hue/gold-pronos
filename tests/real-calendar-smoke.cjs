@@ -21,7 +21,8 @@ const { chromium } = require('playwright');
   const calendar = await calendarResponse.json();
   if (!Array.isArray(calendar.matches) || !calendar.matches.length) throw new Error('Generated real calendar is empty');
   try {
-    await page.locator('#home-matches .match').first().waitFor({state:'visible',timeout:30000});
+    await page.locator('#home-matches .match').first().waitFor({state:'attached',timeout:30000});
+    await page.locator('#page-home.active').waitFor({state:'visible',timeout:5000});
   } catch (error) {
     const diagnostics = await page.evaluate(() => ({
       homeText: document.querySelector('#home-matches')?.innerText || '',
