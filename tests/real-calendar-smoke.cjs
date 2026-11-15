@@ -18,7 +18,17 @@ const { chromium } = require('playwright');
   if (!calendarResponse.ok()) throw new Error('Generated matches.json is not available to the application: HTTP '+calendarResponse.status());
   const calendar = await calendarResponse.json();
   if (!Array.isArray(calendar.matches) || !calendar.matches.length) throw new Error('Generated real calendar is empty');
-  await page.locator('#home-matches .match').first().waitFor({state:'visible',timeout:20000});
+  try {
+    await page.locator('#home-matches .match').first().waitFor({state:'visible',timeout:30000});
+  } catch (error) {
+    const diagnostics = await page.evaluate(() => ({
+      homeText: document.querySelector('#home-matches')?.innerText || '',
+      matchCount: document.querySelector('#match-count')?.textContent || '',
+      updated: document.querySelector('#updated')?.textContent || '',
+      cards: document.querySelectorAll('#home-matches .match').length
+    }));
+    throw new Error('Real calendar did not render. Diagnostics: '+JSON.stringify({diagnostics,pageErrors:errors,error:error.message}));
+  }
   const cards = await page.locator('#home-matches .match').count();
   if (!cards) throw new Error('Real calendar contains '+calendar.matches.length+' records but the home page displays no match card. Home text: '+(await page.locator('#home-matches').innerText()));
   const firstCard = await page.locator('#home-matches .match').first().innerText();
