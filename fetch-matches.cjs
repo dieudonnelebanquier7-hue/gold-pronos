@@ -1,6 +1,6 @@
 'use strict';
 const fs=require('node:fs');
-const leagues=[
+let leagues=[
  ['eng.1','Angleterre · Premier League'],['eng.2','Angleterre · Championship'],
  ['esp.1','Espagne · LaLiga'],['esp.2','Espagne · Segunda'],
  ['ger.1','Allemagne · Bundesliga'],['ita.1','Italie · Serie A'],['fra.1','France · Ligue 1'],
@@ -106,7 +106,30 @@ async function fetchSportScoreDay(day){
 
 const dates=[];
 for(let d=new Date(from);d<=to;d.setUTCDate(d.getUTCDate()+1))dates.push(ymd(d));
+async function discoverEspnLeagues(){
+ try{
+  const response=await fetch('https://site.api.espn.com/apis/site/v2/sports/soccer',{signal:AbortSignal.timeout(12000),headers:{'User-Agent':'GOLD-PRONOS/1.0'}});
+  if(!response.ok)throw Error('HTTP '+response.status);
+  const data=await response.json(),found=[];
+  const walk=(value,depth=0)=>{
+   if(!value||depth>5)return;
+   if(Array.isArray(value)){value.forEach(x=>walk(x,depth+1));return}
+   if(typeof value!=='object')return;
+   const slug=String(value.slug||value.abbreviation||value.shortName||'').trim();
+   const name=String(value.name||value.displayName||value.shortName||'').trim();
+   const country=String(value.country?.name||value.countryName||value.location||'').trim();
+   if(slug&&name&&/^[a-z0-9]+(?:\\.[a-z0-9]+){1,3}$/i.test(slug)&&slug.toLowerCase()!=='soccer')found.push([slug,(country?country+' · ':'')+name]);
+   for(const [key,item] of Object.entries(value))if(item&&typeof item==='object'&&key!=='logos')walk(item,depth+1);
+  };
+  walk(data);
+  const merged=new Map(leagues.map(x=>[x[0],x]));
+  for(const item of found)if(!merged.has(item[0]))merged.set(item[0],item);
+  leagues=[...merged.values()];
+  console.log('Répertoire ESPN : '+found.length+' compétitions découvertes, '+leagues.length+' au total.');
+ }catch(error){console.log('Répertoire ESPN indisponible, catalogue prioritaire conservé : '+error.message)}
+}
 (async()=>{
+ await discoverEspnLeagues();
  // ESPN sert de source de contrôle pour les rencontres du jour. SportScore fournit le calendrier mondial sur toute la fenêtre.
  const tasks=leagues.map(league=>({league,day:ymd(today)}));
  const results=new Array(tasks.length);let cursor=0,completed=0,nonEmpty=0;
