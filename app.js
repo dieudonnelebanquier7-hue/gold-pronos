@@ -1145,9 +1145,11 @@ async function findApiFootballQualifierStanding(code){
 const OPENLIGADB_LEAGUES_CACHE_KEY='gold-pronos-openligadb-leagues-v1';
 function openLigaSeason(){const d=new Date();return d.getUTCMonth()+1>=7?d.getUTCFullYear():d.getUTCFullYear()-1}
 function openLigaNameMatch(item,code){
- const raw=normalizeStandingText([item?.leagueName,item?.name,item?.leagueShortcut].filter(Boolean).join(' '));
- const aliases={'ger.1':['bundesliga','bl1'],'ger.2':['2 bundesliga','bl2'],'eng.1':['premier league','pl'],'eng.2':['championship','elc'],'esp.1':['laliga','la liga','la1'],'esp.2':['segunda division','la liga 2','laliga 2'],'ita.1':['serie a'],'fra.1':['ligue 1'],'ned.1':['eredivisie','nl1'],'por.1':['primeira liga','liga portugal','pt1']};
- return (aliases[code]||[]).some(x=>raw.includes(normalizeStandingText(x)));
+ const raw=normalizeStandingText([item?.leagueName,item?.name].filter(Boolean).join(' '));
+ const shortcut=normalizeStandingText(item?.leagueShortcut||'');
+ const shortcuts={'ger.1':['bl1'],'ger.2':['bl2'],'eng.1':['pl'],'eng.2':['elc'],'esp.1':['la1'],'esp.2':['la2'],'ita.1':['it1'],'fra.1':['fr1'],'ned.1':['nl1'],'por.1':['pt1']};
+ const names={'ger.1':['bundesliga'],'ger.2':['2 bundesliga'],'eng.1':['premier league'],'eng.2':['championship'],'esp.1':['laliga','la liga'],'esp.2':['segunda division','la liga 2','laliga 2'],'ita.1':['serie a'],'fra.1':['ligue 1'],'ned.1':['eredivisie'],'por.1':['primeira liga','liga portugal']};
+ return (shortcuts[code]||[]).includes(shortcut)||(names[code]||[]).some(x=>raw.includes(normalizeStandingText(x)));
 }
 function mapOpenLigaStandingRows(rows){
  return (Array.isArray(rows)?rows:[]).map((r,i)=>{
