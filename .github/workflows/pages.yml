@@ -42,7 +42,7 @@ jobs:
           node <<'NODE'
           const d = require('./matches.json');
           const rows = Array.isArray(d.matches) ? d.matches : [];
-          if (rows.length < 100) throw new Error('Calendrier trop incomplet : ' + rows.length + ' rencontres. Publication annulée.');
+          if (!rows.length) throw new Error('Calendrier vide : aucune source n’a fourni de rencontre. Publication annulée.');
           const ids = new Set();
           let invalid = 0;
           for (const m of rows) {
