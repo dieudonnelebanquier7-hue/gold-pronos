@@ -1472,7 +1472,7 @@ async function loadEspnFixtures(todayOnly=false){
  if(todayOnly)dates.push(today.toISOString().slice(0,10).replace(/-/g,''));
  else for(let d=new Date(pastFrom);d<=futureTo;d.setUTCDate(d.getUTCDate()+1))dates.push(d.toISOString().slice(0,10).replace(/-/g,''));
  // ESPN a régressé sur les requêtes de plage avec tiret : une requête par jour est nécessaire.
- const fallbackLeagues=leagues.slice(0,24);
+ const fallbackLeagues=leagues;
  const tasks=fallbackLeagues.flatMap(([code,label])=>dates.map(date=>({code,label,date})));
  const found=[];let cursor=0,failed=0;
  const workers=Array.from({length:12},async()=>{while(true){
