@@ -100,7 +100,8 @@ async function fetchSportScoreDay(day){
 const dates=[];
 for(let d=new Date(from);d<=to;d.setUTCDate(d.getUTCDate()+1))dates.push(ymd(d));
 (async()=>{
- // ESPN sert de source de contrôle pour les rencontres du jour. SportScore fournit le calendrier mondial sur toute la fenêtre.\n const tasks=leagues.map(league=>({league,day:ymd(today)}));
+ // ESPN sert de source de contrôle pour les rencontres du jour. SportScore fournit le calendrier mondial sur toute la fenêtre.
+ const tasks=leagues.map(league=>({league,day:ymd(today)}));
  const results=new Array(tasks.length);let cursor=0,completed=0,nonEmpty=0;
  const workers=Array.from({length:10},async()=>{while(true){
   const i=cursor++;if(i>=tasks.length)break;
