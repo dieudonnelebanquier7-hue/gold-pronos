@@ -890,15 +890,7 @@ function renderPicks(){
   el.innerHTML='<span class="eyebrow">'+safe(m.league)+'</span><div class="pick-team-heading">'+crestMarkup(m.home,m.homeLogo,m.homeNational?'pick-flag':'pick-crest')+'<h3>'+safe(m.home)+' <span>—</span> '+safe(m.away)+'</h3>'+crestMarkup(m.away,m.awayLogo,m.awayNational?'pick-flag':'pick-crest')+'</div><p><b>Coup d’envoi :</b> '+safe(appDate(m.date,{hour:'2-digit',minute:'2-digit'}))+'</p>';
   if(!hs||!as||hs.n<3||as.n<3||!hhs||!aas){
    const homeN=hs?.n||0,awayN=as?.n||0;
-   const fallback='1X · '+m.home+' ou nul';
-   el.innerHTML+='<div class="notice"><b>Pronostic provisoire · confiance très faible</b><p>Choix de couverture indicatif : <strong>'+safe(fallback)+'</strong>. Ce choix repose uniquement sur un avantage domicile générique, pas sur un historique suffisant de ces deux équipes.</p><small>Historique vérifié disponible : '+homeN+' match(s) pour '+safe(m.home)+' · '+awayN+' pour '+safe(m.away)+' · domicile : '+hHome.length+' · extérieur : '+aAway.length+'. À confirmer dès réception de données fiables. Ne pas considérer comme une sélection sûre.</small></div>';
-   el.innerHTML+='<div class="pick-markets">'+
-    marketLine('Résultat 1N2','Indécis · données insuffisantes','Aucun vainqueur ne peut être départagé sérieusement sans résultats vérifiés.','market-neutral')+
-    marketLine('Double chance',fallback,'Couverture indicative fondée sur le seul avantage domicile générique ; confiance très faible.','market-neutral')+
-    marketLine('Total de buts · 1,5','Non estimé','Historique insuffisant pour calculer une fréquence fiable.','market-neutral')+
-    marketLine('Total de buts · 2,5','Non estimé','Historique insuffisant pour calculer une fréquence fiable.','market-neutral')+
-    marketLine('Les deux équipes marquent','Non estimé','Historique insuffisant pour calculer une fréquence fiable.','market-neutral')+
-    '</div>';
+   el.innerHTML+='<div class="notice"><b>Analyse en attente · données vérifiées insuffisantes</b><p>Aucun pronostic directionnel n’est publié pour cette rencontre tant que les historiques fiables des deux équipes ne sont pas disponibles. Aucun choix 1N2, double chance, total de buts ou BTTS ne sera inventé.</p><small>Historique vérifié : '+homeN+' match(s) pour '+safe(m.home)+' · '+awayN+' pour '+safe(m.away)+' · domicile : '+hHome.length+' · extérieur : '+aAway.length+'. Les marchés seront calculés dès que l’échantillon sera suffisant.</small></div>';
    box.append(el);continue;
   }
   if(hs.n<5||as.n<5){el.innerHTML+='<div class="notice"><b>Échantillon limité · confiance faible</b><p>Analyse provisoire fondée sur '+hs.n+' match(s) pour '+safe(m.home)+' et '+as.n+' pour '+safe(m.away)+'. Vérifie les informations avant toute décision.</p></div>';}
