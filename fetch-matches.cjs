@@ -118,7 +118,7 @@ async function discoverEspnLeagues(){
    const slug=String(value.slug||value.abbreviation||value.shortName||'').trim();
    const name=String(value.name||value.displayName||value.shortName||'').trim();
    const country=String(value.country?.name||value.countryName||value.location||'').trim();
-   if(slug&&name&&/^[a-z0-9]+(?:\\.[a-z0-9]+){1,3}$/i.test(slug)&&slug.toLowerCase()!=='soccer')found.push([slug,(country?country+' · ':'')+name]);
+   if(slug&&name&&/^[a-z0-9]+(?:\.[a-z0-9]+){1,3}$/i.test(slug)&&slug.toLowerCase()!=='soccer')found.push([slug,(country?country+' · ':'')+name]);
    for(const [key,item] of Object.entries(value))if(item&&typeof item==='object'&&key!=='logos')walk(item,depth+1);
   };
   walk(data);
