@@ -1142,6 +1142,33 @@ async function findApiFootballQualifierStanding(code){
  }).filter(Boolean);
  return candidates[0]||null;
 }
+const OPENLIGADB_LEAGUES_CACHE_KEY='gold-pronos-openligadb-leagues-v1';
+function openLigaSeason(){const d=new Date();return d.getUTCMonth()+1>=7?d.getUTCFullYear():d.getUTCFullYear()-1}
+function openLigaNameMatch(item,code){
+ const raw=normalizeStandingText([item?.leagueName,item?.name,item?.leagueShortcut].filter(Boolean).join(' '));
+ const aliases={'ger.1':['bundesliga','bl1'],'ger.2':['2 bundesliga','bl2'],'eng.1':['premier league','pl'],'eng.2':['championship','elc'],'esp.1':['laliga','la liga','la1'],'esp.2':['segunda division','la liga 2','laliga 2'],'ita.1':['serie a'],'fra.1':['ligue 1'],'ned.1':['eredivisie','nl1'],'por.1':['primeira liga','liga portugal','pt1']};
+ return (aliases[code]||[]).some(x=>raw.includes(normalizeStandingText(x)));
+}
+function mapOpenLigaStandingRows(rows){
+ return (Array.isArray(rows)?rows:[]).map((r,i)=>{
+  const name=String(r.teamName||r.team?.teamName||r.team?.name||'').trim();if(!name)return null;
+  const n=v=>v===null||v===undefined||v===''?null:Number(v),gf=n(r.goals??r.goalsFor),ga=n(r.opponentGoals??r.goalsAgainst);
+  return {rank:n(r.position??r.rank)??i+1,team:{id:String(r.teamInfoId||name),name,displayName:name,logo:r.teamIconUrl||''},
+   all:{played:n(r.matches??r.played??r.matchesPlayed),win:n(r.won??r.wins),draw:n(r.draw??r.draws),lose:n(r.lost??r.losses)},
+   goals:{for:gf,against:ga},goalsDiff:gf!==null&&ga!==null?gf-ga:'—',points:n(r.points)};
+ }).filter(Boolean);
+}
+async function fetchOpenLigaStandings(code){
+ const now=Date.now(),season=openLigaSeason();let leagues=[];
+ try{const cache=JSON.parse(localStorage.getItem(OPENLIGADB_LEAGUES_CACHE_KEY)||'null');if(cache&&now-cache.at<43200000&&Array.isArray(cache.leagues))leagues=cache.leagues}catch(_){}
+ if(!leagues.length){const data=await get('https://api.openligadb.de/getavailableleagues/'+season,12000);leagues=Array.isArray(data)?data:[];if(leagues.length)try{localStorage.setItem(OPENLIGADB_LEAGUES_CACHE_KEY,JSON.stringify({at:now,leagues}))}catch(_){}}
+ const league=leagues.find(x=>openLigaNameMatch(x,code));if(!league?.leagueShortcut)throw Error('Compétition non couverte par OpenLigaDB');
+ const data=await get('https://api.openligadb.de/getbltable/'+encodeURIComponent(league.leagueShortcut)+'/'+Number(league.leagueSeason||season),12000);
+ const rows=mapOpenLigaStandingRows(data);if(!rows.length)throw Error('Aucun tableau OpenLigaDB exploitable');
+ return {groups:[{name:'Classement général',rows}],source:'OpenLigaDB',fetchedAt:new Date().toISOString()};
+}
+function saveStandingsCache(code,payload){try{const all=JSON.parse(localStorage.getItem('gold-pronos-standings-cache-v1')||'{}');all[code]={...payload,savedAt:Date.now()};localStorage.setItem('gold-pronos-standings-cache-v1',JSON.stringify(all))}catch(_){}}
+function readStandingsCache(code){try{return JSON.parse(localStorage.getItem('gold-pronos-standings-cache-v1')||'{}')[code]||null}catch(_){return null}}
 async function loadStandings(){
  const select=$('standings-league'),code=select?.value,box=$('standings');if(!code||!box)return;activeLeague=code;
  const selected=allStandingsOptions().find(x=>x.value===code);
@@ -1160,20 +1187,17 @@ async function loadStandings(){
    let lastError=null;
    const urls=['https://site.api.espn.com/apis/v2/sports/soccer/'+encodeURIComponent(code)+'/standings','https://site.web.api.espn.com/apis/v2/sports/soccer/'+encodeURIComponent(code)+'/standings'];
    for(const url of urls){try{const data=await get(url,15000);groups=extractEspnStandingsGroups(data);if(groups.length)break}catch(error){lastError=error}}
+   if(!groups.length){try{const fallback=await fetchOpenLigaStandings(code);groups=fallback.groups;source=fallback.source;fetchedAt=fallback.fetchedAt}catch(error){lastError=error}}
    if(!groups.length){
     const apiLeague=await findApiFootballQualifierStanding(code);
-    if(apiLeague){
-     const data=await apiFootballRequest({action:'standings',leagueId:apiLeague.leagueId,season:apiLeague.season});
-     if(data?.configured){
-      groups=apiFootballStandingGroups(data);
-      if(groups.length){source='API-Football';fetchedAt=data.fetched_at||''}
-     }
-    }
+    if(apiLeague){try{const data=await apiFootballRequest({action:'standings',leagueId:apiLeague.leagueId,season:apiLeague.season});if(data?.configured){groups=apiFootballStandingGroups(data);if(groups.length){source='API-Football';fetchedAt=data.fetched_at||''}}}catch(error){lastError=error}}
    }
+   if(!groups.length){const cached=readStandingsCache(code);if(cached?.groups?.length){groups=cached.groups;source=(cached.source||'Source précédente')+' · cache local';fetchedAt=cached.fetchedAt||''}}
    if(!groups.length)throw lastError||Error('Aucun classement officiel publié par les sources disponibles');
   }
   if(!groups.length)throw Error('Aucun tableau de classement officiel exploitable');
   lastStandingsGroups=groups;lastStandingsTitle=selectedName;lastStandingsSource=source;lastStandingsAt=fetchedAt;
+  if(!String(source).includes('cache local'))saveStandingsCache(code,{groups,source,fetchedAt});
   renderStandingsGroups(groups,selectedName,source,fetchedAt);
  }catch(e){
   console.warn('[GOLD PRONOS] Classement indisponible pour '+code,e);
