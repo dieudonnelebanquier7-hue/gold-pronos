@@ -128,9 +128,9 @@ window.supabase={createClient:()=>({
   }, {timeout:10000});
   const flagBox=await flagBoxHandle.jsonValue();
   if (!flagBox || flagBox.ratio<1.35 || flagBox.ratio>1.65) throw new Error('National flag aspect ratio failed: '+JSON.stringify(flagBox));
-  await clubCard.locator('.match-side .gp-crest').waitFor({state:'visible',timeout:8000});
-  await clubCard.locator('.match-side .team-name').waitFor({state:'visible',timeout:8000});
-  const sideAlignment = await clubCard.locator('.match-side').evaluate(el => ({display:getComputedStyle(el).display,align:getComputedStyle(el).alignItems,crest:el.querySelector('.gp-crest')?.getBoundingClientRect().height||0,name:el.querySelector('.team-name')?.getBoundingClientRect().height||0,html:el.innerHTML}));
+  await clubCard.locator('.match-side.home-side .gp-crest').waitFor({state:'visible',timeout:8000});
+  await clubCard.locator('.match-side.home-side .team-name').waitFor({state:'visible',timeout:8000});
+  const sideAlignment = await clubCard.locator('.match-side.home-side').evaluate(el => ({display:getComputedStyle(el).display,align:getComputedStyle(el).alignItems,crest:el.querySelector('.gp-crest')?.getBoundingClientRect().height||0,name:el.querySelector('.team-name')?.getBoundingClientRect().height||0,html:el.innerHTML}));
   if (sideAlignment.display!=='flex' || sideAlignment.align!=='center' || sideAlignment.crest<20 || sideAlignment.name<10) throw new Error('Team logo/name alignment failed: '+JSON.stringify(sideAlignment));
   await clubCard.click();
   await page.locator('#match-modal:not([hidden])').waitFor({state:'visible',timeout:5000});
