@@ -873,9 +873,9 @@ function compareMatchPriority(a,b,now=Date.now()){
 function renderPicks(){
  const box=$('picks');if(!box)return;
  const now=Date.now(),horizon=now+7*86400000;
- const dayMatches=matches.filter(m=>trustedUpcomingFixture(m,now,horizon)).sort((a,b)=>competitionImportance(b)-competitionImportance(a)||new Date(a.date)-new Date(b.date));const picksToRender=dayMatches.slice(0,80);
+ const dayMatches=matches.filter(m=>trustedUpcomingFixture(m,now,horizon)).sort((a,b)=>competitionImportance(b)-competitionImportance(a)||new Date(a.date)-new Date(b.date));const picksToRender=dayMatches;
  box.replaceChildren();
- const heading=document.createElement('div');heading.className='notice';heading.innerHTML='<b>PRONOSTICS · 7 PROCHAINS JOURS</b><br>'+dayMatches.length+' rencontre(s) à venir · analyse détaillée des '+picksToRender.length+' premières rencontres · '+safe(appDate(now,{weekday:'long',day:'numeric',month:'long'}))+' au '+safe(appDate(horizon,{day:'numeric',month:'long'}))+' · Sélections calculées à partir des résultats vérifiés disponibles.';box.append(heading);
+ const heading=document.createElement('div');heading.className='notice';heading.innerHTML='<b>PRONOSTICS · 7 PROCHAINS JOURS</b><br>'+dayMatches.length+' rencontre(s) à venir · pronostic affiché pour chaque rencontre confirmée · '+safe(appDate(now,{weekday:'long',day:'numeric',month:'long'}))+' au '+safe(appDate(horizon,{day:'numeric',month:'long'}))+' · Sélections calculées à partir des résultats vérifiés disponibles.';box.append(heading);
  if(!dayMatches.length){const empty=document.createElement('div');empty.className='notice';empty.textContent='Aucun match à venir confirmé dans les sept prochains jours pour les compétitions suivies. Le calendrier sera actualisé automatiquement.';box.append(empty);return}
  for(const m of picksToRender){
   const h=recent(m.home,m.id,null,m.homeId,m.source,m.apiHomeId),a=recent(m.away,m.id,null,m.awayId,m.source,m.apiAwayId),hs=matchStats(h,m.home,m.homeId,m.source,m.apiHomeId),as=matchStats(a,m.away,m.awayId,m.source,m.apiAwayId);
@@ -889,7 +889,16 @@ function renderPicks(){
   const el=document.createElement('article');el.className='pick-card';
   el.innerHTML='<span class="eyebrow">'+safe(m.league)+'</span><div class="pick-team-heading">'+crestMarkup(m.home,m.homeLogo,m.homeNational?'pick-flag':'pick-crest')+'<h3>'+safe(m.home)+' <span>—</span> '+safe(m.away)+'</h3>'+crestMarkup(m.away,m.awayLogo,m.awayNational?'pick-flag':'pick-crest')+'</div><p><b>Coup d’envoi :</b> '+safe(appDate(m.date,{hour:'2-digit',minute:'2-digit'}))+'</p>';
   if(!hs||!as||hs.n<3||as.n<3||!hhs||!aas){
-   el.innerHTML+='<div class="notice"><b>Analyse en attente</b><p>Il faut au moins 3 résultats terminés et vérifiés pour chaque équipe. Avec 3 ou 4 résultats, le choix reste provisoire et de faible confiance.</p><small>'+h.length+' résultat(s) pour '+safe(m.home)+' · '+a.length+' pour '+safe(m.away)+' · domicile : '+hHome.length+' · extérieur : '+aAway.length+'. Aucun choix ne sera inventé.</small></div>';
+   const homeN=hs?.n||0,awayN=as?.n||0;
+   const fallback='1X · '+m.home+' ou nul';
+   el.innerHTML+='<div class="notice"><b>Pronostic provisoire · confiance très faible</b><p>Choix de couverture indicatif : <strong>'+safe(fallback)+'</strong>. Ce choix repose uniquement sur un avantage domicile générique, pas sur un historique suffisant de ces deux équipes.</p><small>Historique vérifié disponible : '+homeN+' match(s) pour '+safe(m.home)+' · '+awayN+' pour '+safe(m.away)+' · domicile : '+hHome.length+' · extérieur : '+aAway.length+'. À confirmer dès réception de données fiables. Ne pas considérer comme une sélection sûre.</small></div>';
+   el.innerHTML+='<div class="pick-markets">'+
+    marketLine('Résultat 1N2','Indécis · données insuffisantes','Aucun vainqueur ne peut être départagé sérieusement sans résultats vérifiés.','market-neutral')+
+    marketLine('Double chance',fallback,'Couverture indicative fondée sur le seul avantage domicile générique ; confiance très faible.','market-neutral')+
+    marketLine('Total de buts · 1,5','Non estimé','Historique insuffisant pour calculer une fréquence fiable.','market-neutral')+
+    marketLine('Total de buts · 2,5','Non estimé','Historique insuffisant pour calculer une fréquence fiable.','market-neutral')+
+    marketLine('Les deux équipes marquent','Non estimé','Historique insuffisant pour calculer une fréquence fiable.','market-neutral')+
+    '</div>';
    box.append(el);continue;
   }
   if(hs.n<5||as.n<5){el.innerHTML+='<div class="notice"><b>Échantillon limité · confiance faible</b><p>Analyse provisoire fondée sur '+hs.n+' match(s) pour '+safe(m.home)+' et '+as.n+' pour '+safe(m.away)+'. Vérifie les informations avant toute décision.</p></div>';}
