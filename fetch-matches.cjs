@@ -70,7 +70,7 @@ async function fetchSportScoreDay(day){
  const date=day.slice(0,4)+'-'+day.slice(4,6)+'-'+day.slice(6,8);
  const url='https://sportscore.com/api/v1/fixtures/?sport=football&date='+date+'&limit=200&src=gold-pronos';
  try{
-  const response=await fetch(url,{signal:AbortSignal.timeout(15000),headers:{'User-Agent':'GOLD-PRONOS/1.0'}});
+  const response=await fetch(url,{signal:AbortSignal.timeout(8000),headers:{'User-Agent':'GOLD-PRONOS/1.0'}});
   if(!response.ok){console.log('SportScore indisponible '+date+': HTTP '+response.status);return [];}
   const data=await response.json();
   const rows=Array.isArray(data.matches)?data.matches:Array.isArray(data.fixtures)?data.fixtures:Array.isArray(data.events)?data.events:Array.isArray(data.data)?data.data:[];
@@ -113,8 +113,9 @@ for(let d=new Date(from);d<=to;d.setUTCDate(d.getUTCDate()+1))dates.push(ymd(d))
  const espnMatches=results.flat();
  // SportScore complète le calendrier mondial, sans remplacer les scores ESPN.
  // Trois requêtes simultanées restent largement sous la limite publique annoncée.
- const sportResults=new Array(dates.length);let sportCursor=0;
- const sportWorkers=Array.from({length:3},async()=>{while(true){const i=sportCursor++;if(i>=dates.length)break;sportResults[i]=await fetchSportScoreDay(dates[i]);}});
+ const sportDates=dates.filter(day=>day>=ymd(today));
+ const sportResults=new Array(sportDates.length);let sportCursor=0;
+ const sportWorkers=Array.from({length:3},async()=>{while(true){const i=sportCursor++;if(i>=sportDates.length)break;sportResults[i]=await fetchSportScoreDay(sportDates[i]);}});
  await Promise.all(sportWorkers);
  const sportMatches=sportResults.flat();
  const normalize=value=>String(value||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
@@ -128,7 +129,7 @@ for(let d=new Date(from);d<=to;d.setUTCDate(d.getUTCDate()+1))dates.push(ymd(d))
  const unique=new Map(combined.map(m=>[m.id,m]));
  const matches=[...unique.values()].sort((a,b)=>new Date(a.utcDate)-new Date(b.utcDate));
  if(!matches.length)throw new Error('Aucune rencontre reçue après '+tasks.length+' requêtes ESPN et '+dates.length+' requêtes SportScore. Le calendrier existant ne sera pas remplacé.');
- const output={generatedAt:new Date().toISOString(),range:{from:from.toISOString(),to:to.toISOString()},sources:{espn:espnMatches.length,sportscore:sportMatches.length,competitions:leagues.length,days:dates.length,requests:tasks.length,sportscoreRequests:dates.length},matches};
+ const output={generatedAt:new Date().toISOString(),range:{from:from.toISOString(),to:to.toISOString()},sources:{espn:espnMatches.length,sportscore:sportMatches.length,competitions:leagues.length,days:dates.length,requests:tasks.length,sportscoreRequests:sportDates.length},matches};
  fs.writeFileSync('matches.json',JSON.stringify(output));
  console.log('Calendrier : '+matches.length+' rencontres uniques · ESPN '+espnMatches.length+' · SportScore '+sportMatches.length+' · '+leagues.length+' compétitions · '+dates.length+' dates.');
 })().catch(error=>{console.error(error);process.exit(1)});
