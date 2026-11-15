@@ -17,8 +17,7 @@ on:
       - '.github/workflows/pages.yml'
   workflow_dispatch:
   schedule:
-    - cron: '0 * * * *'
-    - cron: '0 23 * * *' # Génération quotidienne à 00:00 au Bénin (UTC+1)
+    - cron: '0 23 * * *' # Une collecte complète par jour à 00:00 au Bénin (UTC+1) ; le direct est actualisé dans l'application
 permissions:
   contents: read
   pages: write
