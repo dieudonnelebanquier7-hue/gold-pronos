@@ -6,13 +6,13 @@ const FEEDS = [
   { name: 'The Guardian', url: 'https://www.theguardian.com/football/rss' },
   { name: 'ESPN', url: 'https://www.espn.com/espn/rss/soccer/news' },
   { name: 'Reuters via Google News', url: 'https://news.google.com/rss/search?q=when:7d+site:reuters.com/sports/soccer&hl=en-US&gl=US&ceid=US:en' },
-  { name: 'Mercato francophone · Google News', url: 'https://news.google.com/rss/search?q=football+mercato+OR+transfert+football&hl=fr&gl=FR&ceid=FR:fr' },
-  { name: 'Médias français · Google News', url: 'https://news.google.com/rss/search?q=site:lequipe.fr+OR+site:rmcsport.bfmtv.com+OR+site:eurosport.fr+football&hl=fr&gl=FR&ceid=FR:fr' },
-  { name: 'Football africain · Google News', url: 'https://news.google.com/rss/search?q=football+Afrique+CAF+CAN&hl=fr&gl=BJ&ceid=BJ:fr' },
-  { name: 'Football européen · Google News', url: 'https://news.google.com/rss/search?q=football+Ligue+des+Champions+Europe&hl=fr&gl=FR&ceid=FR:fr' },
-  { name: 'Football mondial · Google News', url: 'https://news.google.com/rss/search?q=football+international+résultats+actualité&hl=fr&gl=FR&ceid=FR:fr' },
-  { name: 'Blessures et effectifs · Google News', url: 'https://news.google.com/rss/search?q=football+blessure+joueur+effectif&hl=fr&gl=FR&ceid=FR:fr' },
-  { name: 'Transferts internationaux · Google News', url: 'https://news.google.com/rss/search?q=transfert+football+international+mercato&hl=fr&gl=FR&ceid=FR:fr' }
+  { name: 'Mercato francophone · Google News', url: 'https://news.google.com/rss/search?q=football+mercato+OR+transfert+football&hl=fr&gl=FR&ceid=FR:fr', language: 'fr' },
+  { name: 'Médias français · Google News', url: 'https://news.google.com/rss/search?q=site:lequipe.fr+OR+site:rmcsport.bfmtv.com+OR+site:eurosport.fr+football&hl=fr&gl=FR&ceid=FR:fr', language: 'fr' },
+  { name: 'Football africain · Google News', url: 'https://news.google.com/rss/search?q=football+Afrique+CAF+CAN&hl=fr&gl=BJ&ceid=BJ:fr', language: 'fr' },
+  { name: 'Football européen · Google News', url: 'https://news.google.com/rss/search?q=football+Ligue+des+Champions+Europe&hl=fr&gl=FR&ceid=FR:fr', language: 'fr' },
+  { name: 'Football mondial · Google News', url: 'https://news.google.com/rss/search?q=football+international+résultats+actualité&hl=fr&gl=FR&ceid=FR:fr', language: 'fr' },
+  { name: 'Blessures et effectifs · Google News', url: 'https://news.google.com/rss/search?q=football+blessure+joueur+effectif&hl=fr&gl=FR&ceid=FR:fr', language: 'fr' },
+  { name: 'Transferts internationaux · Google News', url: 'https://news.google.com/rss/search?q=transfert+football+international+mercato&hl=fr&gl=FR&ceid=FR:fr', language: 'fr' }
 ];
 
 function decode(value = '') {
@@ -43,7 +43,7 @@ function getLink(block) {
   return tag(block, 'link');
 }
 
-function parseFeed(xml, source) {
+function parseFeed(xml, source, language = 'en') {
   const blocks = [...xml.matchAll(/<(item|entry)\b[^>]*>([\s\S]*?)<\/\1>/gi)];
   return blocks.map((match) => {
     const b = match[2];
@@ -58,7 +58,7 @@ function parseFeed(xml, source) {
     const date = rawDate && !Number.isNaN(Date.parse(rawDate)) ? new Date(rawDate).toISOString() : null;
     let host = '';
     try { host = new URL(link).hostname.replace(/^www\./, ''); } catch (_) {}
-    return { title, description: description.slice(0, 4500), link, date, source, domain: host };
+    return { title, description: description.slice(0, 4500), link, date, source, domain: host, language };
   }).filter(x => x.title && /^https?:\/\//i.test(x.link));
 }
 
@@ -86,6 +86,7 @@ async function translateArticlesToFrench(items) {
     while (cursor < items.length) {
       const index = cursor++;
       const item = items[index];
+      if (item.language === 'fr') { translated[index] = { ...item, language: 'fr' }; continue; }
       const title = await translateToFrench(item.title);
       const description = item.description
         ? await translateToFrench(item.description)
@@ -108,7 +109,7 @@ async function main() {
       if (!response.ok) throw new Error('HTTP ' + response.status);
       const xml = await response.text();
       if (!/<(?:rss|feed|rdf:RDF)\b/i.test(xml)) throw new Error('Réponse RSS invalide');
-      return { feed, articles: parseFeed(xml, feed.name), error: null };
+      return { feed, articles: parseFeed(xml, feed.name, feed.language || 'en'), error: null };
     } catch (error) {
       return { feed, articles: [], error: String(error.message || error).slice(0, 180) };
     }
