@@ -1501,7 +1501,14 @@ async function loadLeaders(){
 }
 function clockSeconds(value){const s=String(value||'').trim();let m=s.match(/(\d+)\s*:\s*(\d{1,2})/);if(m)return Number(m[1])*60+Math.min(59,Number(m[2]));m=s.match(/(\d+)\s*\+\s*(\d+)/);if(m)return (Number(m[1])+Number(m[2]))*60;m=s.match(/(\d+)\s*['′’]/);if(m)return Number(m[1])*60;return 0}
 function updateLiveEvent(m,event){const comp=event.competitions?.[0]||{},teams=comp.competitors||[],home=teams.find(x=>x.homeAway==='home')||teams[0],away=teams.find(x=>x.homeAway==='away')||teams[1],st=comp.status?.type||event.status?.type||{},state=st.state;
- if(home?.score!==undefined&&home?.score!==null)m.homeScore=Number(home.score);if(away?.score!==undefined&&away?.score!==null)m.awayScore=Number(away.score);
+ const incomingHome=home?.score===undefined||home?.score===null?null:Number(home.score),incomingAway=away?.score===undefined||away?.score===null?null:Number(away.score);
+ if(incomingHome!==null&&incomingAway!==null){
+  const sameSport=m.scoreConflict?.sportScore?.[0]===incomingHome&&m.scoreConflict?.sportScore?.[1]===incomingAway;
+  const sameEspn=m.scoreConflict?.espn?.[0]===incomingHome&&m.scoreConflict?.espn?.[1]===incomingAway;
+  if(m.scoreConflict&&sameSport){m.homeScore=incomingHome;m.awayScore=incomingAway;delete m.scoreConflict;}
+  else if(!m.scoreConflict){m.homeScore=incomingHome;m.awayScore=incomingAway;}
+  else if(!sameEspn)m.scoreConflict={espn:[incomingHome,incomingAway],sportScore:m.scoreConflict.sportScore,updatedAt:Date.now()};
+ }
  m.live=state==='in';m.finished=!!st.completed||state==='post';m.status=m.live?'LIVE':m.finished?'FINISHED':'SCHEDULED';m.periodDetail=st.detail||st.shortDetail||'';m.periodNumber=Number(st.period||0);
  const raw=st.displayClock||comp.status?.displayClock||st.shortDetail||'';if(raw&&/\d/.test(String(raw))){m.clockBaseSeconds=clockSeconds(raw);if(m.periodNumber===2&&m.clockBaseSeconds<2700)m.clockBaseSeconds+=2700;if(m.periodNumber===3&&m.clockBaseSeconds<5400)m.clockBaseSeconds+=5400;if(m.periodNumber===4&&m.clockBaseSeconds<6300)m.clockBaseSeconds+=6300;m.clockUpdatedAt=Date.now();}else if(m.live&&(m.clockBaseSeconds===null||m.clockBaseSeconds===undefined)){m.clockUpdatedAt=Date.now();}
  const added=String(st.shortDetail||st.detail||'').match(/(\d{1,3})\s*['′]?\s*\+\s*(\d{1,2})/);m.clockLabel=added?added[1]+'+'+added[2]:'';if(added&&Number(m.clockBaseSeconds||0)<(Number(added[1])+Number(added[2]))*60)m.clockBaseSeconds=(Number(added[1])+Number(added[2]))*60;m.clockRunning=m.live&&!/half.?time|mi-temps|break|suspended/i.test(m.periodDetail);m.date=event.date||m.date;m.raw=event;
