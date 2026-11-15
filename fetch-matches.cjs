@@ -33,7 +33,7 @@ const leagues=[
  ['uefa.youthleague','UEFA · Youth League']
 ];
 const today=new Date();today.setUTCHours(0,0,0,0);
-const from=new Date(today);from.setUTCDate(from.getUTCDate()-7);
+const from=new Date(today);from.setUTCDate(from.getUTCDate()-30);
 const to=new Date(today);to.setUTCDate(to.getUTCDate()+14);
 const ymd=d=>d.toISOString().slice(0,10).replace(/-/g,'');
 function teamLogo(team){
