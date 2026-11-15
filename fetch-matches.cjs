@@ -83,11 +83,11 @@ async function fetchSportScoreDay(day){
    const rawStatus=String(row.status?.short||row.status?.type||row.status||row.status_text||'').toLowerCase();
    const status=/live|in.?play|in.?progress|playing|1st half|2nd half|half.?time|extra time|penalt/.test(rawStatus)?'IN_PLAY':/finish|full.?time|ended|^ft$|^aet$|^pen$/.test(rawStatus)?'FINISHED':'SCHEDULED';
    const score=value=>value===null||value===undefined||value===''?null:Number(value);
-   const competition=String(row.competition||row.competition_name||row.league?.name||row.tournament?.name||'Compétitions internationales');
+   const competition=String(typeof row.competition==='string'?row.competition:row.competition?.name||row.competition_name||row.league?.name||row.tournament?.name||'Compétitions internationales');
    const slug=String(row.slug||row.id||date+'-'+home+'-'+away).slice(0,180);
    return {
     id:'sportscore-'+slug,utcDate:new Date(timestamp).toISOString(),status,
-    competition:{name:competition,code:'sportscore:'+String(row.competition_slug||row.league?.slug||competition.toLowerCase().replace(/[^a-z0-9]+/g,'-'))},
+    competition:{name:competition,code:'sportscore:'+String(row.competition_slug||row.competition?.slug||row.league?.slug||competition.toLowerCase().replace(/[^a-z0-9]+/g,'-'))},
     homeTeam:{id:'',name:home,abbreviation:'',country:{name:'',code:''},logo:row.home_logo||row.teams?.home?.logo||''},
     awayTeam:{id:'',name:away,abbreviation:'',country:{name:'',code:''},logo:row.away_logo||row.teams?.away?.logo||''},
     score:{fullTime:{home:score(row.home_score??row.score?.home??row.scores?.home),away:score(row.away_score??row.score?.away??row.scores?.away)}},
