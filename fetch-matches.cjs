@@ -33,7 +33,7 @@ const leagues=[
  ['uefa.youthleague','UEFA · Youth League']
 ];
 const today=new Date();today.setUTCHours(0,0,0,0);
-const from=new Date(today);from.setUTCDate(from.getUTCDate()-35);
+const from=new Date(today);from.setUTCDate(from.getUTCDate()-7);
 const to=new Date(today);to.setUTCDate(to.getUTCDate()+14);
 const ymd=d=>d.toISOString().slice(0,10).replace(/-/g,'');
 function teamLogo(team){
@@ -100,7 +100,7 @@ async function fetchSportScoreDay(day){
 const dates=[];
 for(let d=new Date(from);d<=to;d.setUTCDate(d.getUTCDate()+1))dates.push(ymd(d));
 (async()=>{
- const tasks=leagues.flatMap(league=>dates.map(day=>({league,day})));
+ // ESPN sert de source de contrôle pour les rencontres du jour. SportScore fournit le calendrier mondial sur toute la fenêtre.\n const tasks=leagues.map(league=>({league,day:ymd(today)}));
  const results=new Array(tasks.length);let cursor=0,completed=0,nonEmpty=0;
  const workers=Array.from({length:10},async()=>{while(true){
   const i=cursor++;if(i>=tasks.length)break;
@@ -113,7 +113,7 @@ for(let d=new Date(from);d<=to;d.setUTCDate(d.getUTCDate()+1))dates.push(ymd(d))
  const espnMatches=results.flat();
  // SportScore complète le calendrier mondial, sans remplacer les scores ESPN.
  // Trois requêtes simultanées restent largement sous la limite publique annoncée.
- const sportDates=dates.filter(day=>day>=ymd(today));
+ const sportDates=dates;
  const sportResults=new Array(sportDates.length);let sportCursor=0;
  const sportWorkers=Array.from({length:3},async()=>{while(true){const i=sportCursor++;if(i>=sportDates.length)break;sportResults[i]=await fetchSportScoreDay(sportDates[i]);}});
  await Promise.all(sportWorkers);
@@ -129,7 +129,7 @@ for(let d=new Date(from);d<=to;d.setUTCDate(d.getUTCDate()+1))dates.push(ymd(d))
  const unique=new Map(combined.map(m=>[m.id,m]));
  const matches=[...unique.values()].sort((a,b)=>new Date(a.utcDate)-new Date(b.utcDate));
  if(!matches.length)throw new Error('Aucune rencontre reçue après '+tasks.length+' requêtes ESPN et '+dates.length+' requêtes SportScore. Le calendrier existant ne sera pas remplacé.');
- const output={generatedAt:new Date().toISOString(),range:{from:from.toISOString(),to:to.toISOString()},sources:{espn:espnMatches.length,sportscore:sportMatches.length,competitions:leagues.length,days:dates.length,requests:tasks.length,sportscoreRequests:sportDates.length},matches};
+ const output={generatedAt:new Date().toISOString(),range:{from:from.toISOString(),to:to.toISOString()},sources:{espn:espnMatches.length,sportscore:sportMatches.length,competitions:leagues.length,days:dates.length,espnRequests:tasks.length,sportscoreRequests:sportDates.length},matches};
  fs.writeFileSync('matches.json',JSON.stringify(output));
  console.log('Calendrier : '+matches.length+' rencontres uniques · ESPN '+espnMatches.length+' · SportScore '+sportMatches.length+' · '+leagues.length+' compétitions · '+dates.length+' dates.');
 })().catch(error=>{console.error(error);process.exit(1)});
