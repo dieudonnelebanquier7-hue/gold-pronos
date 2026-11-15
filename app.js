@@ -1,7 +1,7 @@
 (()=>{'use strict';
 const $=id=>document.getElementById(id),API='https://site.api.espn.com/apis/site/v2/sports/soccer/';
 const API_FOOTBALL_TEMPORARILY_DISABLED=true;
-const leagues=[['eng.1','Angleterre · Premier League'],['eng.2','Angleterre · Championship'],['esp.1','Espagne · LaLiga'],['esp.2','Espagne · Segunda'],['ger.1','Allemagne · Bundesliga'],['ita.1','Italie · Serie A'],['fra.1','France · Ligue 1'],['ned.1','Pays-Bas · Eredivisie'],['por.1','Portugal · Liga'],['tur.1','Turquie · Süper Lig'],['nor.1','Norvège · Eliteserien'],['swe.1','Suède · Allsvenskan'],['sui.1','Suisse · Super League'],['ksa.1','Arabie saoudite · Pro League'],['cze.1','Tchéquie · First League'],['usa.1','États-Unis · MLS'],['rou.1','Roumanie · Liga I'],['rus.1','Russie · Premier League'],['chn.1','Chine · Super League'],['jpn.1','Japon · J1 League'],['bra.1','Brésil · Série A'],['arg.1','Argentine · Liga Profesional'],['mex.1','Mexique · Liga MX'],['uefa.champions','UEFA · Ligue des champions'],['uefa.europa','UEFA · Ligue Europa'],['uefa.europa.conf','UEFA · Ligue Conférence'],['afc.champions','AFC · Ligue des champions'],['fifa.world','FIFA · Coupe du monde masculine'],['fifa.worldq.uefa','FIFA · Qualifications Coupe du monde UEFA'],['fifa.worldq.conmebol','FIFA · Qualifications Coupe du monde CONMEBOL'],['fifa.worldq.concacaf','FIFA · Qualifications Coupe du monde CONCACAF'],['fifa.worldq.afc','FIFA · Qualifications Coupe du monde AFC'],['fifa.worldq.caf','FIFA · Qualifications Coupe du monde CAF'],['fifa.worldq.ofc','FIFA · Qualifications Coupe du monde OFC'],['fifa.friendly','FIFA · Matchs amicaux masculins'],['uefa.euro','UEFA · Championnat d’Europe'],['uefa.nations','UEFA · Ligue des nations'],['conmebol.copa','CONMEBOL · Copa América'],['concacaf.gold','CONCACAF · Gold Cup'],['afc.asian','AFC · Coupe d’Asie'],['caf.nations','CAF · Coupe d’Afrique des nations'],['uefa.wchampions','UEFA · Ligue des championnes'],
+const leagues=[['eng.1','Angleterre · Premier League'],['eng.2','Angleterre · Championship'],['esp.1','Espagne · LaLiga'],['esp.2','Espagne · Segunda'],['ger.1','Allemagne · Bundesliga'],['ita.1','Italie · Serie A'],['fra.1','France · Ligue 1'],['ned.1','Pays-Bas · Eredivisie'],['por.1','Portugal · Liga'],['tur.1','Turquie · Süper Lig'],['nor.1','Norvège · Eliteserien'],['swe.1','Suède · Allsvenskan'],['sui.1','Suisse · Super League'],['ksa.1','Arabie saoudite · Pro League'],['cze.1','Tchéquie · First League'],['usa.1','États-Unis · MLS'],['rou.1','Roumanie · Liga I'],['rus.1','Russie · Premier League'],['chn.1','Chine · Super League'],['jpn.1','Japon · J1 League'],['bra.1','Brésil · Série A'],['arg.1','Argentine · Liga Profesional'],['mex.1','Mexique · Liga MX'],['col.1','Colombie · Primera A'],['chi.1','Chili · Primera División'],['ecu.1','Équateur · Serie A'],['uru.1','Uruguay · Primera División'],['par.1','Paraguay · Primera División'],['bol.1','Bolivie · División Profesional'],['per.1','Pérou · Liga 1'],['aus.1','Australie · A-League'],['kor.1','Corée du Sud · K League 1'],['ind.1','Inde · Indian Super League'],['egy.1','Égypte · Premier League'],['mar.1','Maroc · Botola Pro'],['rsa.1','Afrique du Sud · Premiership'],['gre.1','Grèce · Super League'],['bel.1','Belgique · Pro League'],['sco.1','Écosse · Premiership'],['aut.1','Autriche · Bundesliga'],['den.1','Danemark · Superliga'],['pol.1','Pologne · Ekstraklasa'],['ukr.1','Ukraine · Premier League'],['cro.1','Croatie · HNL'],['srb.1','Serbie · SuperLiga'],['uefa.champions','UEFA · Ligue des champions'],['uefa.europa','UEFA · Ligue Europa'],['uefa.europa.conf','UEFA · Ligue Conférence'],['afc.champions','AFC · Ligue des champions'],['fifa.world','FIFA · Coupe du monde masculine'],['fifa.worldq.uefa','FIFA · Qualifications Coupe du monde UEFA'],['fifa.worldq.conmebol','FIFA · Qualifications Coupe du monde CONMEBOL'],['fifa.worldq.concacaf','FIFA · Qualifications Coupe du monde CONCACAF'],['fifa.worldq.afc','FIFA · Qualifications Coupe du monde AFC'],['fifa.worldq.caf','FIFA · Qualifications Coupe du monde CAF'],['fifa.worldq.ofc','FIFA · Qualifications Coupe du monde OFC'],['fifa.friendly','FIFA · Matchs amicaux masculins'],['uefa.euro','UEFA · Championnat d’Europe'],['uefa.nations','UEFA · Ligue des nations'],['conmebol.copa','CONMEBOL · Copa América'],['concacaf.gold','CONCACAF · Gold Cup'],['afc.asian','AFC · Coupe d’Asie'],['caf.nations','CAF · Coupe d’Afrique des nations'],['uefa.wchampions','UEFA · Ligue des championnes'],
  ['usa.nwsl','États-Unis · NWSL féminine'],['usa.w.usl.1','États-Unis · USL Super League féminine'],
  ['eng.w.1','Angleterre · Women’s Super League'],['esp.w.1','Espagne · Liga F féminine'],
  ['ger.w.1','Allemagne · Frauen-Bundesliga'],['fra.w.1','France · Première Ligue féminine'],
@@ -107,10 +107,31 @@ function buildStaticWorldCompetitionCatalog(){
  });
 }
 async function loadApiFootballLeagues(force=false){
- // API-Football est volontairement désactivé : ne jamais réutiliser son ancien cache ni tenter de l'appeler.
+ // Découverte publique des compétitions ESPN : le catalogue réel complète les compétitions prioritaires.
+ const discovered=[];
+ try{
+  const data=await get('https://site.api.espn.com/apis/site/v2/sports/soccer',12000);
+  const walk=(value,depth=0)=>{
+   if(!value||depth>5)return;
+   if(Array.isArray(value)){value.forEach(x=>walk(x,depth+1));return}
+   if(typeof value!=='object')return;
+   const slug=String(value.slug||value.abbreviation||value.shortName||'').trim();
+   const name=String(value.name||value.displayName||value.shortName||'').trim();
+   const country=String(value.country?.name||value.countryName||value.location||'').trim();
+   if(slug&&name&&/^[a-z0-9]+(?:\\.[a-z0-9]+){1,3}$/i.test(slug)&&!['soccer'].includes(slug.toLowerCase())){
+    const label=(country?country+' · ':'')+name;
+    discovered.push([slug,label]);
+   }
+   for(const [key,item] of Object.entries(value))if(item&&typeof item==='object'&&key!=='logos')walk(item,depth+1);
+  };
+  walk(data);
+ }catch(error){console.warn('[GOLD PRONOS] Répertoire ESPN indisponible ; conservation du catalogue prioritaire.',error?.message||error)}
+ const known=new Map(leagues.map(x=>[x[0],x]));
+ for(const [code,label] of discovered)if(!known.has(code))known.set(code,[code,label]);
+ leagues.splice(0,leagues.length,...known.values());
  worldLeagues=buildStaticWorldCompetitionCatalog();
- worldLeaguesSource='ESPN';
- apiFootballUnavailableReason='API-Football désactivé ; catalogue de secours ESPN';
+ worldLeaguesSource='ESPN · répertoire public'+(discovered.length?' · '+discovered.length+' entrées détectées':' · catalogue prioritaire');
+ apiFootballUnavailableReason='API-Football désactivé ; sources publiques ESPN et SportScore';
  renderWorldCompetitionCatalog();
  populateStandingsCompetitionOptions();
  return worldLeagues;
@@ -1009,7 +1030,7 @@ function populateStandingsCompetitionOptions(){
  const select=$('standings-league');if(!select)return;
  const current=select.value,staticOptions=standingsLeagues.map(([value,label])=>'<option value="'+safe(value)+'">'+safe(label)+'</option>').join('');
  const apiOptions=currentApiStandingOptions().sort((a,b)=>a.label.localeCompare(b.label,'fr')).map(x=>'<option value="'+safe(x.value)+'">'+safe(x.label)+'</option>').join('');
- select.innerHTML='<optgroup label="Compétitions ESPN">'+staticOptions+'</optgroup>'+(apiOptions?'<optgroup label="Classements API-Football vérifiables">'+apiOptions+'</optgroup>':'');
+ select.innerHTML='<optgroup label="Classements ESPN / OpenLigaDB">'+staticOptions+'</optgroup>';
  if([...select.options].some(o=>o.value===current))select.value=current;
 }
 function extractEspnStandingsGroups(data){
@@ -1163,14 +1184,7 @@ async function loadStandings(){
  box.innerHTML='<div class="loading">Chargement du classement officiel de '+safe(selectedName)+'…</div>';
  try{
   let groups=[],source='ESPN',fetchedAt='';
-  if(code.startsWith('api:')){
-   const parts=code.split(':'),leagueId=parts[1],season=Number(parts[2]);
-   const data=await apiFootballRequest({action:'standings',leagueId,season});
-   if(!data?.configured)throw Error(data?.error||'API-Football non configurée');
-   groups=apiFootballStandingGroups(data);
-   source='API-Football';
-   fetchedAt=data.fetched_at||'';
-  }else{
+  if(!code.startsWith('api:')){
    let lastError=null;
    const urls=['https://site.api.espn.com/apis/v2/sports/soccer/'+encodeURIComponent(code)+'/standings','https://site.web.api.espn.com/apis/v2/sports/soccer/'+encodeURIComponent(code)+'/standings'];
    for(const url of urls){try{const data=await get(url,15000);groups=extractEspnStandingsGroups(data);if(groups.length)break}catch(error){lastError=error}}
@@ -1492,9 +1506,9 @@ function updateLiveEvent(m,event){const comp=event.competitions?.[0]||{},teams=c
  const raw=st.displayClock||comp.status?.displayClock||st.shortDetail||'';if(raw&&/\d/.test(String(raw))){m.clockBaseSeconds=clockSeconds(raw);if(m.periodNumber===2&&m.clockBaseSeconds<2700)m.clockBaseSeconds+=2700;if(m.periodNumber===3&&m.clockBaseSeconds<5400)m.clockBaseSeconds+=5400;if(m.periodNumber===4&&m.clockBaseSeconds<6300)m.clockBaseSeconds+=6300;m.clockUpdatedAt=Date.now();}else if(m.live&&(m.clockBaseSeconds===null||m.clockBaseSeconds===undefined)){m.clockUpdatedAt=Date.now();}
  const added=String(st.shortDetail||st.detail||'').match(/(\d{1,3})\s*['′]?\s*\+\s*(\d{1,2})/);m.clockLabel=added?added[1]+'+'+added[2]:'';if(added&&Number(m.clockBaseSeconds||0)<(Number(added[1])+Number(added[2]))*60)m.clockBaseSeconds=(Number(added[1])+Number(added[2]))*60;m.clockRunning=m.live&&!/half.?time|mi-temps|break|suspended/i.test(m.periodDetail);m.date=event.date||m.date;m.raw=event;
 }
-async function pollLiveScores(force=false){if(!matches.length)return;const apiLiveRows=await loadApiFootballLive(force).catch(error=>{console.warn('API-Football live indisponible',error?.message||error);return []});const apiLiveCheck=mergeApiFootballLiveFixtures(apiLiveRows);const now=Date.now(),groups=new Map();for(const m of matches){if(String(m.code||'').startsWith('api-football:')||String(m.code||'').startsWith('sportscore:'))continue;const kick=new Date(m.date).getTime();if(!m.code||m.finished||!Number.isFinite(kick)||kick>now+60*60000||kick<now-5*3600000)continue;const day=new Date(m.date).toISOString().slice(0,10).replace(/-/g,'');const key=m.code+'|'+day;if(!groups.has(key))groups.set(key,{code:m.code,day})}
+async function pollLiveScores(force=false){if(!matches.length)return;const apiLiveCheck={changed:false,added:0,count:0};const now=Date.now(),groups=new Map();for(const m of matches){if(String(m.code||'').startsWith('api-football:')||String(m.code||'').startsWith('sportscore:'))continue;const kick=new Date(m.date).getTime();if(!m.code||m.finished||!Number.isFinite(kick)||kick>now+60*60000||kick<now-5*3600000)continue;const day=new Date(m.date).toISOString().slice(0,10).replace(/-/g,'');const key=m.code+'|'+day;if(!groups.has(key))groups.set(key,{code:m.code,day})}
  const requests=[...groups.values()];let cursor=0;const settled=[];const workers=Array.from({length:5},async()=>{while(true){const i=cursor++;if(i>=requests.length)break;const g=requests[i];try{settled[i]={status:'fulfilled',value:await get(API+g.code+'/scoreboard?dates='+g.day+'&limit=100&region=fr&lang=fr',11000)}}catch(error){settled[i]={status:'rejected',reason:error}}}});await Promise.all(workers);const results=settled;
- let changed=!!apiLiveCheck.changed;results.forEach((r,index)=>{if(r.status!=='fulfilled')return;const group=requests[index];for(const event of r.value.events||[]){const comp=event.competitions?.[0]||{},teams=comp.competitors||[],home=teams.find(x=>x.homeAway==='home')||teams[0],away=teams.find(x=>x.homeAway==='away')||teams[1];const m=matches.find(x=>x.id===String(event.id))||matches.find(x=>x.code===group.code&&providerNorm(x.home)===providerNorm(home?.team?.displayName||home?.team?.name)&&providerNorm(x.away)===providerNorm(away?.team?.displayName||away?.team?.name)&&Math.abs(new Date(x.date).getTime()-new Date(event.date).getTime())<5*3600000);if(!m)continue;if(m.id!==String(event.id))m.espnEventId=String(event.id);const before=[m.status,m.homeScore,m.awayScore,m.periodDetail].join('|');updateLiveEvent(m,event);const after=[m.status,m.homeScore,m.awayScore,m.periodDetail].join('|');if(before!==after)changed=true}});
+ let changed=false;results.forEach((r,index)=>{if(r.status!=='fulfilled')return;const group=requests[index];for(const event of r.value.events||[]){const comp=event.competitions?.[0]||{},teams=comp.competitors||[],home=teams.find(x=>x.homeAway==='home')||teams[0],away=teams.find(x=>x.homeAway==='away')||teams[1];const m=matches.find(x=>x.id===String(event.id))||matches.find(x=>x.code===group.code&&providerNorm(x.home)===providerNorm(home?.team?.displayName||home?.team?.name)&&providerNorm(x.away)===providerNorm(away?.team?.displayName||away?.team?.name)&&Math.abs(new Date(x.date).getTime()-new Date(event.date).getTime())<5*3600000);if(!m)continue;if(m.id!==String(event.id))m.espnEventId=String(event.id);const before=[m.status,m.homeScore,m.awayScore,m.periodDetail].join('|');updateLiveEvent(m,event);const after=[m.status,m.homeScore,m.awayScore,m.periodDetail].join('|');if(before!==after)changed=true}});
  const sportScore=await loadSportScoreLive(force).catch(error=>{console.warn('SportScore live indisponible',error?.message||error);return null});const crossCheck=mergeSportScoreLive(sportScore);if(crossCheck.changed)changed=true;if(changed){render();renderLive();renderPersonalizedHome();localMatchAlerts()}const active=matches.filter(m=>m.live).length;const el=$('live-indicator');if(el)el.textContent=active?active+' match'+(active>1?'s':'')+' en cours':'Suivi en direct activé';}
 async function loadEspnFixtures(todayOnly=false){
  const today=new Date();today.setUTCHours(0,0,0,0);
@@ -1550,12 +1564,11 @@ async function refresh(){
   const extras=mergeApiFootballFixtures(apiRows);matches=[...matches,...extras];
   if(!matches.length)throw Error('Aucun calendrier récent vérifié disponible');
   const nationalHistory=await loadEspnTeamHistory().catch(error=>{console.warn('Historique des équipes indisponible',error?.message||error);return {teams:0,added:0,apiUnconfirmed:null,apiFailed:1}});
-  const apiLiveRows=await loadApiFootballLive().catch(error=>{console.warn('API-Football live indisponible',error?.message||error);return []});
-  const apiLiveCheck=mergeApiFootballLiveFixtures(apiLiveRows);
+  const apiLiveCheck={changed:false,added:0,count:0};
   const sportScore=await loadSportScoreLive().catch(error=>{console.warn('SportScore indisponible, scores ESPN conservés',error?.message||error);return null});
   const sportScoreCheck=mergeSportScoreLive(sportScore);
   render();renderLive();renderPicks();renderVIP();renderPersonalizedHome();localMatchAlerts();
-  const providers=['ESPN'];if(apiRows.length)providers.push('API-Football');if(sportScoreCheck.confirmed||matches.some(m=>(m.providers||[]).some(p=>String(p).toLowerCase()==='sportscore')))providers.push('SportScore');
+  const providers=['ESPN'];if(sportScoreCheck.confirmed||matches.some(m=>(m.providers||[]).some(p=>String(p).toLowerCase()==='sportscore')))providers.push('SportScore');
   const historyStatus=nationalHistory.apiUnconfirmed===null?'Vérification des historiques indisponible':nationalHistory.apiUnconfirmed>0?'Historique incomplet pour '+nationalHistory.apiUnconfirmed+' équipe(s) · pronostics concernés ignorés':'Historiques suffisants';
   const providerStatus=apiFootballUnavailableReason?'ESPN · API-Football indisponible · mode de secours actif':providers.join(' + ');
   $('updated').textContent='Données actualisées · '+matches.length+' rencontres · '+providerStatus+' · '+historyStatus+' · '+appDate(new Date(),{dateStyle:'medium',timeStyle:'short'});
