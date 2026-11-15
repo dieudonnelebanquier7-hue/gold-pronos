@@ -12,7 +12,7 @@ const leagues=[['eng.1','Angleterre · Premier League'],['eng.2','Angleterre · 
  ['fifa.wworld.u17','FIFA · Coupe du monde U17 féminine'],['fifa.friendly','FIFA · Matchs amicaux masculins'],
  ['uefa.u21','UEFA · Compétitions U21'],['uefa.youthleague','UEFA · Youth League']];
 const standingsLeagues=leagues;
-let matches=[],worldLeagues=[],worldLeaguesSource='API-Football',apiFootballUnavailableReason='',activeLeague='eng.1',busy=false;
+let matches=[],worldLeagues=[],worldLeaguesSource='ESPN',apiFootballUnavailableReason='',activeLeague='eng.1',busy=false;
 const dateKey=d=>{const x=new Date(d);return x.getFullYear()+String(x.getMonth()+1).padStart(2,'0')+String(x.getDate()).padStart(2,'0')};
 const safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function appLocale(){return ({fr:'fr-FR',en:'en-GB',es:'es-ES',pt:'pt-PT',de:'de-DE',it:'it-IT',ar:'ar'})[window.GoldI18n?.getLanguage?.()||readAppSettings().language||'fr']||'fr-FR'}
@@ -107,19 +107,12 @@ function buildStaticWorldCompetitionCatalog(){
  });
 }
 async function loadApiFootballLeagues(force=false){
- const key='gold-pronos-world-leagues-v1',now=Date.now();
- if(!force){try{const c=JSON.parse(localStorage.getItem(key)||'null');if(c&&now-c.at<24*60*60*1000&&Array.isArray(c.leagues)){worldLeagues=c.leagues;worldLeaguesSource='API-Football';renderWorldCompetitionCatalog();populateStandingsCompetitionOptions();return c.leagues}}catch(_){}}
- try{
-  const data=await apiFootballRequest({action:'leagues'});
-  if(!data?.configured||!Array.isArray(data.leagues))throw Error(data?.error||'Catalogue mondial API-Football indisponible');
-  worldLeagues=data.leagues;worldLeaguesSource='API-Football';
-  try{localStorage.setItem(key,JSON.stringify({at:now,leagues:worldLeagues}))}catch(_){}
- }catch(error){
-  apiFootballUnavailableReason=String(error?.message||error||'API-Football indisponible');
-  worldLeagues=buildStaticWorldCompetitionCatalog();worldLeaguesSource='ESPN';
-  console.warn('Catalogue mondial API-Football indisponible ; catalogue ESPN utilisé',apiFootballUnavailableReason);
- }
- renderWorldCompetitionCatalog();populateStandingsCompetitionOptions();
+ // API-Football est volontairement désactivé : ne jamais réutiliser son ancien cache ni tenter de l'appeler.
+ worldLeagues=buildStaticWorldCompetitionCatalog();
+ worldLeaguesSource='ESPN';
+ apiFootballUnavailableReason='API-Football désactivé ; catalogue de secours ESPN';
+ renderWorldCompetitionCatalog();
+ populateStandingsCompetitionOptions();
  return worldLeagues;
 }
 function classifyWorldCompetition(item){
@@ -1182,10 +1175,7 @@ async function loadStandings(){
    const urls=['https://site.api.espn.com/apis/v2/sports/soccer/'+encodeURIComponent(code)+'/standings','https://site.web.api.espn.com/apis/v2/sports/soccer/'+encodeURIComponent(code)+'/standings'];
    for(const url of urls){try{const data=await get(url,15000);groups=extractEspnStandingsGroups(data);if(groups.length)break}catch(error){lastError=error}}
    if(!groups.length){try{const fallback=await fetchOpenLigaStandings(code);groups=fallback.groups;source=fallback.source;fetchedAt=fallback.fetchedAt}catch(error){lastError=error}}
-   if(!groups.length){
-    const apiLeague=await findApiFootballQualifierStanding(code);
-    if(apiLeague){try{const data=await apiFootballRequest({action:'standings',leagueId:apiLeague.leagueId,season:apiLeague.season});if(data?.configured){groups=apiFootballStandingGroups(data);if(groups.length){source='API-Football';fetchedAt=data.fetched_at||''}}}catch(error){lastError=error}}
-   }
+   // Aucun appel API-Football : ce fournisseur est désactivé à la demande du propriétaire.
    if(!groups.length){const cached=readStandingsCache(code);if(cached?.groups?.length){groups=cached.groups;source=(cached.source||'Source précédente')+' · cache local';fetchedAt=cached.fetchedAt||''}}
    if(!groups.length)throw lastError||Error('Aucun classement officiel publié par les sources disponibles');
   }
