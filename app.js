@@ -473,7 +473,7 @@ function renderPersonalizedHome(){
  $('edit-football-prefs').onclick=()=>showOnboarding(true);
 }
 function initOnboarding(){const form=$('onboarding-form');if(!form)return;form.onsubmit=e=>{e.preventDefault();const p={player:$('onboard-player').value.trim(),club:$('onboard-club').value.trim(),country:$('onboard-country').value.trim(),competitions:[...$('onboard-competitions').selectedOptions].map(o=>o.value)};saveFootballPrefs(p);$('onboarding').hidden=true;renderPersonalizedHome();};$('onboarding-skip').onclick=()=>{$('onboarding').hidden=true;saveFootballPrefs({});};showOnboarding();renderPersonalizedHome();}
-function render(){const q=$('search').value.toLowerCase(),f=$('date-filter').value,now=new Date(),today=dateKeyInAppZone(now),tomorrow=dateKeyInAppZone(now+86400000);const startToday=new Date(now.getFullYear(),now.getMonth(),now.getDate()),endToday=new Date(startToday);endToday.setDate(endToday.getDate()+1);let list=matches.filter(m=>(!q||(m.home+' '+m.away+' '+m.league).toLowerCase().includes(q)));list=list.filter(m=>{const d=new Date(m.date);if(f==='live')return m.live;if(f==='finished')return m.finished;if(f==='upcoming')return !m.live&&!m.finished&&d>now;if(f==='today')return dateKeyInAppZone(m.date)===today;if(f==='tomorrow')return dateKeyInAppZone(m.date)===tomorrow;if(f==='next7')return !m.live&&!m.finished&&d>=now&&d<now.getTime()+7*86400000;if(f==='next14')return !m.live&&!m.finished&&d>=now&&d<now.getTime()+14*86400000;if(f==='past7')return m.finished&&d>=now.getTime()-7*86400000;return d>=now.getTime()-7*86400000&&d<=now.getTime()+14*86400000});list.sort((x,y)=>{const nowMs=Date.now(),priority=m=>m.live?0:!m.finished&&new Date(m.date).getTime()>=nowMs?1:2,px=priority(x),py=priority(y);if(px!==py)return px-py;return px===2?new Date(y.date)-new Date(x.date):new Date(x.date)-new Date(y.date)});const box=$('home-matches');box.replaceChildren();if(!list.length){box.innerHTML='<div class="notice">Aucun match vérifié pour cette période. Choisis une autre date ou actualise le calendrier.</div>'}else{let last='';for(const m of list.slice(0,350)){const key=dateKeyInAppZone(m.date);if(key!==last){last=key;const h=document.createElement('h3');h.className='day-heading';h.textContent=appDate(m.date,{weekday:'long',day:'numeric',month:'long',year:'numeric'});box.append(h)}box.append(card(m))}}$('match-count').textContent=matches.length}
+function render(){const q=$('search').value.toLowerCase(),f=$('date-filter').value,now=new Date(),today=dateKeyInAppZone(now),tomorrow=dateKeyInAppZone(now+86400000);const startToday=new Date(now.getFullYear(),now.getMonth(),now.getDate()),endToday=new Date(startToday);endToday.setDate(endToday.getDate()+1);let list=matches.filter(m=>(!q||(m.home+' '+m.away+' '+m.league).toLowerCase().includes(q)));list=list.filter(m=>{const d=new Date(m.date);if(f==='live')return m.live;if(f==='finished')return m.finished;if(f==='upcoming')return !m.live&&!m.finished&&d>now;if(f==='today')return dateKeyInAppZone(m.date)===today;if(f==='tomorrow')return dateKeyInAppZone(m.date)===tomorrow;if(f==='next7')return !m.live&&!m.finished&&d>=now&&d<now.getTime()+7*86400000;if(f==='next14')return !m.live&&!m.finished&&d>=now&&d<now.getTime()+14*86400000;if(f==='past7')return m.finished&&d>=now.getTime()-7*86400000;return d>=now.getTime()-7*86400000&&d<=now.getTime()+14*86400000});list.sort((x,y)=>compareMatchPriority(x,y));const box=$('home-matches');box.replaceChildren();if(!list.length){box.innerHTML='<div class="notice">Aucun match vérifié pour cette période. Choisis une autre date ou actualise le calendrier.</div>'}else{const shownDays=new Set();for(const m of list.slice(0,350)){const key=dateKeyInAppZone(m.date);if(!shownDays.has(key)){shownDays.add(key);const h=document.createElement('h3');h.className='day-heading';h.textContent=appDate(m.date,{weekday:'long',day:'numeric',month:'long',year:'numeric'});box.append(h)}box.append(card(m))}}$('match-count').textContent=matches.length}
 function renderLive(){
  const box=$('live-matches');if(!box)return;box.replaceChildren();
  const unique=new Map();
@@ -772,7 +772,7 @@ function xtext(x){return x.text||x.shortText||x.type?.text||x.type?.name||'Évé
 function trustedFinishedResult(x,now=Date.now()){
  const date=Date.parse(x?.date),hasScores=x?.homeScore!==null&&x?.homeScore!==undefined&&String(x.homeScore).trim()!==''&&x?.awayScore!==null&&x?.awayScore!==undefined&&String(x.awayScore).trim()!=='',home=Number(x?.homeScore),away=Number(x?.awayScore);
  const sources=[x?.source,...(Array.isArray(x?.providers)?x.providers:[])].filter(Boolean).map(v=>String(v).toLowerCase());
- const trustedSource=sources.some(v=>v==='espn'||v==='api-football');
+ const trustedSource=sources.some(v=>v==='espn'||v==='api-football'||v==='sportscore');
  return !!x&&x.finished===true&&!x.live&&!x.scoreConflict&&trustedSource&&Number.isFinite(date)&&date<now&&date>=now-730*86400000&&hasScores&&Number.isInteger(home)&&Number.isInteger(away)&&home>=0&&away>=0&&!!providerNorm(x.home)&&!!providerNorm(x.away);
 }
 function trustedUpcomingFixture(x,now=Date.now(),horizon=now+7*86400000){
@@ -856,10 +856,24 @@ async function cornerHistory(teamMatches){
  finally{if(cornerHistoryInFlight===work)cornerHistoryInFlight=null}
  return totals;
 }
+function competitionImportance(m){
+ const name=String(m?.league||m?.competition||'').toLowerCase();
+ if(/champions league|ligue des champions|world cup|coupe du monde|european championship|championnat d.?europe|africa cup|coupe d.?afrique|copa america|gold cup|europa league|ligue europa|conference league|nations league|ligue des nations/.test(name))return 100;
+ if(/premier league|laliga|la liga|bundesliga|serie a|ligue 1|eredivisie|primeira liga|süper lig|super lig|mls|major league soccer|saudi pro league/.test(name))return 85;
+ if(/championship|segunda|serie b|2\. bundesliga|ligue 2|segunda division|first division|super league/.test(name))return 65;
+ if(/u(?:-)?(?:15|16|17|18|19|20|21|23)|youth|junior|women|feminin|féminin/.test(name))return 35;
+ return 45;
+}
+function compareMatchPriority(a,b,now=Date.now()){
+ const state=m=>m.live?0:!m.finished&&new Date(m.date).getTime()>=now?1:2;
+ const sa=state(a),sb=state(b);if(sa!==sb)return sa-sb;
+ if(sa<2){const importance=competitionImportance(b)-competitionImportance(a);if(importance)return importance;}
+ return sa===2?new Date(b.date)-new Date(a.date):new Date(a.date)-new Date(b.date);
+}
 function renderPicks(){
  const box=$('picks');if(!box)return;
  const now=Date.now(),horizon=now+7*86400000;
- const dayMatches=matches.filter(m=>trustedUpcomingFixture(m,now,horizon)).sort((a,b)=>new Date(a.date)-new Date(b.date));const picksToRender=dayMatches.slice(0,80);
+ const dayMatches=matches.filter(m=>trustedUpcomingFixture(m,now,horizon)).sort((a,b)=>competitionImportance(b)-competitionImportance(a)||new Date(a.date)-new Date(b.date));const picksToRender=dayMatches.slice(0,80);
  box.replaceChildren();
  const heading=document.createElement('div');heading.className='notice';heading.innerHTML='<b>PRONOSTICS · 7 PROCHAINS JOURS</b><br>'+dayMatches.length+' rencontre(s) à venir · analyse détaillée des '+picksToRender.length+' premières rencontres · '+safe(appDate(now,{weekday:'long',day:'numeric',month:'long'}))+' au '+safe(appDate(horizon,{day:'numeric',month:'long'}))+' · Sélections calculées à partir des résultats vérifiés disponibles.';box.append(heading);
  if(!dayMatches.length){const empty=document.createElement('div');empty.className='notice';empty.textContent='Aucun match à venir confirmé dans les sept prochains jours pour les compétitions suivies. Le calendrier sera actualisé automatiquement.';box.append(empty);return}
@@ -874,10 +888,11 @@ function renderPicks(){
   const hhs=matchStats(homeContext,m.home,m.homeId,m.source,m.apiHomeId),aas=matchStats(awayContext,m.away,m.awayId,m.source,m.apiAwayId);
   const el=document.createElement('article');el.className='pick-card';
   el.innerHTML='<span class="eyebrow">'+safe(m.league)+'</span><div class="pick-team-heading">'+crestMarkup(m.home,m.homeLogo,m.homeNational?'pick-flag':'pick-crest')+'<h3>'+safe(m.home)+' <span>—</span> '+safe(m.away)+'</h3>'+crestMarkup(m.away,m.awayLogo,m.awayNational?'pick-flag':'pick-crest')+'</div><p><b>Coup d’envoi :</b> '+safe(appDate(m.date,{hour:'2-digit',minute:'2-digit'}))+'</p>';
-  if(!hs||!as||hs.n<5||as.n<5||!hhs||!aas){
-   el.innerHTML+='<div class="notice"><b>Analyse en attente</b><p>Il faut au moins 5 résultats terminés et vérifiés pour chaque équipe.</p><small>'+h.length+' résultat(s) pour '+safe(m.home)+' · '+a.length+' pour '+safe(m.away)+' · domicile : '+hHome.length+' · extérieur : '+aAway.length+'. Aucun choix ne sera inventé.</small></div>';
+  if(!hs||!as||hs.n<3||as.n<3||!hhs||!aas){
+   el.innerHTML+='<div class="notice"><b>Analyse en attente</b><p>Il faut au moins 3 résultats terminés et vérifiés pour chaque équipe. Avec 3 ou 4 résultats, l'indication reste provisoire et de faible confiance.</p><small>'+h.length+' résultat(s) pour '+safe(m.home)+' · '+a.length+' pour '+safe(m.away)+' · domicile : '+hHome.length+' · extérieur : '+aAway.length+'. Aucun choix ne sera inventé.</small></div>';
    box.append(el);continue;
   }
+  if(hs.n<5||as.n<5){el.innerHTML+='<div class="notice"><b>Échantillon limité · confiance faible</b><p>Analyse provisoire fondée sur '+hs.n+' match(s) pour '+safe(m.home)+' et '+as.n+' pour '+safe(m.away)+'. Vérifie les informations avant toute décision.</p></div>';}
   const homeForm=hs.ppg*0.35+hhs.ppg*0.65,awayForm=as.ppg*0.35+aas.ppg*0.65;
   const edge=homeForm-awayForm;
   let strong='Aucun favori net',strongWhy='Écart de forme trop faible pour isoler une victoire.';
