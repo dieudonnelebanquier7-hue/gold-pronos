@@ -45,7 +45,8 @@ jobs:
           const generatedAt = Date.parse(d.generatedAt || '');
           if (!Number.isFinite(generatedAt) || Date.now() - generatedAt > 36 * 60 * 60 * 1000) throw new Error('Calendrier absent ou trop ancien.');
           const sources = d.sources || {};
-          if (sources.espnRequests > 60 || sources.sportscoreRequests > 50) throw new Error('Quota de collecte inattendu : vérifier les limites des sources.');
+          if (sources.espnRequests > 1500 || sources.sportscoreRequests > 50) throw new Error('Quota de collecte inattendu : vérifier les limites des sources.');
+          if (Number(sources.espnDays || 0) < 7 || Number(sources.espnCompetitions || 0) < 30) throw new Error('Couverture ESPN trop étroite : collecte multi-jours ou compétitions mondiales absente.');
           if (!rows.length) throw new Error('Calendrier vide : aucune source n’a fourni de rencontre. Publication annulée.');
           const ids = new Set();
           let invalid = 0;
