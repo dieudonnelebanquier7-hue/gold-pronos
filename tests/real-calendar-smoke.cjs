@@ -31,7 +31,16 @@ const { chromium } = require('playwright');
   }
   const cards = rendered.cards;
   const firstCard = rendered.firstCard;
-  const result = {ok:true, generatedMatches:calendar.matches.length, visibleHomeCards:cards, firstVisibleMatch:firstCard.slice(0,220), mobileWidth:await page.evaluate(()=>document.documentElement.clientWidth), pageErrors:errors};
+  if (Number(rendered.matchCount) !== calendar.matches.length) throw new Error('Home match counter does not equal the full generated calendar: '+rendered.matchCount+' / '+calendar.matches.length);
+  let expandedCards=cards;
+  if (calendar.matches.length > 350) {
+    const more = page.locator('#home-matches button').filter({hasText:'Afficher'}).first();
+    if (!(await more.count())) throw new Error('The full calendar has more than 350 fixtures but the progressive-load control is missing.');
+    await more.click();
+    expandedCards = await page.locator('#home-matches .match').count();
+    if (expandedCards <= cards) throw new Error('The progressive-load control did not reveal additional fixtures.');
+  }
+  const result = {ok:true, generatedMatches:calendar.matches.length, visibleHomeCards:cards, expandedHomeCards:expandedCards, firstVisibleMatch:firstCard.slice(0,220), mobileWidth:await page.evaluate(()=>document.documentElement.clientWidth), pageErrors:errors};
   if (errors.length) throw new Error('Browser JavaScript errors with real calendar: '+errors.join(' | '));
   console.log(JSON.stringify(result,null,2));
   await browser.close();
