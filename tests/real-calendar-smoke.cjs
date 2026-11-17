@@ -69,17 +69,33 @@ const { chromium } = require('playwright');
     if (!tab) throw new Error('Independent national-team tab is missing.');
     tab.click();
   });
-  await page.locator('#nt-fixtures .nt-fixture').first().waitFor({state:'visible',timeout:15000});
+  // An empty national fixture window is valid when no verified international match is in the loaded calendar.
+  // The page must render either fixtures or its explicit no-data notice.
+  await page.waitForFunction(() => {
+    const box = document.querySelector('#nt-fixtures');
+    return box && (box.querySelector('.nt-fixture') || box.querySelector('.notice'));
+  }, {timeout:15000});
+  await page.waitForFunction(() => /rencontres nationales détectées/.test(document.querySelector('#nt-source-status')?.textContent || ''), {timeout:15000});
   await page.locator('#nt-predictions .notice').first().waitFor({state:'visible',timeout:15000});
   const nationalSummaryText = await page.locator('#nt-predictions .notice').first().innerText();
   const nationalCounts = nationalSummaryText.match(/(\d+) pronostic\(s\) calculé\(s\) · (\d+) analyse\(s\) en attente sur (\d+) rencontre\(s\) à venir/);
-  if (!nationalCounts) throw new Error('National prediction summary is missing or unreadable: '+nationalSummaryText);
   const nationalPredictionCards = await page.locator('#nt-predictions .nt-pick').count();
   const nationalPendingCards = await page.locator('#nt-predictions .nt-pick.pending').count();
   const nationalCalculatedCards = nationalPredictionCards - nationalPendingCards;
-  if (nationalPredictionCards !== Number(nationalCounts[3]) || nationalPendingCards !== Number(nationalCounts[2]) || nationalCalculatedCards !== Number(nationalCounts[1])) {
-    throw new Error('National prediction cards do not match the visible summary: '+JSON.stringify({nationalCounts:nationalCounts.slice(1),nationalPredictionCards,nationalPendingCards,nationalCalculatedCards}));
+  let nationalUpcomingMatches = 0;
+  if (nationalCounts) {
+    nationalUpcomingMatches = Number(nationalCounts[3]);
+    if (nationalPredictionCards !== nationalUpcomingMatches || nationalPendingCards !== Number(nationalCounts[2]) || nationalCalculatedCards !== Number(nationalCounts[1])) {
+      throw new Error('National prediction cards do not match the visible summary: '+JSON.stringify({nationalCounts:nationalCounts.slice(1),nationalPredictionCards,nationalPendingCards,nationalCalculatedCards}));
+    }
+  } else if (/Aucun match international à venir confirmé dans le calendrier chargé/i.test(nationalSummaryText)) {
+    if (nationalPredictionCards !== 0) throw new Error('National prediction cards exist although the page reports no confirmed upcoming international match.');
+  } else {
+    throw new Error('National prediction summary is missing or unreadable: '+nationalSummaryText);
   }
+  const nationalFixtureCards = await page.locator('#nt-fixtures .nt-fixture').count();
+  const nationalCompetitionCards = await page.locator('#nt-competition-list .nt-comp-card').count();
+  if (!nationalCompetitionCards) throw new Error('The independent national competition catalogue did not render.');
   const result = {
     ok:true,
     generatedMatches:calendar.matches.length,
@@ -92,7 +108,9 @@ const { chromium } = require('playwright');
     nationalPredictionCards,
     nationalCalculatedCards,
     nationalPendingCards,
-    nationalUpcomingMatches:Number(nationalCounts[3]),
+    nationalUpcomingMatches,
+    nationalFixtureCards,
+    nationalCompetitionCards,
     firstVisibleMatch:firstCard.slice(0,220),
     mobileWidth:await page.evaluate(()=>document.documentElement.clientWidth),
     pageErrors:errors
