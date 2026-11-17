@@ -70,9 +70,11 @@ jobs:
       - name: Prepare Capacitor Android project
         run: |
           mkdir -p www
-          cp index.html app.js auth.js styles.css i18n.js sw.js manifest.webmanifest icon.svg matches.json news.json www/
+          cp index.html app.js auth.js styles.css i18n.js sw.js national-teams.js manifest.webmanifest icon.svg matches.json news.json www/
           test -s www/auth.js
+          test -s www/national-teams.js
           node --check www/auth.js
+          node --check www/national-teams.js
           node --check www/app.js
           cat > package.json <<'EOF'
           {
