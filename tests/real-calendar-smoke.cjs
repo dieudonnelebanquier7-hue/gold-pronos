@@ -44,18 +44,19 @@ const { chromium } = require('playwright');
       String(m.homeTeam?.name || '').trim() && String(m.awayTeam?.name || '').trim();
   });
   if (Number(rendered.matchCount) !== eligibleMatches.length) throw new Error('Home match counter does not equal the complete eligible calendar window: '+rendered.matchCount+' / '+eligibleMatches.length+' (full archive: '+calendar.matches.length+').');
-  const normalizeTeam = value => String(value || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
+  const normalizeTeam = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
   const importance = value => {
     const name = String(value || '').toLowerCase();
     if (/champions league|ligue des champions|world cup|coupe du monde|european championship|championnat d.?europe|africa cup|coupe d.?afrique|copa america|gold cup|europa league|ligue europa|conference league|nations league|ligue des nations/.test(name)) return 100;
     if (/premier league|laliga|la liga|bundesliga|serie a|ligue 1|eredivisie|primeira liga|süper lig|super lig|mls|major league soccer|saudi pro league/.test(name)) return 85;
-    if (/championship|segunda|serie b|2\\. bundesliga|ligue 2|segunda division|first division|super league/.test(name)) return 65;
+    if (/championship|segunda|serie b|2\. bundesliga|ligue 2|segunda division|first division|super league/.test(name)) return 65;
     if (/u(?:-)?(?:15|16|17|18|19|20|21|23)|youth|junior|women|feminin|féminin/.test(name)) return 35;
     return 45;
   };
   const firstFixture = eligibleMatches.find(m => {
     const home = normalizeTeam(m.homeTeam?.name), away = normalizeTeam(m.awayTeam?.name);
-    return home && away && firstCard.includes(m.homeTeam.name) && firstCard.includes(m.awayTeam.name);
+    const firstCardText = normalizeTeam(firstCard);
+    return home && away && firstCardText.includes(home) && firstCardText.includes(away);
   });
   if (!firstFixture) throw new Error('The first homepage card could not be matched to the generated calendar.');
   const activeFixtures = eligibleMatches.filter(m => {
