@@ -60,7 +60,45 @@ function renderPredictions(){
 }
 function update(){renderStats();renderTeams();renderCompetitions();renderFixtures();renderPredictions();}
 async function fetchTeamsForCompetition(code){const url='https://site.api.espn.com/apis/site/v2/sports/soccer/'+encodeURIComponent(code)+'/teams?limit=500';try{const r=await fetch(url,{cache:'no-store',signal:AbortSignal.timeout(10000)});if(!r.ok)return [];const d=await r.json();const found=[];const walk=(v,depth=0)=>{if(!v||depth>7)return;if(Array.isArray(v)){v.forEach(x=>walk(x,depth+1));return}if(typeof v!=='object')return;const t=v.team||v;if(t&&t.id&& (t.displayName||t.name)){const name=t.displayName||t.name;if(!found.some(x=>x.id===String(t.id)))found.push({id:String(t.id),name,country:t.location||t.country?.name||'',logo:t.logos?.[0]?.href||t.logo||'',source:'ESPN'});}for(const [k,x] of Object.entries(v))if(x&&typeof x==='object'&&k!=='logos')walk(x,depth+1)};walk(d);return found}catch(_){return []}}
-async function load(){if(busy)return;busy=true;const box=$('nt-fixtures');if(box)box.innerHTML='<div class="loading">Chargement des calendriers internationaux vérifiés…</div>';try{const d=await fetch('./matches.json',{cache:'no-store'});if(!d.ok)throw Error('Le calendrier préchargé est indisponible');const json=await d.json();data=(json.matches||[]).map(normalizeMatch).filter(m=>m.home&&m.away&&isNational(m));const seen=new Map();data.forEach(m=>[m.home,m.away].forEach(n=>{const k=norm(n);if(k&&!seen.has(k))seen.set(k,{id:k,name:n,country:'',logo:'',source:'Calendrier ESPN / SportScore'})}));teams=[...seen.values()];const codes=['fifa.world','fifa.worldq.caf','fifa.worldq.uefa','fifa.worldq.conmebol','fifa.worldq.afc','fifa.worldq.concacaf','fifa.friendly','uefa.nations','uefa.euro','caf.nations','conmebol.copa','concacaf.gold','afc.asian','fifa.wwc','fifa.friendly.w'];const batches=[];for(let i=0;i<codes.length;i+=4)batches.push(codes.slice(i,i+4));for(const group of batches){const results=await Promise.all(group.map(fetchTeamsForCompetition));for(const list of results)for(const t of list){const k=norm(t.name);const old=teams.find(x=>norm(x.name)===k);if(old){old.logo=old.logo||t.logo;old.source='ESPN'}else teams.push(t)}}update();const status=$('nt-source-status');if(status)status.textContent='Calendrier généré le '+(json.generatedAt?dateFmt(json.generatedAt):'date inconnue')+' · '+data.length+' rencontres nationales détectées · '+teams.length+' sélections identifiées dans les compétitions accessibles. Le catalogue dépend de la couverture publique des fournisseurs.';}catch(e){if(box)box.innerHTML='<div class="notice">Impossible de charger le calendrier national : '+safe(e.message)+'. Réessaie après actualisation.</div>';}finally{busy=false;}}
+async function load(){
+ if(busy)return;
+ busy=true;
+ const box=$('nt-fixtures');
+ if(box)box.innerHTML='<div class="loading">Chargement des calendriers internationaux vérifiés…</div>';
+ try{
+  const d=await fetch('./matches.json',{cache:'no-store'});
+  if(!d.ok)throw Error('Le calendrier préchargé est indisponible');
+  const json=await d.json();
+  data=(json.matches||[]).map(normalizeMatch).filter(m=>m.home&&m.away&&isNational(m));
+  const seen=new Map();
+  data.forEach(m=>[m.home,m.away].forEach(n=>{
+   const k=norm(n);
+   if(k&&!seen.has(k))seen.set(k,{id:k,name:n,country:'',logo:'',source:'Calendrier ESPN / SportScore'});
+  }));
+  teams=[...seen.values()];
+  // Afficher immédiatement le calendrier et les analyses : l’enrichissement ESPN ne doit pas bloquer la rubrique.
+  update();
+  const status=$('nt-source-status');
+  if(status)status.textContent='Calendrier généré le '+(json.generatedAt?dateFmt(json.generatedAt):'date inconnue')+' · '+data.length+' rencontres nationales détectées · '+teams.length+' sélections identifiées dans le calendrier. Enrichissement des répertoires ESPN en cours…';
+  const codes=['fifa.world','fifa.worldq.caf','fifa.worldq.uefa','fifa.worldq.conmebol','fifa.worldq.afc','fifa.worldq.concacaf','fifa.friendly','uefa.nations','uefa.euro','caf.nations','conmebol.copa','concacaf.gold','afc.asian','fifa.wwc','fifa.friendly.w'];
+  const batches=[];
+  for(let i=0;i<codes.length;i+=4)batches.push(codes.slice(i,i+4));
+  for(const group of batches){
+   const results=await Promise.all(group.map(fetchTeamsForCompetition));
+   for(const list of results)for(const t of list){
+    const k=norm(t.name);
+    const old=teams.find(x=>norm(x.name)===k);
+    if(old){old.logo=old.logo||t.logo;old.source='ESPN'}
+    else teams.push(t);
+   }
+  }
+  renderStats();
+  renderTeams();
+  if(status)status.textContent='Calendrier généré le '+(json.generatedAt?dateFmt(json.generatedAt):'date inconnue')+' · '+data.length+' rencontres nationales détectées · '+teams.length+' sélections identifiées dans les compétitions accessibles. Le catalogue dépend de la couverture publique des fournisseurs.';
+ }catch(e){
+  if(box)box.innerHTML='<div class="notice">Impossible de charger le calendrier national : '+safe(e.message)+'. Réessaie après actualisation.</div>';
+ }finally{busy=false;}
+}
 $('nt-refresh')?.addEventListener('click',load);$('nt-search')?.addEventListener('input',e=>{search=e.target.value;renderTeams();renderFixtures()});$('nt-competition-filter')?.addEventListener('change',e=>{selected=e.target.value;renderFixtures()});$('nt-date-filter')?.addEventListener('change',e=>{filter=e.target.value;renderFixtures()});
 document.querySelector('.tabs')?.addEventListener('click',event=>{const tab=event.target.closest('.tab[data-page="national-teams"]');if(tab&&!data.length)load()});
 })();
