@@ -16,6 +16,7 @@ on:
       - 'icon.svg'
       - 'tests/**'
       - '.github/workflows/pages.yml'
+      - '.github/workflows/android-apk.yml'
   workflow_dispatch:
   schedule:
     - cron: '0 23 * * *' # Une collecte complète par jour à 00:00 au Bénin (UTC+1) ; le direct est actualisé dans l'application
