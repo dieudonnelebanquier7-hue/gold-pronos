@@ -145,10 +145,23 @@ window.supabase={createClient:()=>({
   }, {timeout:10000});
   const flagBox=await flagBoxHandle.jsonValue();
   if (!flagBox || flagBox.ratio<1.35 || flagBox.ratio>1.65) throw new Error('National flag aspect ratio failed: '+JSON.stringify(flagBox));
-  await clubCard.locator('.match-side.home-side .gp-crest').waitFor({state:'visible',timeout:8000});
-  await clubCard.locator('.match-side.home-side .team-name').waitFor({state:'visible',timeout:8000});
-  const sideAlignment = await clubCard.locator('.match-side.home-side').evaluate(el => ({display:getComputedStyle(el).display,align:getComputedStyle(el).alignItems,crest:el.querySelector('.gp-crest')?.getBoundingClientRect().height||0,name:el.querySelector('.team-name')?.getBoundingClientRect().height||0,html:el.innerHTML}));
-  if (sideAlignment.display!=='flex' || sideAlignment.align!=='center' || sideAlignment.crest<20 || sideAlignment.name<10) throw new Error('Team logo/name alignment failed: '+JSON.stringify(sideAlignment));
+  await page.waitForFunction(() => {
+    const cards = [...document.querySelectorAll('#home-matches .match')].filter(el => el.textContent.includes('Test FC') && el.textContent.includes('United Test'));
+    const side = cards[cards.length - 1]?.querySelector('.match-side.home-side');
+    if (!side) return false;
+    const style = getComputedStyle(side);
+    const crest = side.querySelector('.gp-crest')?.getBoundingClientRect().height || 0;
+    const name = side.querySelector('.team-name')?.getBoundingClientRect().height || 0;
+    return style.display === 'flex' && style.alignItems === 'center' && crest >= 20 && name >= 10;
+  }, {timeout:8000});
+  const sideAlignment = await page.evaluate(() => {
+    const cards = [...document.querySelectorAll('#home-matches .match')].filter(el => el.textContent.includes('Test FC') && el.textContent.includes('United Test'));
+    const side = cards[cards.length - 1]?.querySelector('.match-side.home-side');
+    if (!side) return null;
+    const style = getComputedStyle(side);
+    return {display:style.display,align:style.alignItems,crest:side.querySelector('.gp-crest')?.getBoundingClientRect().height||0,name:side.querySelector('.team-name')?.getBoundingClientRect().height||0,html:side.innerHTML};
+  });
+  if (!sideAlignment || sideAlignment.display!=='flex' || sideAlignment.align!=='center' || sideAlignment.crest<20 || sideAlignment.name<10) throw new Error('Team logo/name alignment failed: '+JSON.stringify(sideAlignment));
   await clubCard.click();
   await page.locator('#match-modal:not([hidden])').waitFor({state:'visible',timeout:5000});
   await page.waitForFunction(() => !document.querySelector('[data-md-panel="overview"] .md-loading'), {timeout:10000});
