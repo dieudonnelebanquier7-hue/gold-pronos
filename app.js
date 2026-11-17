@@ -478,11 +478,7 @@ function renderPersonalizedHome(){
  box.hidden=false;const fav=[p.club,p.country].filter(Boolean);
  const norm=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
  const related=matches.filter(m=>fav.some(n=>norm(m.home)===norm(n)||norm(m.away)===norm(n))||(p.competitions||[]).includes(m.code))
-  .sort((a,b)=>{
-   const priority=m=>m.live?0:!m.finished&&new Date(m.date).getTime()>=Date.now()?1:2;
-   const pa=priority(a),pb=priority(b);if(pa!==pb)return pa-pb;
-   return pa===2?new Date(b.date)-new Date(a.date):new Date(a.date)-new Date(b.date);
-  }).slice(0,4);
+  .sort((a,b)=>compareMatchPriority(a,b)).slice(0,4);
  box.innerHTML='<div class="personalized-heading"><div><span class="eyebrow">TON ESPACE PERSONNALISÉ</span><h3>Bienvenue dans ton univers football 👋</h3><p>'+[p.player?'⭐ '+safe(p.player):'',p.club?'🏆 '+safe(p.club):'',p.country?'🌍 '+safe(p.country):''].filter(Boolean).join(' · ')+'</p></div><button class="ghost" id="edit-football-prefs" type="button">Modifier</button></div>'+(related.length?'<div class="personalized-matches"><b>Rencontres liées à tes favoris</b>'+related.map(m=>'<div>'+safe(m.home)+' <strong>'+(m.scoreConflict?'SCORE À CONFIRMER':(m.homeScore!==null&&m.awayScore!==null?m.homeScore+' - '+m.awayScore:'VS'))+'</strong> '+safe(m.away)+' <small>'+safe(status(m))+'</small></div>').join('')+'</div>':'<p class="muted">Tes choix sont enregistrés. Les matchs liés à tes favoris apparaîtront ici lorsqu’ils seront au calendrier.</p>');
  $('edit-football-prefs').onclick=()=>showOnboarding(true);
 }
@@ -880,9 +876,13 @@ function competitionImportance(m){
 }
 function compareMatchPriority(a,b,now=Date.now()){
  const state=m=>m.live?0:!m.finished&&new Date(m.date).getTime()>=now?1:2;
- const sa=state(a),sb=state(b);if(sa!==sb)return sa-sb;
- if(sa<2){const importance=competitionImportance(b)-competitionImportance(a);if(importance)return importance;}
- return sa===2?new Date(b.date)-new Date(a.date):new Date(a.date)-new Date(b.date);
+ const sa=state(a),sb=state(b);
+ // Les grandes compétitions à venir doivent rester visibles avant les directs secondaires.
+ if(sa===2||sb===2){if(sa!==sb)return sa-sb;return new Date(b.date)-new Date(a.date);}
+ const importance=competitionImportance(b)-competitionImportance(a);
+ if(importance)return importance;
+ if(sa!==sb)return sa-sb;
+ return new Date(a.date)-new Date(b.date);
 }
 function renderPicks(){
  const box=$('picks');if(!box)return;
