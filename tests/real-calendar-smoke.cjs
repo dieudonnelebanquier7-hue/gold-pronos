@@ -125,6 +125,21 @@ const { chromium } = require('playwright');
   }));
   if (!nationalFixtureState.cards && !nationalFixtureState.notice) throw new Error('National fixture list rendered neither fixtures nor an explicit status notice.');
   if (/Impossible de charger le calendrier national/i.test(nationalFixtureState.notice)) throw new Error('National calendar failed to load: '+nationalFixtureState.notice);
+  const placeholderScores = await page.evaluate(() => {
+    const isZeroZero = value => /^0\s*[:\-]\s*0$/.test(String(value || '').trim());
+    const home = [...document.querySelectorAll('#home-matches .match')].filter(card => {
+      const state = card.querySelector('.state')?.textContent || '';
+      return !/EN DIRECT|TERMINÉ/.test(state) && isZeroZero(card.querySelector('.score')?.textContent);
+    }).length;
+    const national = [...document.querySelectorAll('#nt-fixtures .nt-fixture')].filter(card => {
+      const state = card.querySelector('.nt-status')?.textContent || '';
+      return /À VENIR/.test(state) && isZeroZero(card.querySelector('.nt-score')?.textContent);
+    }).length;
+    return {home,national};
+  });
+  if (placeholderScores.home || placeholderScores.national) {
+    throw new Error('A scheduled fixture is displaying a 0-0 placeholder as a real score: '+JSON.stringify(placeholderScores));
+  }
   await page.locator('#nt-predictions .notice').first().waitFor({state:'visible',timeout:15000});
   const nationalSummaryText = await page.locator('#nt-predictions .notice').first().innerText();
   const nationalCounts = nationalSummaryText.match(/(\d+) pronostic\(s\) calculé\(s\) · (\d+) analyse\(s\) en attente sur (\d+) rencontre\(s\) à venir/);

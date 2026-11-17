@@ -26,6 +26,15 @@ jobs:
           const fs = require('node:fs');
           const html = fs.readFileSync('index.html', 'utf8');
           const app = fs.readFileSync('app.js', 'utf8');
+          const sw = fs.readFileSync('sw.js', 'utf8');
+          const appVersion = html.match(/src="\.\/app\.js\?v=(\d+)"/)?.[1];
+          const nationalVersion = html.match(/src="\.\/national-teams\.js\?v=(\d+)"/)?.[1];
+          const cacheVersion = sw.match(/const CACHE='gold-pronos-v(\d+)'/)?.[1];
+          if (!appVersion || !nationalVersion || cacheVersion !== appVersion ||
+              !sw.includes('./app.js?v=' + appVersion) ||
+              !sw.includes('./national-teams.js?v=' + nationalVersion)) {
+            throw new Error('Service-worker cache and application script versions are out of sync.');
+          }
           const tabs = [...html.matchAll(/data-page="([^"]+)"/g)].map(x => x[1]);
           const pages = new Set([...html.matchAll(/id="page-([^"]+)"/g)].map(x => x[1]));
           const missingPages = [...new Set(tabs)].filter(name => !pages.has(name));
