@@ -57,7 +57,41 @@ const { chromium } = require('playwright');
     expandedCards = await page.locator('#home-matches .match').count();
     if (expandedCards <= cards) throw new Error('The progressive-load control did not reveal additional fixtures.');
   }
-  const result = {ok:true, generatedMatches:calendar.matches.length, eligibleMatches:eligibleMatches.length, visibleHomeCards:cards, expandedHomeCards:expandedCards, firstVisibleMatch:firstCard.slice(0,220), mobileWidth:await page.evaluate(()=>document.documentElement.clientWidth), pageErrors:errors};
+  await page.locator('.tab[data-page="pronos"]').click();
+  await page.locator('#picks .pick-card').first().waitFor({state:'attached',timeout:15000});
+  const predictionCards = await page.locator('#picks .pick-card').count();
+  const predictionPendingCards = await page.locator('#picks .pick-card').filter({hasText:'Analyse en attente'}).count();
+  const predictionCalculatedCards = predictionCards - predictionPendingCards;
+
+  await page.locator('.tab[data-page="national-teams"]').click();
+  await page.locator('#nt-fixtures .nt-fixture').first().waitFor({state:'visible',timeout:15000});
+  await page.locator('#nt-predictions .notice').first().waitFor({state:'visible',timeout:15000});
+  const nationalSummaryText = await page.locator('#nt-predictions .notice').first().innerText();
+  const nationalCounts = nationalSummaryText.match(/(\d+) pronostic\(s\) calculé\(s\) · (\d+) analyse\(s\) en attente sur (\d+) rencontre\(s\) à venir/);
+  if (!nationalCounts) throw new Error('National prediction summary is missing or unreadable: '+nationalSummaryText);
+  const nationalPredictionCards = await page.locator('#nt-predictions .nt-pick').count();
+  const nationalPendingCards = await page.locator('#nt-predictions .nt-pick.pending').count();
+  const nationalCalculatedCards = nationalPredictionCards - nationalPendingCards;
+  if (nationalPredictionCards !== Number(nationalCounts[3]) || nationalPendingCards !== Number(nationalCounts[2]) || nationalCalculatedCards !== Number(nationalCounts[1])) {
+    throw new Error('National prediction cards do not match the visible summary: '+JSON.stringify({nationalCounts:nationalCounts.slice(1),nationalPredictionCards,nationalPendingCards,nationalCalculatedCards}));
+  }
+  const result = {
+    ok:true,
+    generatedMatches:calendar.matches.length,
+    eligibleMatches:eligibleMatches.length,
+    visibleHomeCards:cards,
+    expandedHomeCards:expandedCards,
+    predictionCards,
+    predictionCalculatedCards,
+    predictionPendingCards,
+    nationalPredictionCards,
+    nationalCalculatedCards,
+    nationalPendingCards,
+    nationalUpcomingMatches:Number(nationalCounts[3]),
+    firstVisibleMatch:firstCard.slice(0,220),
+    mobileWidth:await page.evaluate(()=>document.documentElement.clientWidth),
+    pageErrors:errors
+  };
   if (errors.length) throw new Error('Browser JavaScript errors with real calendar: '+errors.join(' | '));
   console.log(JSON.stringify(result,null,2));
   await browser.close();
