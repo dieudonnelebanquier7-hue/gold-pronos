@@ -44,9 +44,16 @@ const { chromium } = require('playwright');
   if (Number(rendered.matchCount) !== eligibleMatches.length) throw new Error('Home match counter does not equal the complete eligible calendar window: '+rendered.matchCount+' / '+eligibleMatches.length+' (full archive: '+calendar.matches.length+').');
   let expandedCards=cards;
   if (calendar.matches.length > 350) {
-    const more = page.locator('#home-matches button').filter({hasText:'Afficher'}).first();
-    if (!(await more.count())) throw new Error('The full calendar has more than 350 fixtures but the progressive-load control is missing.');
-    await more.click();
+    const moreExists = await page.locator('#home-matches button').filter({hasText:'Afficher'}).count();
+    if (!moreExists) throw new Error('The full calendar has more than 350 fixtures but the progressive-load control is missing.');
+    // The app refreshes scores in the background; use the real DOM click handler
+    // without Playwright's stability wait, which can time out during a live rerender.
+    await page.evaluate(() => {
+      const button = [...document.querySelectorAll('#home-matches button')].find(node => /Afficher/.test(node.textContent || ''));
+      if (!button) throw new Error('Progressive-load button disappeared before click.');
+      button.click();
+    });
+    await page.waitForFunction(previous => document.querySelectorAll('#home-matches .match').length > previous, cards, {timeout:10000});
     expandedCards = await page.locator('#home-matches .match').count();
     if (expandedCards <= cards) throw new Error('The progressive-load control did not reveal additional fixtures.');
   }
