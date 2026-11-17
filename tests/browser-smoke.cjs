@@ -129,9 +129,19 @@ window.supabase={createClient:()=>({
   const favoriteFirst = await page.locator('#personalized-home .personalized-matches > div').first().innerText();
   if (!favoriteFirst.includes('Test FC') || !favoriteFirst.includes('United Test')) throw new Error('Personalized home must prioritize the upcoming favorite-team fixture: '+favoriteFirst);
   const clubCard = page.locator('#home-matches .match').filter({hasText:'Test FC'}).filter({hasText:'United Test'}).last();
-  const clubCrest = clubCard.locator('.match-crest').first();
-  await clubCrest.waitFor({state:'visible'});
-  const clubBox = await clubCrest.boundingBox();
+  // The live refresh can replace the match card between waitFor() and boundingBox().
+  // Poll the current DOM and keep the same strict size/square checks instead of
+  // reading a detached element once.
+  const clubBoxHandle = await page.waitForFunction(() => {
+    const cards = [...document.querySelectorAll('#home-matches .match')].filter(el => el.textContent.includes('Test FC') && el.textContent.includes('United Test'));
+    const crest = cards[cards.length - 1]?.querySelector('.match-crest');
+    if (!crest) return false;
+    const rect = crest.getBoundingClientRect();
+    return rect.width >= 20 && rect.width <= 40 && Math.abs(rect.width - rect.height) <= 2
+      ? {width:rect.width,height:rect.height}
+      : false;
+  }, {timeout:10000});
+  const clubBox = await clubBoxHandle.jsonValue();
   if (!clubBox || Math.abs(clubBox.width-clubBox.height)>2 || clubBox.width<20 || clubBox.width>40) throw new Error('Club crest sizing/alignment failed: '+JSON.stringify(clubBox));
   const nationalCard = page.locator('#home-matches .match').filter({hasText:'Bénin'}).first();
   const nationalFlag = nationalCard.locator('.match-flag').first();
