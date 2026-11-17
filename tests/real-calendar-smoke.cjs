@@ -69,13 +69,19 @@ const { chromium } = require('playwright');
     if (!tab) throw new Error('Independent national-team tab is missing.');
     tab.click();
   });
-  // An empty national fixture window is valid when no verified international match is in the loaded calendar.
-  // The page must render either fixtures or its explicit no-data notice.
-  await page.waitForFunction(() => {
-    const box = document.querySelector('#nt-fixtures');
-    return box && (box.querySelector('.nt-fixture') || box.querySelector('.notice'));
-  }, null, {timeout:15000});
-  await page.waitForFunction(() => /rencontres nationales détectées/.test(document.querySelector('#nt-source-status')?.textContent || ''), null, {timeout:15000});
+  // Trigger the visible refresh control as a deterministic fallback while the tab activation loads the section.
+  await page.evaluate(() => {
+    const refresh = document.querySelector('#nt-refresh');
+    if (!refresh) throw new Error('National-team refresh control is missing.');
+    refresh.click();
+  });
+  await page.waitForFunction(() => /rencontres nationales détectées/.test(document.querySelector('#nt-source-status')?.textContent || ''), null, {timeout:20000});
+  const nationalFixtureState = await page.evaluate(() => ({
+    cards: document.querySelectorAll('#nt-fixtures .nt-fixture').length,
+    notice: document.querySelector('#nt-fixtures .notice')?.innerText || ''
+  }));
+  if (!nationalFixtureState.cards && !nationalFixtureState.notice) throw new Error('National fixture list rendered neither fixtures nor an explicit status notice.');
+  if (/Impossible de charger le calendrier national/i.test(nationalFixtureState.notice)) throw new Error('National calendar failed to load: '+nationalFixtureState.notice);
   await page.locator('#nt-predictions .notice').first().waitFor({state:'visible',timeout:15000});
   const nationalSummaryText = await page.locator('#nt-predictions .notice').first().innerText();
   const nationalCounts = nationalSummaryText.match(/(\d+) pronostic\(s\) calculé\(s\) · (\d+) analyse\(s\) en attente sur (\d+) rencontre\(s\) à venir/);
