@@ -4,7 +4,7 @@ const { chromium } = require('playwright');
 (async () => {
   const browser = await chromium.launch({ headless: true });
   const errors = [];
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
   await context.addInitScript(() => localStorage.setItem('gold-pronos-onboarding-v1', JSON.stringify({ completed: true })));
   const page = await context.newPage();
   page.on('pageerror', error => errors.push(error.message));
@@ -58,7 +58,7 @@ const { chromium } = require('playwright');
     if (expandedCards <= cards) throw new Error('The progressive-load control did not reveal additional fixtures.');
   }
   // renderPicks() runs during the initial calendar load; inspect its hidden DOM without a second heavy rerender.
-  await page.waitForFunction(() => document.querySelectorAll('#picks .pick-card').length > 0, {timeout:15000});
+  await page.waitForFunction(() => document.querySelectorAll('#picks .pick-card').length > 0, null, {timeout:15000});
   const predictionCards = await page.locator('#picks .pick-card').count();
   const predictionPendingCards = await page.locator('#picks .pick-card').filter({hasText:'Analyse en attente'}).count();
   const predictionCalculatedCards = predictionCards - predictionPendingCards;
@@ -74,8 +74,8 @@ const { chromium } = require('playwright');
   await page.waitForFunction(() => {
     const box = document.querySelector('#nt-fixtures');
     return box && (box.querySelector('.nt-fixture') || box.querySelector('.notice'));
-  }, {timeout:15000});
-  await page.waitForFunction(() => /rencontres nationales détectées/.test(document.querySelector('#nt-source-status')?.textContent || ''), {timeout:15000});
+  }, null, {timeout:15000});
+  await page.waitForFunction(() => /rencontres nationales détectées/.test(document.querySelector('#nt-source-status')?.textContent || ''), null, {timeout:15000});
   await page.locator('#nt-predictions .notice').first().waitFor({state:'visible',timeout:15000});
   const nationalSummaryText = await page.locator('#nt-predictions .notice').first().innerText();
   const nationalCounts = nationalSummaryText.match(/(\d+) pronostic\(s\) calculé\(s\) · (\d+) analyse\(s\) en attente sur (\d+) rencontre\(s\) à venir/);
