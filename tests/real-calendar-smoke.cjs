@@ -57,13 +57,18 @@ const { chromium } = require('playwright');
     expandedCards = await page.locator('#home-matches .match').count();
     if (expandedCards <= cards) throw new Error('The progressive-load control did not reveal additional fixtures.');
   }
-  await page.locator('.tab[data-page="pronos"]').click();
-  await page.locator('#picks .pick-card').first().waitFor({state:'attached',timeout:15000});
+  // renderPicks() runs during the initial calendar load; inspect its hidden DOM without a second heavy rerender.
+  await page.waitForFunction(() => document.querySelectorAll('#picks .pick-card').length > 0, {timeout:15000});
   const predictionCards = await page.locator('#picks .pick-card').count();
   const predictionPendingCards = await page.locator('#picks .pick-card').filter({hasText:'Analyse en attente'}).count();
   const predictionCalculatedCards = predictionCards - predictionPendingCards;
 
-  await page.locator('.tab[data-page="national-teams"]').click();
+  // Use the real navigation handler without Playwright's stability wait during live background refreshes.
+  await page.evaluate(() => {
+    const tab = document.querySelector('.tab[data-page="national-teams"]');
+    if (!tab) throw new Error('Independent national-team tab is missing.');
+    tab.click();
+  });
   await page.locator('#nt-fixtures .nt-fixture').first().waitFor({state:'visible',timeout:15000});
   await page.locator('#nt-predictions .notice').first().waitFor({state:'visible',timeout:15000});
   const nationalSummaryText = await page.locator('#nt-predictions .notice').first().innerText();
