@@ -8,6 +8,20 @@ const { chromium } = require('playwright');
   await context.addInitScript(() => localStorage.setItem('gold-pronos-onboarding-v1', JSON.stringify({ completed: true, club: 'Test FC' })));
   const page = await context.newPage();
   const now = Date.now();
+  const nationalHistory = (team, teamId, prefix, results) => results.map(([forGoals, against], index) => {
+    const teamHome = index % 2 === 0;
+    const opponentId = prefix+'-opponent-'+index;
+    const opponentName = prefix.toUpperCase()+' Opponent '+(index+1);
+    return {
+      id:prefix+'-history-'+(index+1),
+      utcDate:new Date(now-(index+2)*86400000).toISOString(),
+      status:'FINISHED',
+      competition:{name:'Coupe d’Afrique',code:'ESPN-caf.nations'},
+      homeTeam:teamHome?{id:teamId,name:team}:{id:opponentId,name:opponentName},
+      awayTeam:teamHome?{id:opponentId,name:opponentName}:{id:teamId,name:team},
+      score:{fullTime:{home:teamHome?forGoals:against,away:teamHome?against:forGoals}}
+    };
+  });
   const fixtures = [
     {id:'old-1',utcDate:new Date(now-3*86400000).toISOString(),status:'FINISHED',competition:{name:'Premier League',code:'ESPN-eng.1'},homeTeam:{id:'101',name:'Test FC'},awayTeam:{id:'102',name:'United Test'},score:{fullTime:{home:2,away:0}}},
     {id:'old-2',utcDate:new Date(now-2*86400000).toISOString(),status:'FINISHED',competition:{name:'Premier League',code:'ESPN-eng.1'},homeTeam:{id:'102',name:'United Test'},awayTeam:{id:'103',name:'City Test'},score:{fullTime:{home:1,away:1}}},
@@ -26,6 +40,9 @@ const { chromium } = require('playwright');
     {id:'national-1',utcDate:new Date(now+30*60000).toISOString(),status:'SCHEDULED',competition:{name:'Coupe d’Afrique',code:'ESPN-caf.nations'},homeTeam:{id:'201',name:'Bénin',abbreviation:'BEN'},awayTeam:{id:'202',name:'Nigeria',abbreviation:'NGA'},score:{fullTime:{home:null,away:null}}}
     ,{id:'alias-future-1',utcDate:new Date(now+45*60000).toISOString(),status:'SCHEDULED',competition:{name:'Matchs amicaux masculins',code:'ESPN-int.friendly'},homeTeam:{id:'401',name:'APIGoldAlpha'},awayTeam:{id:'402',name:'APIGoldBeta'},score:{fullTime:{home:null,away:null}}}
     ,{id:'noid-future-1',utcDate:new Date(now+55*60000).toISOString(),status:'SCHEDULED',competition:{name:'Matchs amicaux masculins',code:'ESPN-int.friendly'},homeTeam:{name:'NoIdGoldAlpha'},awayTeam:{name:'NoIdGoldBeta'},score:{fullTime:{home:null,away:null}}}
+    ,{id:'national-supported-1',utcDate:new Date(now+40*60000).toISOString(),status:'SCHEDULED',competition:{name:'Coupe d’Afrique',code:'ESPN-caf.nations'},homeTeam:{id:'211',name:'Côte d’Ivoire'},awayTeam:{id:'212',name:'Ghana'},score:{fullTime:{home:null,away:null}}}
+    ,...nationalHistory('Côte d’Ivoire','211','civ',[[2,0],[2,0],[2,0],[2,0]])
+    ,...nationalHistory('Ghana','212','gha',[[0,2],[0,2],[0,2],[0,2]])
   ];
   await page.route('**/matches.json', route => route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({generatedAt:new Date().toISOString(),matches:fixtures})}));
   await page.route('**/news.json*', route => route.fulfill({
@@ -215,7 +232,22 @@ window.supabase={createClient:()=>({
     await page.locator('.tab[data-page="'+name+'"]').click();
     await page.locator('#page-'+name+'.active').waitFor({state:'visible',timeout:5000});
   }
+  await page.locator('.tab[data-page="national-teams"]').click();
+  await page.locator('#nt-fixtures .nt-fixture').first().waitFor({state:'visible',timeout:10000});
+  const nationalPredictionText = await page.locator('#nt-predictions').innerText();
+  if (!nationalPredictionText.includes('1 pronostic(s) calculé(s)') || !nationalPredictionText.includes('1 analyse(s) en attente') || !nationalPredictionText.includes('sur 2 rencontre(s) à venir')) {
+    throw new Error('Independent national-team predictions must count calculated analyses and pending fixtures: '+nationalPredictionText);
+  }
+  const nationalPendingCard = page.locator('#nt-predictions .nt-pick').filter({hasText:'Bénin'}).filter({hasText:'Nigeria'}).first();
+  if (!(await nationalPendingCard.innerText()).includes('Analyse en attente')) throw new Error('National fixture without four verified results per team must remain visibly pending.');
+  const nationalCalculatedCard = page.locator('#nt-predictions .nt-pick').filter({hasText:'Côte d’Ivoire'}).filter({hasText:'Ghana'}).first();
+  const nationalCalculatedText = await nationalCalculatedCard.innerText();
+  if (nationalCalculatedText.includes('Analyse en attente') || !nationalCalculatedText.includes('Avantage statistique')) throw new Error('National prediction with sufficient verified results was not calculated: '+nationalCalculatedText);
+  const nationalCompetitionText = await page.locator('#nt-competition-list').innerText();
+  if (nationalCompetitionText.includes('Ligue des championnes')) throw new Error('UEFA Women’s Champions League must not be classified as a national-team competition.');
   const nationalCompetitionCodes = await page.locator('#teams-competition option').evaluateAll(nodes => nodes.map(node => node.value));
+  const womensChampionsOption = page.locator('#teams-competition option[value="uefa.wchampions"]');
+  if (!(await womensChampionsOption.count()) || (await womensChampionsOption.innerText()).includes('Sélections nationales')) throw new Error('UEFA Women’s Champions League should remain in the club catalogue, not the national-team catalogue.');
   for (const code of ['fifa.worldq.caf','fifa.worldq.uefa','fifa.friendly','fifa.wwc','fifa.world.u20','fifa.world.u17','uefa.u21']) {
     if (!nationalCompetitionCodes.includes(code)) throw new Error('National teams selector is missing competition: '+code);
   }

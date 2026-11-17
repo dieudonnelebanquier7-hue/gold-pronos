@@ -14,6 +14,7 @@ jobs:
       - name: Check JavaScript syntax
         run: |
           node --check app.js
+          node --check national-teams.js
           node --check auth.js
           node --check i18n.js
           node --check sw.js

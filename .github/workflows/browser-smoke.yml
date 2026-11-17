@@ -5,6 +5,7 @@ on:
     paths:
       - 'index.html'
       - 'app.js'
+      - 'national-teams.js'
       - 'styles.css'
       - 'auth.js'
       - 'i18n.js'
