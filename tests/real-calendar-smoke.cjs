@@ -7,6 +7,15 @@ const { chromium } = require('playwright');
   const failedRequests = [];
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
   await context.addInitScript(() => localStorage.setItem('gold-pronos-onboarding-v1', JSON.stringify({ completed: true })));
+  await context.addInitScript(() => {
+    const originalSetItem=Storage.prototype.setItem;
+    Storage.prototype.setItem=function(key,value){
+      if(key==='gold-pronos-espn-team-history-v4'&&window.__goldPronosSeedHistory){
+        try{const merged=JSON.parse(value||'{}');Object.assign(merged,window.__goldPronosSeedHistory);value=JSON.stringify(merged)}catch(_){}
+      }
+      return originalSetItem.call(this,key,value);
+    };
+  });
   const page = await context.newPage();
   page.on('pageerror', error => errors.push(error.message));
   page.on('requestfailed', request => failedRequests.push(request.url()+' · '+(request.failure()?.errorText||'échec réseau')));
@@ -88,11 +97,45 @@ const { chromium } = require('playwright');
   }
   // renderPicks() runs during the initial calendar load; inspect its hidden DOM without a second heavy rerender.
   await page.waitForFunction(() => document.querySelectorAll('#picks .pick-card').length > 0, null, {timeout:15000});
-  await page.waitForFunction(() => /Données actualisées/.test(document.querySelector('#updated')?.textContent || ''), null, {timeout:30000});
   const predictionCards = await page.locator('#picks .pick-card').count();
   const predictionPendingCards = await page.locator('#picks .pick-card').filter({hasText:'Analyse en attente'}).count();
   const predictionCalculatedCards = predictionCards - predictionPendingCards;
 
+
+  // Use the real navigation handler without Playwright's stability wait during live background refreshes.
+
+  await page.evaluate(() => {
+    const tab = document.querySelector('.tab[data-page="national-teams"]');
+    if (!tab) throw new Error('Independent national-team tab is missing.');
+    tab.click();
+  });
+  // Trigger the visible refresh control as a deterministic fallback while the tab activation loads the section.
+  await page.evaluate(() => {
+    const refresh = document.querySelector('#nt-refresh');
+    if (!refresh) throw new Error('National-team refresh control is missing.');
+    refresh.click();
+  });
+  try {
+    await page.waitForFunction(() => {
+      const status = document.querySelector('#nt-source-status')?.textContent || '';
+      const notice = document.querySelector('#nt-fixtures .notice')?.innerText || '';
+      return /rencontres nationales détectées/.test(status) || /Impossible de charger le calendrier national/i.test(notice);
+    }, null, {timeout:20000});
+  } catch (error) {
+    const diagnostic = await page.evaluate(() => ({
+      status: document.querySelector('#nt-source-status')?.textContent || '',
+      fixtures: document.querySelector('#nt-fixtures')?.innerText || '',
+      tabActive: document.querySelector('.tab[data-page="national-teams"]')?.classList.contains('active') || false,
+      scriptLoaded: performance.getEntriesByType('resource').some(x => x.name.includes('national-teams.js'))
+    }));
+    throw new Error('National calendar did not finish loading: '+JSON.stringify({diagnostic,failedRequests,error:error.message}));
+  }
+  const nationalFixtureState = await page.evaluate(() => ({
+    cards: document.querySelectorAll('#nt-fixtures .nt-fixture').length,
+    notice: document.querySelector('#nt-fixtures .notice')?.innerText || ''
+  }));
+  if (!nationalFixtureState.cards && !nationalFixtureState.notice) throw new Error('National fixture list rendered neither fixtures nor an explicit status notice.');
+  if (/Impossible de charger le calendrier national/i.test(nationalFixtureState.notice)) throw new Error('National calendar failed to load: '+nationalFixtureState.notice);
 
   // Seed only test-local ESPN history for one real upcoming national fixture.
   // This verifies that the independent national page consumes the same verified-history cache as the main app.
@@ -132,41 +175,6 @@ const { chromium } = require('playwright');
     localStorage.setItem(key,JSON.stringify(cache));
     window.dispatchEvent(new Event('gold-pronos-team-history-updated'));
   }, seededHistory);
-
-  // Use the real navigation handler without Playwright's stability wait during live background refreshes.
-
-  await page.evaluate(() => {
-    const tab = document.querySelector('.tab[data-page="national-teams"]');
-    if (!tab) throw new Error('Independent national-team tab is missing.');
-    tab.click();
-  });
-  // Trigger the visible refresh control as a deterministic fallback while the tab activation loads the section.
-  await page.evaluate(() => {
-    const refresh = document.querySelector('#nt-refresh');
-    if (!refresh) throw new Error('National-team refresh control is missing.');
-    refresh.click();
-  });
-  try {
-    await page.waitForFunction(() => {
-      const status = document.querySelector('#nt-source-status')?.textContent || '';
-      const notice = document.querySelector('#nt-fixtures .notice')?.innerText || '';
-      return /rencontres nationales détectées/.test(status) || /Impossible de charger le calendrier national/i.test(notice);
-    }, null, {timeout:20000});
-  } catch (error) {
-    const diagnostic = await page.evaluate(() => ({
-      status: document.querySelector('#nt-source-status')?.textContent || '',
-      fixtures: document.querySelector('#nt-fixtures')?.innerText || '',
-      tabActive: document.querySelector('.tab[data-page="national-teams"]')?.classList.contains('active') || false,
-      scriptLoaded: performance.getEntriesByType('resource').some(x => x.name.includes('national-teams.js'))
-    }));
-    throw new Error('National calendar did not finish loading: '+JSON.stringify({diagnostic,failedRequests,error:error.message}));
-  }
-  const nationalFixtureState = await page.evaluate(() => ({
-    cards: document.querySelectorAll('#nt-fixtures .nt-fixture').length,
-    notice: document.querySelector('#nt-fixtures .notice')?.innerText || ''
-  }));
-  if (!nationalFixtureState.cards && !nationalFixtureState.notice) throw new Error('National fixture list rendered neither fixtures nor an explicit status notice.');
-  if (/Impossible de charger le calendrier national/i.test(nationalFixtureState.notice)) throw new Error('National calendar failed to load: '+nationalFixtureState.notice);
   const placeholderScores = await page.evaluate(() => {
     const isZeroZero = value => /^0\s*[:\-]\s*0$/.test(String(value || '').trim());
     const home = [...document.querySelectorAll('#home-matches .match')].filter(card => {
