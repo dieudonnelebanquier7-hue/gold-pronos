@@ -185,7 +185,7 @@ const { chromium } = require('playwright');
   await page.locator('#nt-predictions .notice').first().waitFor({state:'visible',timeout:15000});
   await page.waitForFunction(() => {
     const summary=document.querySelector('#nt-predictions .notice')?.textContent||'';
-    return /[1-9]\\d* pronostic\\(s\\) calculé\\(s\\)/.test(summary);
+    return /[1-9]\d* pronostic\(s\) calculé\(s\)/.test(summary);
   }, null, {timeout:10000});
   const nationalSummaryText = await page.locator('#nt-predictions .notice').first().innerText();
   const nationalCounts = nationalSummaryText.match(/(\d+) pronostic\(s\) calculé\(s\) · (\d+) analyse\(s\) en attente sur (\d+) rencontre\(s\) à venir/);
