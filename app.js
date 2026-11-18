@@ -245,6 +245,7 @@ async function loadEspnTeamHistory(){
  await Promise.all(workers);
  if(allTasks.length){try{localStorage.setItem(espnHistoryCursorKey,String((taskOffset+30)%allTasks.length))}catch(_){}}
  try{localStorage.setItem(ESPN_TEAM_HISTORY_CACHE_KEY,JSON.stringify(cache))}catch(_){}
+ try{window.dispatchEvent(new Event('gold-pronos-team-history-updated'))}catch(_){}
  const seen=new Set(matches.map(m=>String(m.id)));
  for(const item of teams.values()){
   const entry=cache[item.code+'|'+item.id];if(!Array.isArray(entry?.events))continue;

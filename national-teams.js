@@ -13,11 +13,12 @@ const NATIONAL_COMPS=[
  ['uefa.u21','Compétitions U21','UEFA']
 ];
 const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
+const ESPN_HISTORY_CACHE_KEY='gold-pronos-espn-team-history-v4';
 const safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const isNational=m=>{const code=String(m.code||m.competition?.code||'').replace(/^ESPN-/,'');const name=String(m.competition?.name||m.league||m.competition||'');return NATIONAL_COMPS.some(x=>x[0]===code)||/national team|international friendly|world cup|coupe du monde|qualif|nations league|ligue des nations|copa america|copa am[eé]rica|africa cup|coupe d.?afrique|gold cup|asian cup|championnat d.?europe|euro 20|women.?s world cup|fifa friendly/i.test(name)};
 const dateFmt=v=>{try{return new Intl.DateTimeFormat('fr-FR',{timeZone:'Africa/Porto-Novo',weekday:'short',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date(v))}catch(_){return 'Date à confirmer'}};
 let data=[],teams=[],selected='all',filter='upcoming',search='',busy=false;
-function normalizeMatch(m){const status=String(m.status||'SCHEDULED').toUpperCase(),hasPublishedScore=status==='IN_PLAY'||status==='LIVE'||status==='FINISHED';return {id:String(m.id||''),code:String(m.competition?.code||'').replace(/^ESPN-/,'') ,competition:m.competition?.name||'Compétition internationale',home:m.homeTeam?.name||'',away:m.awayTeam?.name||'',homeLogo:m.homeTeam?.logo||'',awayLogo:m.awayTeam?.logo||'',date:m.utcDate,status,homeScore:hasPublishedScore?(m.score?.fullTime?.home??null):null,awayScore:hasPublishedScore?(m.score?.fullTime?.away??null):null,source:m.source||(String(m.competition?.code||'').startsWith('ESPN-')?'ESPN':''),scoreConflict:!!m.scoreConflict};}
+function normalizeMatch(m){const status=String(m.status||'SCHEDULED').toUpperCase(),hasPublishedScore=status==='IN_PLAY'||status==='LIVE'||status==='FINISHED';return {id:String(m.id||''),code:String(m.competition?.code||'').replace(/^ESPN-/,'') ,competition:m.competition?.name||'Compétition internationale',home:m.homeTeam?.name||'',away:m.awayTeam?.name||'',homeId:String(m.homeTeam?.id||''),awayId:String(m.awayTeam?.id||''),homeLogo:m.homeTeam?.logo||'',awayLogo:m.awayTeam?.logo||'',date:m.utcDate,status,homeScore:hasPublishedScore?(m.score?.fullTime?.home??null):null,awayScore:hasPublishedScore?(m.score?.fullTime?.away??null):null,source:m.source||(String(m.competition?.code||'').startsWith('ESPN-')?'ESPN':''),scoreConflict:!!m.scoreConflict};}
 function matchesForView(){const now=Date.now();return data.filter(m=>{const t=Date.parse(m.date);if(!Number.isFinite(t))return false;if(filter==='upcoming'&&!(t>=now-2*3600000&&m.status!=='FINISHED'))return false;if(filter==='live'&&m.status!=='IN_PLAY')return false;if(filter==='finished'&&m.status!=='FINISHED')return false;const q=norm(search);return !q||norm([m.home,m.away,m.competition].join(' ')).includes(q)}).sort((a,b)=>Date.parse(a.date)-Date.parse(b.date));}
 function badge(status){return status==='IN_PLAY'?'<span class="nt-status live">EN DIRECT</span>':status==='FINISHED'?'<span class="nt-status done">TERMINÉ</span>':'<span class="nt-status">À VENIR</span>'}
 function renderStats(){const upcoming=data.filter(m=>m.status!=='FINISHED'&&Date.parse(m.date)>=Date.now()).length,live=data.filter(m=>m.status==='IN_PLAY').length,comps=new Set(data.map(m=>m.competition)).size;const a=$('nt-stat-teams'),b=$('nt-stat-matches'),c=$('nt-stat-comps'),d=$('nt-stat-live');if(a)a.textContent=teams.length||'—';if(b)b.textContent=data.length;if(c)c.textContent=comps;if(d)d.textContent=live+' en direct · '+upcoming+' à venir';}
@@ -27,6 +28,31 @@ function renderFixtures(){const box=$('nt-fixtures');if(!box)return;let rows=mat
 function verifiedFinishedResult(m,now=Date.now()){
  const date=Date.parse(m.date),home=Number(m.homeScore),away=Number(m.awayScore),source=String(m.source||'').toUpperCase();
  return m.status==='FINISHED'&&!m.scoreConflict&&['ESPN','SPORTSCORE'].includes(source)&&Number.isFinite(date)&&date<now&&m.homeScore!==null&&m.awayScore!==null&&Number.isInteger(home)&&Number.isInteger(away)&&home>=0&&away>=0;
+}
+function mergeCachedEspnHistories(){
+ const now=Date.now(),wanted=new Set(data.flatMap(m=>[m.home,m.away]).map(norm).filter(Boolean));
+ let cache={};try{cache=JSON.parse(localStorage.getItem(ESPN_HISTORY_CACHE_KEY)||'{}')||{}}catch(_){return 0}
+ const merged=new Map(data.map(m=>[m.id,m]));let added=0;
+ for(const [key,entry] of Object.entries(cache)){
+  const parts=key.split('|'),cacheCode=parts[0]||'',teamId=String(parts[1]||''),age=now-Number(entry?.at||0);
+  if(!teamId||!Array.isArray(entry?.events)||!entry.events.length||!Number.isFinite(age)||age<0||age>6*3600000)continue;
+  for(const item of entry.events){
+   const event=item?.event||item,id=String(event?.id||event?.uid||'').trim(),timestamp=Date.parse(event?.date||''),competition=event?.competitions?.[0]||{},competitors=Array.isArray(competition.competitors)?competition.competitors:[];
+   const home=competitors.find(x=>x.homeAway==='home')||competitors[0]||{},away=competitors.find(x=>x.homeAway==='away')||competitors[1]||{};
+   const statusObject=competition.status||event?.status||{},status=statusObject.type||statusObject,state=String(status.state||'').toLowerCase(),statusName=String(status.name||status.description||'').toLowerCase();
+   const finished=!!status.completed||state==='post'||/status_final|full.?time|after.?extra.?time|finalizado|termin[eé]/.test(statusName);
+   const homeId=String(home.id||home.team?.id||''),awayId=String(away.id||away.team?.id||'');
+   if(!id||!(homeId===teamId||awayId===teamId)||!finished||!Number.isFinite(timestamp)||timestamp>=now||timestamp<now-730*86400000)continue;
+   const homeName=String(home.team?.displayName||home.team?.name||'').trim(),awayName=String(away.team?.displayName||away.team?.name||'').trim();
+   if(!homeName||!awayName||(!wanted.has(norm(homeName))&&!wanted.has(norm(awayName))))continue;
+   const homeScore=home.score===null||home.score===undefined||home.score===''?null:Number(home.score),awayScore=away.score===null||away.score===undefined||away.score===''?null:Number(away.score);
+   if(!Number.isInteger(homeScore)||!Number.isInteger(awayScore)||homeScore<0||awayScore<0)continue;
+   const match={id:'espn-'+id,code:String(item?.code||cacheCode).replace(/^ESPN-/,''),competition:competition.name||'Compétition internationale',home:homeName,away:awayName,homeId,awayId,homeLogo:'',awayLogo:'',date:new Date(timestamp).toISOString(),status:'FINISHED',homeScore,awayScore,source:'ESPN',scoreConflict:false};
+   if(!merged.has(match.id)){merged.set(match.id,match);added++;}
+  }
+ }
+ if(added)data=[...merged.values()];
+ return added;
 }
 function teamHistory(name){
  return data.filter(m=>(m.home===name||m.away===name)&&verifiedFinishedResult(m)).sort((a,b)=>Date.parse(b.date)-Date.parse(a.date)).slice(0,6).map(m=>{
@@ -70,6 +96,7 @@ async function load(){
   if(!d.ok)throw Error('Le calendrier préchargé est indisponible');
   const json=await d.json();
   data=(json.matches||[]).map(normalizeMatch).filter(m=>m.home&&m.away&&isNational(m));
+  mergeCachedEspnHistories();
   const seen=new Map();
   data.forEach(m=>[m.home,m.away].forEach(n=>{
    const k=norm(n);
@@ -99,6 +126,7 @@ async function load(){
   if(box)box.innerHTML='<div class="notice">Impossible de charger le calendrier national : '+safe(e.message)+'. Réessaie après actualisation.</div>';
  }finally{busy=false;}
 }
+window.addEventListener('gold-pronos-team-history-updated',()=>{if(!data.length)return;const added=mergeCachedEspnHistories();if(added)renderPredictions()});
 $('nt-refresh')?.addEventListener('click',load);$('nt-search')?.addEventListener('input',e=>{search=e.target.value;renderTeams();renderFixtures()});$('nt-competition-filter')?.addEventListener('change',e=>{selected=e.target.value;renderFixtures()});$('nt-date-filter')?.addEventListener('change',e=>{filter=e.target.value;renderFixtures()});
 document.querySelector('.tabs')?.addEventListener('click',event=>{const tab=event.target.closest('.tab[data-page="national-teams"]');if(tab&&!data.length)load()});
 })();

@@ -88,11 +88,53 @@ const { chromium } = require('playwright');
   }
   // renderPicks() runs during the initial calendar load; inspect its hidden DOM without a second heavy rerender.
   await page.waitForFunction(() => document.querySelectorAll('#picks .pick-card').length > 0, null, {timeout:15000});
+  await page.waitForFunction(() => /Données actualisées/.test(document.querySelector('#updated')?.textContent || ''), null, {timeout:30000});
   const predictionCards = await page.locator('#picks .pick-card').count();
   const predictionPendingCards = await page.locator('#picks .pick-card').filter({hasText:'Analyse en attente'}).count();
   const predictionCalculatedCards = predictionCards - predictionPendingCards;
 
+
+  // Seed only test-local ESPN history for one real upcoming national fixture.
+  // This verifies that the independent national page consumes the same verified-history cache as the main app.
+  const nationalCodes = ['fifa.world','fifa.worldq.uefa','fifa.worldq.conmebol','fifa.worldq.concacaf','fifa.worldq.afc','fifa.worldq.caf','fifa.worldq.ofc','fifa.friendly','fifa.friendly.w','uefa.euro','uefa.nations','conmebol.copa','concacaf.gold','afc.asian','caf.nations','fifa.wwc','conmebol.america.femenina','fifa.world.u20','fifa.world.u17','fifa.wworld.u17','uefa.u21'];
+  const nationalFixture = calendar.matches.find(m => {
+    const code = String(m.competition?.code || '').replace(/^ESPN-/, '');
+    const name = String(m.competition?.name || '');
+    const national = nationalCodes.includes(code) || /national team|international friendly|world cup|coupe du monde|qualif|nations league|ligue des nations|copa america|copa am[eé]rica|africa cup|coupe d.?afrique|gold cup|asian cup|championnat d.?europe|euro 20|women.?s world cup|fifa friendly/i.test(name);
+    return national && m.source === 'ESPN' && m.status === 'SCHEDULED' && Date.parse(m.utcDate) > Date.now() && m.homeTeam?.id && m.awayTeam?.id;
+  });
+  if (!nationalFixture) throw new Error('No upcoming national ESPN fixture with stable team IDs is available for the history-cache test.');
+  const nationalCode = String(nationalFixture.competition.code).replace(/^ESPN-/, '');
+  const makeHistory = (team, teamId, tag) => Array.from({length:4}, (_,i) => {
+    const opponentId = 'test-opponent-' + tag + '-' + i;
+    const event = {
+      id:'test-national-history-' + tag + '-' + i,
+      date:new Date(Date.now() - (i + 2) * 86400000).toISOString(),
+      competitions:[{
+        name:'International Friendly',
+        competitors:[
+          {homeAway:'home',id:String(teamId),team:{id:String(teamId),displayName:team},score:String(i % 2 ? 1 : 2)},
+          {homeAway:'away',id:opponentId,team:{id:opponentId,displayName:'Test Opponent ' + tag + ' ' + i},score:String(i % 2)}
+        ],
+        status:{type:{completed:true,state:'post',name:'STATUS_FINAL'}}
+      }]
+    };
+    return {event,code:nationalCode};
+  });
+  const seededHistory = {
+    [nationalCode + '|' + String(nationalFixture.homeTeam.id)]:{at:Date.now(),events:makeHistory(nationalFixture.homeTeam.name,nationalFixture.homeTeam.id,'home')},
+    [nationalCode + '|' + String(nationalFixture.awayTeam.id)]:{at:Date.now(),events:makeHistory(nationalFixture.awayTeam.name,nationalFixture.awayTeam.id,'away')}
+  };
+  await page.evaluate(entries => {
+    const key='gold-pronos-espn-team-history-v4';
+    const cache=JSON.parse(localStorage.getItem(key)||'{}');
+    Object.assign(cache,entries);
+    localStorage.setItem(key,JSON.stringify(cache));
+    window.dispatchEvent(new Event('gold-pronos-team-history-updated'));
+  }, seededHistory);
+
   // Use the real navigation handler without Playwright's stability wait during live background refreshes.
+
   await page.evaluate(() => {
     const tab = document.querySelector('.tab[data-page="national-teams"]');
     if (!tab) throw new Error('Independent national-team tab is missing.');
@@ -141,6 +183,10 @@ const { chromium } = require('playwright');
     throw new Error('A scheduled fixture is displaying a 0-0 placeholder as a real score: '+JSON.stringify(placeholderScores));
   }
   await page.locator('#nt-predictions .notice').first().waitFor({state:'visible',timeout:15000});
+  await page.waitForFunction(() => {
+    const summary=document.querySelector('#nt-predictions .notice')?.textContent||'';
+    return /[1-9]\\d* pronostic\\(s\\) calculé\\(s\\)/.test(summary);
+  }, null, {timeout:10000});
   const nationalSummaryText = await page.locator('#nt-predictions .notice').first().innerText();
   const nationalCounts = nationalSummaryText.match(/(\d+) pronostic\(s\) calculé\(s\) · (\d+) analyse\(s\) en attente sur (\d+) rencontre\(s\) à venir/);
   const nationalPredictionCards = await page.locator('#nt-predictions .nt-pick').count();
@@ -175,6 +221,7 @@ const { chromium } = require('playwright');
     nationalUpcomingMatches,
     nationalFixtureCards,
     nationalCompetitionCards,
+    nationalHistoryCacheFixture:nationalFixture.homeTeam.name+' – '+nationalFixture.awayTeam.name,
     firstVisibleMatch:firstCard.slice(0,220),
     mobileWidth:await page.evaluate(()=>document.documentElement.clientWidth),
     pageErrors:errors
