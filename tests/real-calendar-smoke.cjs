@@ -169,6 +169,10 @@ const { chromium } = require('playwright');
     [nationalCode + '|' + String(nationalFixture.awayTeam.id)]:{at:Date.now(),events:makeHistory(nationalFixture.awayTeam.name,nationalFixture.awayTeam.id,'away')}
   };
   await page.evaluate(entries => {
+    // Keep the deterministic test history available to the Storage.setItem guard above.
+    // The main app may refresh its real cache while this test is running; merge the
+    // test entries into every subsequent write so the race cannot erase this fixture.
+    window.__goldPronosSeedHistory = entries;
     const key='gold-pronos-espn-team-history-v4';
     const cache=JSON.parse(localStorage.getItem(key)||'{}');
     Object.assign(cache,entries);
