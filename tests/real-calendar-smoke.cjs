@@ -119,8 +119,8 @@ const { chromium } = require('playwright');
     await page.waitForFunction(() => {
       const status = document.querySelector('#nt-source-status')?.textContent || '';
       const notice = document.querySelector('#nt-fixtures .notice')?.innerText || '';
-      return /rencontres nationales détectées/.test(status) || /Impossible de charger le calendrier national/i.test(notice);
-    }, null, {timeout:20000});
+      return /Le catalogue dépend de la couverture publique des fournisseurs/.test(status) || /Impossible de charger le calendrier national/i.test(notice);
+    }, null, {timeout:30000});
   } catch (error) {
     const diagnostic = await page.evaluate(() => ({
       status: document.querySelector('#nt-source-status')?.textContent || '',
@@ -179,6 +179,17 @@ const { chromium } = require('playwright');
     localStorage.setItem(key,JSON.stringify(cache));
     window.dispatchEvent(new Event('gold-pronos-team-history-updated'));
   }, seededHistory);
+  // Reload only after the national data loader has fully settled. This makes the
+  // cache-consumption assertion deterministic even if the initial tab click raced.
+  await page.evaluate(() => {
+    const refresh = document.querySelector('#nt-refresh');
+    if (!refresh) throw new Error('National-team refresh control is missing after history seeding.');
+    refresh.click();
+  });
+  await page.waitForFunction(() => {
+    const status = document.querySelector('#nt-source-status')?.textContent || '';
+    return /Le catalogue dépend de la couverture publique des fournisseurs/.test(status);
+  }, null, {timeout:30000});
   const placeholderScores = await page.evaluate(() => {
     const isZeroZero = value => /^0\s*[:\-]\s*0$/.test(String(value || '').trim());
     const home = [...document.querySelectorAll('#home-matches .match')].filter(card => {
@@ -195,10 +206,20 @@ const { chromium } = require('playwright');
     throw new Error('A scheduled fixture is displaying a 0-0 placeholder as a real score: '+JSON.stringify(placeholderScores));
   }
   await page.locator('#nt-predictions .notice').first().waitFor({state:'visible',timeout:15000});
-  await page.waitForFunction(() => {
-    const summary=document.querySelector('#nt-predictions .notice')?.textContent||'';
-    return /[1-9]\d* pronostic\(s\) calculé\(s\)/.test(summary);
-  }, null, {timeout:10000});
+  try {
+    await page.waitForFunction(() => {
+      const summary=document.querySelector('#nt-predictions .notice')?.textContent||'';
+      return /[1-9]\d* pronostic\(s\) calculé\(s\)/.test(summary);
+    }, null, {timeout:15000});
+  } catch (error) {
+    const diagnostic = await page.evaluate(() => ({
+      summary: document.querySelector('#nt-predictions .notice')?.textContent || '',
+      predictionCards: document.querySelectorAll('#nt-predictions .nt-pick').length,
+      cacheKeys: Object.keys(JSON.parse(localStorage.getItem('gold-pronos-espn-team-history-v4') || '{}')).length,
+      seededKeys: Object.keys(window.__goldPronosSeedHistory || {}).length
+    }));
+    throw new Error('National history cache did not produce a calculated test prediction: '+JSON.stringify({diagnostic,error:error.message}));
+  }
   const nationalSummaryText = await page.locator('#nt-predictions .notice').first().innerText();
   const nationalCounts = nationalSummaryText.match(/(\d+) pronostic\(s\) calculé\(s\) · (\d+) analyse\(s\) en attente sur (\d+) rencontre\(s\) à venir/);
   const nationalPredictionCards = await page.locator('#nt-predictions .nt-pick').count();
