@@ -50,7 +50,10 @@ jobs:
           if (Number(sources.espnDays || 0) < 7 || Number(sources.espnCompetitions || 0) < 30) throw new Error('Couverture ESPN trop étroite : collecte multi-jours ou compétitions mondiales absente.');
           if (!rows.length) throw new Error('Calendrier vide : aucune source n’a fourni de rencontre. Publication annulée.');
           const ids = new Set();
+          const now = Date.now();
           let invalid = 0;
+          let staleScheduled = 0;
+          let futureFinished = 0;
           for (const m of rows) {
             const id = String(m.id || '');
             const date = Date.parse(m.utcDate || '');
@@ -60,12 +63,17 @@ jobs:
             if (!id || ids.has(id) || !Number.isFinite(date) || !home || !away ||
                 /^Équipe (domicile|extérieure)$/i.test(home) || /^Équipe (domicile|extérieure)$/i.test(away) ||
                 !['FINISHED', 'IN_PLAY', 'SCHEDULED'].includes(status)) invalid++;
+            if (Number.isFinite(date) && status === 'SCHEDULED' && date < now - 6 * 60 * 60 * 1000) staleScheduled++;
+            if (Number.isFinite(date) && status === 'FINISHED' && date > now + 6 * 60 * 60 * 1000) futureFinished++;
             ids.add(id);
           }
           if (invalid > Math.max(3, Math.floor(rows.length * 0.01))) {
             throw new Error('Trop de rencontres mal formées : ' + invalid + '/' + rows.length + '. Publication annulée.');
           }
-          console.log('Calendrier validé :', rows.length, 'rencontres ;', d.sources?.competitions, 'compétitions ;', invalid, 'anomalie(s).');
+          if (staleScheduled || futureFinished) {
+            console.warn('Statuts à vérifier (aucune correction automatique) :', staleScheduled, 'rencontre(s) programmée(s) depuis plus de 6 h ;', futureFinished, 'rencontre(s) terminée(s) datée(s) à plus de 6 h dans le futur.');
+          }
+          console.log('Calendrier validé :', rows.length, 'rencontres ;', d.sources?.competitions, 'compétitions ;', invalid, 'anomalie(s) de structure ;', staleScheduled, 'statut(s) programmé(s) ancien(s) ;', futureFinished, 'statut(s) terminé(s) futur(s).');
           NODE
       - name: Generate multi-source world football news
         run: node fetch-news.cjs
