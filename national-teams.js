@@ -41,7 +41,7 @@ function mergeCachedEspnHistories(){
    const home=competitors.find(x=>x.homeAway==='home')||competitors[0]||{},away=competitors.find(x=>x.homeAway==='away')||competitors[1]||{};
    const statusObject=competition.status||event?.status||{},status=statusObject.type||statusObject,state=String(status.state||'').toLowerCase(),statusName=String(status.name||status.description||'').toLowerCase();
    const finished=!!status.completed||state==='post'||/status_final|full.?time|after.?extra.?time|finalizado|termin[eé]/.test(statusName);
-   const homeId=String(home.id||home.team?.id||''),awayId=String(away.id||away.team?.id||'');
+   const homeId=String(home.team?.id||home.id||''),awayId=String(away.team?.id||away.id||'');
    if(!id||!(homeId===teamId||awayId===teamId)||!finished||!Number.isFinite(timestamp)||timestamp>=now||timestamp<now-730*86400000)continue;
    const homeName=String(home.team?.displayName||home.team?.name||'').trim(),awayName=String(away.team?.displayName||away.team?.name||'').trim();
    if(!homeName||!awayName||(!wanted.has(norm(homeName))&&!wanted.has(norm(awayName))))continue;
