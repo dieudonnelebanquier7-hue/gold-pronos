@@ -218,6 +218,8 @@ window.supabase={createClient:()=>({
   const predictionCard = predictionCards.filter({hasText:'Test FC'}).first();
   const predictionText = await predictionCard.innerText();
   if (!predictionText.includes('À domicile') || !predictionText.includes('À l’extérieur') || !predictionText.includes('Les deux équipes marquent')) throw new Error('Prediction engine did not use venue-specific samples and BTTS evidence: '+predictionText);
+  for (const market of ['Résultat 1N2','Double chance','Total de buts · 1,5','Total de buts · 2,5','BTTS','Fiabilité de l’échantillon']) if (!predictionText.includes(market)) throw new Error('Missing evidence-based prediction market: '+market+' · '+predictionText);
+  if (!/[0-9]{1,3}%/.test(predictionText)) throw new Error('Prediction model must display its estimated percentages transparently: '+predictionText);
   const insufficientText = await predictionCards.filter({hasText:'Bénin'}).first().innerText();
   if (!insufficientText.includes('Analyse en attente') || insufficientText.includes('Double chance') || !insufficientText.includes('domicile : 0 · extérieur : 0')) throw new Error('Prediction engine must refuse picks and ignore colliding IDs from another provider: '+insufficientText);
   const waitForCornerUnavailable = async()=>page.waitForFunction(() => {const nodes=[...document.querySelectorAll('#picks .pick-card [data-corners] strong')];return nodes.length>0&&nodes.every(node=>node.textContent==='Non disponible')}, {timeout:10000});
