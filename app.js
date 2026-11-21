@@ -816,23 +816,31 @@ function recent(team,exclude,venue=null,teamId=null,teamSource=null,apiTeamId=nu
   if(!trustedFinishedResult(x,now)||x.id===exclude)return false;
   const sources=[x.source,...(Array.isArray(x.providers)?x.providers:[])].filter(Boolean).map(v=>String(v).toLowerCase());
   const hasEspn=sources.includes('espn'),hasApi=sources.includes('api-football');
-  const espnHome=source==='espn'&&hasEspn&&teamId&&x.homeId&&String(x.homeId)===String(teamId);
-  const espnAway=source==='espn'&&hasEspn&&teamId&&x.awayId&&String(x.awayId)===String(teamId);
-  const fixtureHomeApiId=x.apiHomeId||(source==='api-football'?x.homeId:null);
-  const fixtureAwayApiId=x.apiAwayId||(source==='api-football'?x.awayId:null);
-  const apiHome=(apiTeamId||source==='api-football'&&teamId)&&hasApi&&fixtureHomeApiId&&String(fixtureHomeApiId)===String(apiTeamId||teamId);
-  const apiAway=(apiTeamId||source==='api-football'&&teamId)&&hasApi&&fixtureAwayApiId&&String(fixtureAwayApiId)===String(apiTeamId||teamId);
-  const sameHome=!!(espnHome||apiHome)||providerNorm(x.home)===teamKey;
-  const sameAway=!!(espnAway||apiAway)||providerNorm(x.away)===teamKey;
+  const fixtureHomeId=String(x.homeId||''),fixtureAwayId=String(x.awayId||'');
+  const espnHome=source==='espn'&&hasEspn&&teamId&&fixtureHomeId===String(teamId);
+  const espnAway=source==='espn'&&hasEspn&&teamId&&fixtureAwayId===String(teamId);
+  const fixtureHomeApiId=x.apiHomeId||(String(x.source||'').toLowerCase()==='api-football'?x.homeId:null);
+  const fixtureAwayApiId=x.apiAwayId||(String(x.source||'').toLowerCase()==='api-football'?x.awayId:null);
+  const wantedApiId=apiTeamId||(source==='api-football'?teamId:null);
+  const apiHome=wantedApiId&&hasApi&&fixtureHomeApiId&&String(fixtureHomeApiId)===String(wantedApiId);
+  const apiAway=wantedApiId&&hasApi&&fixtureAwayApiId&&String(fixtureAwayApiId)===String(wantedApiId);
+  // When both records carry ESPN IDs, a conflicting ID must not be overridden by a similar name.
+  const homeIdConflict=source==='espn'&&hasEspn&&teamId&&fixtureHomeId&&fixtureHomeId!==String(teamId);
+  const awayIdConflict=source==='espn'&&hasEspn&&teamId&&fixtureAwayId&&fixtureAwayId!==String(teamId);
+  const sameHome=!!(espnHome||apiHome)||(!homeIdConflict&&providerNorm(x.home)===teamKey);
+  const sameAway=!!(espnAway||apiAway)||(!awayIdConflict&&providerNorm(x.away)===teamKey);
   return venue==='home'?sameHome:venue==='away'?sameAway:sameHome||sameAway;
  }).sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,8);
 }
 function isTeamHome(m,team,teamId=null,teamSource=null,apiTeamId=null){
- if(providerNorm(m.home)===providerNorm(team))return true;
  const source=String(teamSource||'').toLowerCase(),sources=[m.source,...(Array.isArray(m.providers)?m.providers:[])].filter(Boolean).map(v=>String(v).toLowerCase());
- if(source==='espn'&&sources.includes('espn')&&teamId&&m.homeId&&String(m.homeId)===String(teamId))return true;
- const wantedApiId=apiTeamId||(source==='api-football'?teamId:null),fixtureApiId=m.apiHomeId||(String(m.source||'').toLowerCase()==='api-football'?m.homeId:null);
- return !!(wantedApiId&&sources.includes('api-football')&&fixtureApiId&&String(fixtureApiId)===String(wantedApiId));
+ const hasEspn=sources.includes('espn'),hasApi=sources.includes('api-football');
+ const homeId=String(m.homeId||'');
+ if(source==='espn'&&hasEspn&&teamId&&homeId)return homeId===String(teamId);
+ const wantedApiId=apiTeamId||(source==='api-football'?teamId:null);
+ const fixtureApiId=m.apiHomeId||(String(m.source||'').toLowerCase()==='api-football'?m.homeId:null);
+ if(wantedApiId&&hasApi&&fixtureApiId)return String(fixtureApiId)===String(wantedApiId);
+ return providerNorm(m.home)===providerNorm(team);
 }
 function points(m,team,teamId=null,teamSource=null,apiTeamId=null){const home=isTeamHome(m,team,teamId,teamSource,apiTeamId),sc=Number(home?m.homeScore:m.awayScore),op=Number(home?m.awayScore:m.homeScore);return sc>op?3:sc===op?1:0}
 function dateKeyInAppZone(value){const prefs=readAppSettings(),zone=prefs.timezone||'Africa/Porto-Novo';try{const parts=new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(value));const p=Object.fromEntries(parts.map(x=>[x.type,x.value]));return p.year+p.month+p.day}catch(e){return dateKey(value)}}
