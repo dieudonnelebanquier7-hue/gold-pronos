@@ -43,8 +43,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Generate verified football calendar
-        run: node fetch-matches.cjs
+      - name: Download generated calendar and archive from Android build
+        if: needs.android.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: gold-pronos-generated-data
+          path: .
+      - name: Generate data for scheduled refresh without Android build
+        if: needs.android.result == 'skipped'
+        run: |
+          node fetch-matches.cjs
+          node fetch-news.cjs
       - name: Verify generated football calendar
         run: |
           node <<'NODE'
@@ -111,8 +120,6 @@ jobs:
           }
           console.log('Calendrier validé :', rows.length, 'rencontres ;', d.sources?.competitions, 'compétitions ;', invalid, 'anomalie(s) de structure ;', staleScheduled, 'statut(s) programmé(s) ancien(s) ;', futureFinished, 'statut(s) terminé(s) futur(s).');
           NODE
-      - name: Generate multi-source world football news
-        run: node fetch-news.cjs
       - name: Verify generated news feed
         run: |
           node <<'NODE'
