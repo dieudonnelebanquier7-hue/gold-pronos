@@ -56,15 +56,18 @@ function mergeCachedEspnHistories(){
 }
 function teamHistory(name,teamId){
  const wantedId=String(teamId||'').trim(),wantedName=norm(name);
- return data.filter(m=>{
-  if(!verifiedFinishedResult(m))return false;
-  if(wantedId&&(String(m.homeId||'')===wantedId||String(m.awayId||'')===wantedId))return true;
-  return norm(m.home)===wantedName||norm(m.away)===wantedName;
- }).sort((a,b)=>Date.parse(b.date)-Date.parse(a.date)).slice(0,6).map(m=>{
-  const home=(wantedId&&String(m.homeId||'')===wantedId)||(!wantedId&&norm(m.home)===wantedName);
-  const forGoals=Number(home?m.homeScore:m.awayScore),against=Number(home?m.awayScore:m.homeScore);
-  return {forGoals,against,result:forGoals>against?'W':forGoals===against?'D':'L'};
- });
+ const sideMatches=(m,side)=>{
+  const id=String(m[side+'Id']||'').trim(),sideName=norm(m[side]);
+  // Les identifiants ESPN priment. Le nom ne sert de repli que si la source
+  // n'a pas fourni d'identifiant pour ce côté du match.
+  return wantedId?(id?id===wantedId:sideName===wantedName):sideName===wantedName;
+ };
+ return data.filter(m=>verifiedFinishedResult(m)&&(sideMatches(m,'home')||sideMatches(m,'away')))
+  .sort((a,b)=>Date.parse(b.date)-Date.parse(a.date)).slice(0,6).map(m=>{
+   const home=sideMatches(m,'home');
+   const forGoals=Number(home?m.homeScore:m.awayScore),against=Number(home?m.awayScore:m.homeScore);
+   return {forGoals,against,result:forGoals>against?'W':forGoals===against?'D':'L'};
+  });
 }
 function renderPredictions(){
  const box=$('nt-predictions');if(!box)return;
