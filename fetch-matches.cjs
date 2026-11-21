@@ -107,18 +107,37 @@ async function fetchOpenLigaHistory(){
  await Promise.all(workers);
  return results.flat();
 }
-function nationalHistoryCodes(code){
- const value=String(code||'').replace(/^ESPN-/,'').toLowerCase();
+const NATIONAL_CONFEDERATION_COUNTRIES={
+ uefa:'albania andorra armenia austria azerbaijan belarus belgium bosnia and herzegovina bulgaria croatia cyprus czech republic czechia denmark england estonia faroe islands finland france georgia germany gibraltar greece hungary iceland israel italy kazakhstan kosovo latvia liechtenstein lithuania luxembourg malta moldova montenegro netherlands north macedonia northern ireland norway poland portugal republic of ireland romania russia san marino scotland serbia slovakia slovenia spain sweden switzerland turkey ukraine wales',
+ caf:'algeria angola benin botswana burkina faso burundi cameroon cape verde central african republic chad comoros congo dr congo democratic republic of the congo ivory coast cote divoire djibouti egypt equatorial guinea eritrea eswatini ethiopia gabon gambia ghana guinea guinea bissau kenya lesotho liberia libya madagascar malawi mali mauritania mauritius morocco mozambique namibia niger nigeria rwanda sao tome senegal seychelles sierra leone somalia south africa south sudan sudan tanzania togo tunisia uganda zambia zimbabwe',
+ conmebol:'argentina bolivia brazil brasil chile colombia ecuador paraguay peru uruguay venezuela',
+ concacaf:'antigua and barbuda aruba bahamas barbados belize bermuda british virgin islands canada cayman islands costa rica cuba curacao dominica dominican republic el salvador grenada guatemala guyana haiti honduras jamaica mexico montserrat nicaragua panama puerto rico saint kitts and nevis saint lucia saint vincent and the grenadines suriname trinidad and tobago united states usa',
+ afc:'afghanistan australia bahrain bangladesh bhutan brunei cambodia china chinese taipei guam hong kong india indonesia iran iraq japan jordan kuwait kyrgyzstan laos lebanon macau malaysia maldives mongolia myanmar nepal north korea oman pakistan palestine philippines qatar saudi arabia singapore south korea sri lanka syria tajikistan thailand timor leste turkmenistan united arab emirates uae uzbekistan vietnam yemen',
+ ofc:'american samoa cook islands fiji new caledonia new zealand papua new guinea samoa solomon islands tahiti tonga vanuatu'
+};
+function nationalHistoryCodes(team){
+ const value=String(team?.code||'').replace(/^ESPN-/,'').toLowerCase();
  if(value.includes('uefa'))return ['uefa.nations','fifa.worldq.uefa','fifa.friendly','uefa.euro','fifa.world'];
  if(value.includes('caf'))return ['caf.nations','fifa.worldq.caf','fifa.friendly','fifa.world'];
  if(value.includes('conmebol'))return ['conmebol.copa','fifa.worldq.conmebol','fifa.friendly','fifa.world'];
  if(value.includes('concacaf'))return ['concacaf.gold','fifa.worldq.concacaf','fifa.friendly','fifa.world'];
  if(value.includes('afc'))return ['afc.asian','fifa.worldq.afc','fifa.friendly','fifa.world'];
  if(value.includes('ofc'))return ['fifa.worldq.ofc','fifa.friendly','fifa.world'];
+ const name=String(team?.name||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').replace(/\\s+/g,' ').trim();
+ for(const [confed,countries] of Object.entries(NATIONAL_CONFEDERATION_COUNTRIES)){
+  if((' '+countries+' ').includes(' '+name+' ')){
+   if(confed==='uefa')return ['uefa.nations','fifa.worldq.uefa','fifa.friendly','uefa.euro','fifa.world'];
+   if(confed==='caf')return ['caf.nations','fifa.worldq.caf','fifa.friendly','fifa.world'];
+   if(confed==='conmebol')return ['conmebol.copa','fifa.worldq.conmebol','fifa.friendly','fifa.world'];
+   if(confed==='concacaf')return ['concacaf.gold','fifa.worldq.concacaf','fifa.friendly','fifa.world'];
+   if(confed==='afc')return ['afc.asian','fifa.worldq.afc','fifa.friendly','fifa.world'];
+   return ['fifa.worldq.ofc','fifa.friendly','fifa.world'];
+  }
+ }
  return [value,'fifa.friendly','fifa.world'];
 }
 async function fetchEspnNationalTeamHistory(team){
- const codes=[...new Set(nationalHistoryCodes(team.code))],year=new Date().getUTCFullYear(),requests=[];
+ const codes=[...new Set(nationalHistoryCodes(team))],year=new Date().getUTCFullYear(),requests=[];
  for(const code of codes){const seasons=code===String(team.code).replace(/^ESPN-/,'')?[year,year-1]:[year];for(const season of seasons)requests.push({code,season});}
  const results=await Promise.allSettled(requests.map(async request=>{
   const url='https://site.api.espn.com/apis/site/v2/sports/soccer/'+request.code+'/teams/'+encodeURIComponent(team.id)+'/schedule?season='+request.season+'&region=fr&lang=fr';
