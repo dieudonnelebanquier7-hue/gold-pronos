@@ -207,7 +207,32 @@ const { chromium } = require('playwright');
   if (placeholderScores.home || placeholderScores.national) {
     throw new Error('A scheduled fixture is displaying a 0-0 placeholder as a real score: '+JSON.stringify(placeholderScores));
   }
-  await page.locator('#nt-predictions .notice').first().waitFor({state:'visible',timeout:15000});
+  try {
+    await page.waitForFunction(() => {
+      const section = document.querySelector('#page-national-teams');
+      const notice = document.querySelector('#nt-predictions .notice');
+      if (!section?.classList.contains('active') || getComputedStyle(section).display === 'none' || !notice) return false;
+      const rect = notice.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    }, null, {timeout:15000});
+  } catch (error) {
+    const diagnostic = await page.evaluate(() => {
+      const section = document.querySelector('#page-national-teams');
+      const box = document.querySelector('#nt-predictions');
+      const notice = box?.querySelector('.notice');
+      return {
+        tabActive: document.querySelector('.tab[data-page="national-teams"]')?.classList.contains('active') || false,
+        pageClass: section?.className || '',
+        pageDisplay: section ? getComputedStyle(section).display : 'missing',
+        predictionBoxExists: !!box,
+        predictionChildren: box?.childElementCount || 0,
+        noticeText: notice?.textContent || '',
+        noticeDisplay: notice ? getComputedStyle(notice).display : 'missing',
+        fixtureCards: document.querySelectorAll('#nt-fixtures .nt-fixture').length
+      };
+    });
+    throw new Error('National predictions panel did not become visible: '+JSON.stringify({diagnostic,error:error.message}));
+  }
   try {
     await page.waitForFunction(() => {
       const summary=document.querySelector('#nt-predictions .notice')?.textContent||'';
