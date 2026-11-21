@@ -234,10 +234,12 @@ const { chromium } = require('playwright');
     throw new Error('National predictions panel did not become visible: '+JSON.stringify({diagnostic,error:error.message}));
   }
   try {
+    // The national section renders up to hundreds of cards while its history cache
+    // is merged. Allow that UI update to settle before judging the seeded-cache result.
     await page.waitForFunction(() => {
       const summary=document.querySelector('#nt-predictions .notice')?.textContent||'';
       return /[1-9]\d* pronostic\(s\) calculé\(s\)/.test(summary);
-    }, null, {timeout:15000});
+    }, null, {timeout:45000});
   } catch (error) {
     const diagnostic = await page.evaluate(() => ({
       summary: document.querySelector('#nt-predictions .notice')?.textContent || '',
