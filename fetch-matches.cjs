@@ -32,6 +32,7 @@ let leagues=[
  ['uefa.u21','UEFA · Compétitions U21'],
  ['uefa.youthleague','UEFA · Youth League']
 ];
+leagues=[...new Map(leagues.map(item=>[item[0],item])).values()];
 if(leagues.some(item=>!Array.isArray(item)||item.length!==2||!item[0]||!item[1]))throw new Error('Catalogue des compétitions invalide : chaque entrée doit contenir un code et un libellé.');
 const today=new Date();today.setUTCHours(0,0,0,0);
 const from=new Date(today);from.setUTCDate(from.getUTCDate()-30);
@@ -248,6 +249,13 @@ async function discoverEspnLeagues(){
   if(completed%100===0||completed===tasks.length)console.log('Collecte '+completed+'/'+tasks.length+' · '+nonEmpty+' journées avec rencontres');
  }});
  await Promise.all(workers);
+ const competitionCoverageMap=new Map(leagues.map(([code,label])=>[code,{code,label,daysRequested:0,daysWithMatches:0,fixtures:0}]));
+ for(let i=0;i<tasks.length;i++){
+  const item=tasks[i],entry=competitionCoverageMap.get(item.league[0]),rows=Array.isArray(results[i])?results[i]:[];
+  if(!entry)continue;
+  entry.daysRequested++;entry.fixtures+=rows.length;if(rows.length)entry.daysWithMatches++;
+ }
+ const competitionCoverage=[...competitionCoverageMap.values()];
  const espnMatches=results.flat();
  // SportScore complète le calendrier mondial, sans remplacer les scores ESPN.
  // Trois requêtes simultanées restent largement sous la limite publique annoncée.
@@ -333,7 +341,7 @@ async function discoverEspnLeagues(){
  const historyOutput={generatedAt:new Date().toISOString(),range:{from:historyFrom.toISOString(),to:new Date(from.getTime()-1).toISOString()},sources:{providers:['ESPN','SportScore','OpenLigaDB'],sportScoreRequestedDays:historyExtraDates.length,sportScoreMatches:historyExtraMatches.length,espnNationalTeamsRequested:nationalUpcomingTeams.size,espnNationalMatches:espnNationalHistory.length,openLigaMatches:openLigaHistory.length,upcomingTeams:upcomingTeams.size,teamsWithHistory:byTeam.size,teamsWithFourHistory,nationalUpcomingTeams:nationalUpcomingNames.size,nationalTeamsWithHistory:[...byTeam.keys()].filter(name=>nationalUpcomingNames.has(name)).length,nationalTeamsWithFourHistory},matches:archivedMatches};
  fs.writeFileSync('history.json',JSON.stringify(historyOutput));
  console.log('Archive historique : '+archivedMatches.length+' résultats terminés vérifiés · '+teamsWithFourHistory+' équipes avec au moins 4 résultats · '+nationalTeamsWithFourHistory+'/'+nationalUpcomingNames.size+' sélections avec au moins 4 résultats · '+historyExtraDates.length+' journées SportScore.');
- const output={generatedAt:new Date().toISOString(),range:{from:from.toISOString(),to:to.toISOString()},sources:{espn:espnMatches.length,sportscore:sportMatches.length,competitions:leagues.length,days:dates.length,espnDays:espnDates.length,espnCompetitions:leagues.length,espnRequests:tasks.length,sportscoreRequests:sportDates.length,historyRequests:historyExtraDates.length},matches};
+ const output={generatedAt:new Date().toISOString(),range:{from:from.toISOString(),to:to.toISOString()},sources:{espn:espnMatches.length,sportscore:sportMatches.length,competitions:leagues.length,days:dates.length,espnDays:espnDates.length,espnCompetitions:leagues.length,espnRequests:tasks.length,sportscoreRequests:sportDates.length,historyRequests:historyExtraDates.length,competitionCoverage},matches};
  fs.writeFileSync('matches.json',JSON.stringify(output));
  console.log('Calendrier : '+matches.length+' rencontres uniques · ESPN '+espnMatches.length+' sur '+espnDates.length+' jours et '+leagues.length+' compétitions · SportScore '+sportMatches.length+' sur '+dates.length+' jours.');
 })().catch(error=>{console.error(error);process.exit(1)});
