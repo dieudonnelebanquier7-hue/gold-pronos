@@ -803,7 +803,7 @@ function xtext(x){return x.text||x.shortText||x.type?.text||x.type?.name||'Évé
 function trustedFinishedResult(x,now=Date.now()){
  const date=Date.parse(x?.date),hasScores=x?.homeScore!==null&&x?.homeScore!==undefined&&String(x.homeScore).trim()!==''&&x?.awayScore!==null&&x?.awayScore!==undefined&&String(x.awayScore).trim()!=='',home=Number(x?.homeScore),away=Number(x?.awayScore);
  const sources=[x?.source,...(Array.isArray(x?.providers)?x.providers:[])].filter(Boolean).map(v=>String(v).toLowerCase());
- const trustedSource=sources.some(v=>v==='espn'||v==='api-football'||v==='sportscore');
+ const trustedSource=sources.some(v=>v==='espn'||v==='api-football'||v==='sportscore'||v==='openligadb');
  return !!x&&x.finished===true&&!x.live&&!x.scoreConflict&&trustedSource&&Number.isFinite(date)&&date<now&&date>=now-730*86400000&&hasScores&&Number.isInteger(home)&&Number.isInteger(away)&&home>=0&&away>=0&&!!providerNorm(x.home)&&!!providerNorm(x.away);
 }
 function trustedUpcomingFixture(x,now=Date.now(),horizon=now+7*86400000){
@@ -1655,7 +1655,7 @@ async function loadPreloadedFixtures(){
  try{
   const d=await get('./matches.json',9000),now=Date.now(),rangeStart=Date.parse(d.range?.from),rangeEnd=Date.parse(d.range?.to),min=Number.isFinite(rangeStart)?rangeStart:now-35*86400000,max=Number.isFinite(rangeEnd)?rangeEnd:now+14*86400000;
   return (d.matches||[]).map(m=>{
-   const c=m.competition?.code||'',isEspn=c.startsWith('ESPN-')||m.source==='ESPN',isSportScore=String(c).toLowerCase().startsWith('sportscore:'),code=c.startsWith('ESPN-')?c.slice(5):(isEspn?'eng.1':isSportScore?c:'');
+   const c=m.competition?.code||'',isEspn=c.startsWith('ESPN-')||m.source==='ESPN',isSportScore=String(c).toLowerCase().startsWith('sportscore:'),code=c.startsWith('ESPN-')?c.slice(5):(isEspn?'eng.1':isSportScore||isOpenLigaDB?c:'');
    const st=m.status||'SCHEDULED',live=st==='IN_PLAY'||st==='LIVE',finished=st==='FINISHED',national=isNationalCompetition(code);
    return {id:String(m.id).replace(/^espn-/,''),code,source:m.source||(isEspn?'ESPN':''),providers:Array.isArray(m.providers)&&m.providers.length?m.providers:(m.source?[m.source]:(isEspn?['ESPN']:[])),league:m.competition?.name||'Compétition',competition:m.competition?.name||'',home:m.homeTeam?.name||'Équipe domicile',away:m.awayTeam?.name||'Équipe extérieure',homeLogo:national?(teamFlagUrl(m.homeTeam)||m.homeTeam?.logo||m.homeTeam?.crest||''):(m.homeTeam?.logo||m.homeTeam?.crest||''),awayLogo:national?(teamFlagUrl(m.awayTeam)||m.awayTeam?.logo||m.awayTeam?.crest||''):(m.awayTeam?.logo||m.awayTeam?.crest||''),homeNational:national,awayNational:national,homeId:m.homeTeam?.id||null,awayId:m.awayTeam?.id||null,homeScore:(live||finished)?(m.score?.fullTime?.home??null):null,awayScore:(live||finished)?(m.score?.fullTime?.away??null):null,date:m.utcDate,status:live?'LIVE':finished?'FINISHED':'SCHEDULED',live,finished,periodDetail:'',periodNumber:0,clockBaseSeconds:null,clockUpdatedAt:Date.now(),clockRunning:false,venue:'',raw:m};
   }).filter(m=>{const t=Date.parse(m.date);return Number.isFinite(t)&&t>=min&&t<=max&&String(m.raw?.homeTeam?.name||'').trim()&&String(m.raw?.awayTeam?.name||'').trim()}).sort((a,b)=>new Date(a.date)-new Date(b.date));
