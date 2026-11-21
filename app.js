@@ -980,7 +980,7 @@ function renderPicks(){
   if(hs.n<5||as.n<5){el.innerHTML+='<div class="notice"><b>Échantillon limité · confiance faible</b><p>Analyse provisoire fondée sur '+hs.n+' match(s) pour '+safe(m.home)+' et '+as.n+' pour '+safe(m.away)+'. Vérifie les informations avant toute décision.</p></div>';}
   const model=predictionModel(hhs,aas,hs,as);
   const oneXtwo=pick1N2(model,m.home,m.away);
-  const doubleOptions=[{label:'1X · '+m.home+' ou nul',p:model.p1X},{label:'X2 · '+m.away+' ou nul',p:model.pX2}].sort((x,y)=>y.p-x.p);
+  const doubleOptions=[{label:'1X · '+m.home+' ou nul',p:model.p1X},{label:'2X · '+m.away+' ou nul',p:model.pX2}].sort((x,y)=>y.p-x.p);
   const double=doubleOptions[0].p>=.70?doubleOptions[0].label+' ('+pct(doubleOptions[0].p)+')':'Pas de sélection · double chance';
   const doubleWhy='Probabilités estimées : 1X '+pct(model.p1X)+' · X2 '+pct(model.pX2)+'. Seuil de sélection : 70 % ; sinon abstention.';
   const goals15=model.pOver15>=.65?'+ de 1,5 but ('+pct(model.pOver15)+')':'Pas de sélection · + de 1,5 ('+pct(model.pOver15)+')';
@@ -1017,11 +1017,11 @@ function renderPicks(){
      away:{sample:as.n,pointsPerMatch:Number(as.ppg.toFixed(2)),goalsScoredAverage:Number(as.scored.toFixed(2)),goalsConcededAverage:Number(as.conceded.toFixed(2)),over15Rate:Number(as.over15.toFixed(3)),over25Rate:Number(as.over25.toFixed(3)),awaySample:aas.n,awayPointsPerMatch:Number(aas.ppg.toFixed(2)),awayUnbeatenRate:Number(aas.unbeatenRate.toFixed(3)),awayBttsRate:Number(aas.bttsRate.toFixed(3))}
     },
     markets:[
-     {name:'Équipe la plus forte',options:['V1','V2','NO_BET'],current:oneXtwo.label.startsWith('1 ·')?'V1':oneXtwo.label.startsWith('2 ·')?'V2':'NO_BET'},
+     {name:'Équipe la plus forte',options:['V1','N','V2','NO_BET'],current:oneXtwo.label.startsWith('1 ·')?'V1':oneXtwo.label.startsWith('N ·')?'N':oneXtwo.label.startsWith('2 ·')?'V2':'NO_BET'},
      {name:'Double chance',options:['1X','2X','NO_BET'],current:double.startsWith('1X')?'1X':double.startsWith('2X')?'2X':'NO_BET'},
      {name:'Total buts 1.5',options:['OVER_1_5','NO_BET'],current:goals15.startsWith('+')?'OVER_1_5':'NO_BET'},
      {name:'Total buts 2.5',options:['OVER_2_5','NO_BET'],current:goals25.startsWith('+')?'OVER_2_5':'NO_BET'},
-     {name:'Les deux équipes marquent',options:['BTTS_YES','NO_BET'],current:btts.startsWith('Oui')?'BTTS_YES':'NO_BET'}
+     {name:'Les deux équipes marquent',options:['BTTS_YES','BTTS_NO','NO_BET'],current:btts.startsWith('Oui')?'BTTS_YES':btts.startsWith('Non')?'BTTS_NO':'NO_BET'}
     ]
    };
    try{
