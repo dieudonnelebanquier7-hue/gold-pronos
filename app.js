@@ -1610,12 +1610,12 @@ async function loadEspnFixtures(todayOnly=false){
 }
 async function loadPreloadedFixtures(){
  try{
-  const d=await get('./matches.json',9000),now=Date.now(),min=now-35*86400000,max=now+14*86400000;
+  const d=await get('./matches.json',9000),now=Date.now(),rangeStart=Date.parse(d.range?.from),rangeEnd=Date.parse(d.range?.to),min=Number.isFinite(rangeStart)?rangeStart:now-35*86400000,max=Number.isFinite(rangeEnd)?rangeEnd:now+14*86400000;
   return (d.matches||[]).map(m=>{
    const c=m.competition?.code||'',isEspn=c.startsWith('ESPN-')||m.source==='ESPN',isSportScore=String(c).toLowerCase().startsWith('sportscore:'),code=c.startsWith('ESPN-')?c.slice(5):(isEspn?'eng.1':isSportScore?c:'');
    const st=m.status||'SCHEDULED',live=st==='IN_PLAY'||st==='LIVE',finished=st==='FINISHED',national=isNationalCompetition(code);
    return {id:String(m.id).replace(/^espn-/,''),code,source:m.source||(isEspn?'ESPN':''),providers:Array.isArray(m.providers)&&m.providers.length?m.providers:(m.source?[m.source]:(isEspn?['ESPN']:[])),league:m.competition?.name||'Compétition',competition:m.competition?.name||'',home:m.homeTeam?.name||'Équipe domicile',away:m.awayTeam?.name||'Équipe extérieure',homeLogo:national?(teamFlagUrl(m.homeTeam)||m.homeTeam?.logo||m.homeTeam?.crest||''):(m.homeTeam?.logo||m.homeTeam?.crest||''),awayLogo:national?(teamFlagUrl(m.awayTeam)||m.awayTeam?.logo||m.awayTeam?.crest||''):(m.awayTeam?.logo||m.awayTeam?.crest||''),homeNational:national,awayNational:national,homeId:m.homeTeam?.id||null,awayId:m.awayTeam?.id||null,homeScore:(live||finished)?(m.score?.fullTime?.home??null):null,awayScore:(live||finished)?(m.score?.fullTime?.away??null):null,date:m.utcDate,status:live?'LIVE':finished?'FINISHED':'SCHEDULED',live,finished,periodDetail:'',periodNumber:0,clockBaseSeconds:null,clockUpdatedAt:Date.now(),clockRunning:false,venue:'',raw:m};
-  }).filter(m=>{const t=Date.parse(m.date);return Number.isFinite(t)&&t>=min&&t<=max&&m.home&&m.away}).sort((a,b)=>new Date(a.date)-new Date(b.date));
+  }).filter(m=>{const t=Date.parse(m.date);return Number.isFinite(t)&&t>=min&&t<=max&&String(m.raw?.homeTeam?.name||'').trim()&&String(m.raw?.awayTeam?.name||'').trim()}).sort((a,b)=>new Date(a.date)-new Date(b.date));
  }catch(error){console.warn('Calendrier préchargé indisponible',error?.message||error);return []}
 }
 async function refresh(){
