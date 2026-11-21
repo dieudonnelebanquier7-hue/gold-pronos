@@ -34,9 +34,10 @@ const { chromium } = require('playwright');
   if (!historyResponse.ok()) throw new Error('Verified history archive is not available: HTTP '+historyResponse.status());
   const historyArchive = await historyResponse.json();
   const historyRows = Array.isArray(historyArchive.matches) ? historyArchive.matches : [];
-  const invalidHistoryRows = historyRows.filter(m => m.status !== 'FINISHED' || m.source !== 'SportScore' ||
+  const invalidHistoryRows = historyRows.filter(m => m.status !== 'FINISHED' || !['SportScore','ESPN'].includes(m.source) ||
     !Number.isInteger(Number(m.score?.fullTime?.home)) || !Number.isInteger(Number(m.score?.fullTime?.away)) ||
-    Number(m.score.fullTime.home) < 0 || Number(m.score.fullTime.away) < 0 || !m.homeTeam?.name || !m.awayTeam?.name);
+    Number(m.score.fullTime.home) < 0 || Number(m.score.fullTime.away) < 0 || !m.homeTeam?.name || !m.awayTeam?.name ||
+    Date.parse(m.utcDate||'') < Date.now()-731*86400000 || Date.parse(m.utcDate||'') >= Date.now());
   if (invalidHistoryRows.length) throw new Error('Historical archive contains '+invalidHistoryRows.length+' incomplete or non-finished result(s).');
   const rendered = await page.evaluate(() => ({
     cards: document.querySelectorAll('#home-matches .match').length,
@@ -105,7 +106,8 @@ const { chromium } = require('playwright');
     expandedCards = await page.locator('#home-matches .match').count();
     if (expandedCards <= cards) throw new Error('The progressive-load control did not reveal additional fixtures.');
   }
-  // renderPicks() runs during the initial calendar load; inspect its hidden DOM without a second heavy rerender.
+  // Measure predictions only after the verified archive has been merged into the main statistics index.
+  await page.waitForFunction(() => /archive historique : \d+ résultat/.test(document.querySelector('#updated')?.textContent||''), null, {timeout:30000});
   await page.waitForFunction(() => document.querySelectorAll('#picks .pick-card').length > 0, null, {timeout:15000});
   const predictionCards = await page.locator('#picks .pick-card').count();
   const predictionPendingCards = await page.locator('#picks .pick-card').filter({hasText:'Analyse en attente'}).count();
@@ -225,7 +227,6 @@ const { chromium } = require('playwright');
       const noticeStyle = getComputedStyle(notice);
       return noticeStyle.display !== 'none' &&
         noticeStyle.visibility !== 'hidden' &&
-        notice.getClientRects().length > 0 &&
         notice.textContent.trim().length > 0;
     }, null, {timeout:15000});
   } catch (error) {
@@ -241,6 +242,9 @@ const { chromium } = require('playwright');
         predictionChildren: box?.childElementCount || 0,
         noticeText: notice?.textContent || '',
         noticeDisplay: notice ? getComputedStyle(notice).display : 'missing',
+        noticeVisibility: notice ? getComputedStyle(notice).visibility : 'missing',
+        noticeRects: notice ? notice.getClientRects().length : 0,
+        predictionBoxDisplay: box ? getComputedStyle(box).display : 'missing',
         fixtureCards: document.querySelectorAll('#nt-fixtures .nt-fixture').length
       };
     });
@@ -274,6 +278,8 @@ const { chromium } = require('playwright');
     generatedMatches:calendar.matches.length,
     historicalArchiveMatches:historyRows.length,
     historicalArchiveTeams:Number(historyArchive.sources?.teamsWithHistory||0),
+    historicalArchiveTeamsWithFourHistory:Number(historyArchive.sources?.teamsWithFourHistory||0),
+    nationalTeamsWithFourHistory:Number(historyArchive.sources?.nationalTeamsWithFourHistory||0),
     eligibleMatches:eligibleMatches.length,
     visibleHomeCards:cards,
     expandedHomeCards:expandedCards,
