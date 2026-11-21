@@ -54,9 +54,15 @@ function mergeCachedEspnHistories(){
  if(added)data=[...merged.values()];
  return added;
 }
-function teamHistory(name){
- return data.filter(m=>(m.home===name||m.away===name)&&verifiedFinishedResult(m)).sort((a,b)=>Date.parse(b.date)-Date.parse(a.date)).slice(0,6).map(m=>{
-  const home=m.home===name,forGoals=Number(home?m.homeScore:m.awayScore),against=Number(home?m.awayScore:m.homeScore);
+function teamHistory(name,teamId){
+ const wantedId=String(teamId||'').trim(),wantedName=norm(name);
+ return data.filter(m=>{
+  if(!verifiedFinishedResult(m))return false;
+  if(wantedId&&(String(m.homeId||'')===wantedId||String(m.awayId||'')===wantedId))return true;
+  return norm(m.home)===wantedName||norm(m.away)===wantedName;
+ }).sort((a,b)=>Date.parse(b.date)-Date.parse(a.date)).slice(0,6).map(m=>{
+  const home=(wantedId&&String(m.homeId||'')===wantedId)||(!wantedId&&norm(m.home)===wantedName);
+  const forGoals=Number(home?m.homeScore:m.awayScore),against=Number(home?m.awayScore:m.homeScore);
   return {forGoals,against,result:forGoals>against?'W':forGoals===against?'D':'L'};
  });
 }
@@ -66,7 +72,7 @@ function renderPredictions(){
  if(!upcoming.length){box.innerHTML='<div class="notice">Aucun match international à venir confirmé dans le calendrier chargé.</div>';return}
  let predicted=0,pending=0;
  const cards=upcoming.map(m=>{
-  const h=teamHistory(m.home),a=teamHistory(m.away);
+  const h=teamHistory(m.home,m.homeId),a=teamHistory(m.away,m.awayId);
   if(h.length<4||a.length<4){
    pending++;
    return '<article class="nt-pick pending"><span>'+safe(m.competition)+'</span><h4>'+safe(m.home)+' – '+safe(m.away)+'</h4><b>Analyse en attente · historique vérifié insuffisant</b><p>Aucun pronostic n’est publié tant que les deux sélections ne disposent pas d’au moins quatre résultats terminés et vérifiables.</p><small>Historique disponible : '+safe(m.home)+' '+h.length+'/4 · '+safe(m.away)+' '+a.length+'/4. Aucun choix artificiel.</small></article>';
