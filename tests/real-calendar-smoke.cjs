@@ -46,6 +46,13 @@ const { chromium } = require('playwright');
     competitionAudit.set(code, (competitionAudit.get(code) || 0) + 1);
   }
   if (!Number.isInteger(calendar.sources?.competitions) || calendar.sources.competitions < 1) throw new Error('Competition catalogue provenance is missing from matches.json.');
+  const coverage = calendar.sources?.competitionCoverage;
+  if (!Array.isArray(coverage) || coverage.length !== calendar.sources.competitions) throw new Error('Per-competition coverage report is missing or incomplete.');
+  const invalidCoverage = coverage.filter(item => !item.code || !item.label || !Number.isInteger(item.daysRequested) ||
+    item.daysRequested < 7 || !Number.isInteger(item.daysWithMatches) || item.daysWithMatches < 0 ||
+    item.daysWithMatches > item.daysRequested || !Number.isInteger(item.fixtures) || item.fixtures < 0);
+  if (invalidCoverage.length) throw new Error('Per-competition audit contains '+invalidCoverage.length+' invalid record(s).');
+  console.log('Competition-by-competition coverage: '+coverage.length+' competitions queried; '+coverage.filter(item => item.fixtures > 0).length+' with fixtures; '+coverage.filter(item => item.fixtures === 0).length+' with no confirmed fixtures in this window.');
   console.log('Competition audit: '+competitionAudit.size+' competitions represented · '+calendar.matches.length+' fixtures checked.');
   const invalidHistoryRows = historyRows.filter(m => m.status !== 'FINISHED' || m.scoreConflict === true || !['SportScore','ESPN','OpenLigaDB'].includes(m.source) ||
     !Number.isInteger(Number(m.score?.fullTime?.home)) || !Number.isInteger(Number(m.score?.fullTime?.away)) ||
