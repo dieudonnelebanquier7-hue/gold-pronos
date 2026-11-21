@@ -75,6 +75,80 @@ async function fetchLeague(league,day){
  return [];
 }
 
+
+async function fetchOpenLigaSeason(shortcut,season){
+ const url='https://api.openligadb.de/getmatchdata/'+encodeURIComponent(shortcut)+'/'+encodeURIComponent(String(season));
+ try{
+  const response=await fetch(url,{signal:AbortSignal.timeout(15000),headers:{'User-Agent':'GOLD-PRONOS/1.0'}});
+  if(!response.ok)throw Error('HTTP '+response.status);
+  const rows=await response.json();
+  if(!Array.isArray(rows))return [];
+  return rows.map(row=>{
+   const home=row.team1||{},away=row.team2||{},date=Date.parse(row.matchDateTimeUTC||row.matchDateTime||'');
+   const results=Array.isArray(row.matchResults)?row.matchResults:[];
+   const finalResult=results.find(x=>Number(x.resultTypeID)===2||String(x.resultName||'').toLowerCase().includes('endergebnis')||String(x.resultTypeKind||'').toLowerCase()==='after90minutes');
+   if(!row.matchIsFinished||!Number.isFinite(date)||!home.teamName||!away.teamName||!finalResult)return null;
+   const hs=Number(finalResult.pointsTeam1),as=Number(finalResult.pointsTeam2);
+   if(!Number.isInteger(hs)||!Number.isInteger(as)||hs<0||as<0)return null;
+   return {id:'openligadb-'+String(row.matchID||row.matchId||shortcut+'-'+season+'-'+date),utcDate:new Date(date).toISOString(),status:'FINISHED',
+    competition:{name:String(row.leagueName||shortcut.toUpperCase()),code:'openligadb:'+shortcut},
+    homeTeam:{id:String(home.teamId||''),name:String(home.teamName),abbreviation:String(home.shortName||home.tla||''),country:{name:'Allemagne',code:'DE'},logo:home.teamIconUrl||''},
+    awayTeam:{id:String(away.teamId||''),name:String(away.teamName),abbreviation:String(away.shortName||away.tla||''),country:{name:'Allemagne',code:'DE'},logo:away.teamIconUrl||''},
+    score:{fullTime:{home:hs,away:as}},source:'OpenLigaDB',providers:['OpenLigaDB']};
+  }).filter(Boolean);
+ }catch(error){console.log('OpenLigaDB indisponible '+shortcut+'/'+season+': '+(error?.message||error));return [];}
+}
+async function fetchOpenLigaHistory(){
+ const year=new Date().getUTCFullYear(),tasks=[];
+ for(const shortcut of ['bl1','bl2','bl3','dfb'])for(const season of [year,year-1])tasks.push({shortcut,season});
+ const results=new Array(tasks.length);let cursor=0;
+ const workers=Array.from({length:3},async()=>{while(true){const i=cursor++;if(i>=tasks.length)break;const t=tasks[i];results[i]=await fetchOpenLigaSeason(t.shortcut,t.season);}});
+ await Promise.all(workers);
+ return results.flat();
+}
+function nationalHistoryCodes(code){
+ const value=String(code||'').replace(/^ESPN-/,'').toLowerCase();
+ if(value.includes('uefa'))return ['uefa.nations','fifa.worldq.uefa','fifa.friendly','uefa.euro','fifa.world'];
+ if(value.includes('caf'))return ['caf.nations','fifa.worldq.caf','fifa.friendly','fifa.world'];
+ if(value.includes('conmebol'))return ['conmebol.copa','fifa.worldq.conmebol','fifa.friendly','fifa.world'];
+ if(value.includes('concacaf'))return ['concacaf.gold','fifa.worldq.concacaf','fifa.friendly','fifa.world'];
+ if(value.includes('afc'))return ['afc.asian','fifa.worldq.afc','fifa.friendly','fifa.world'];
+ if(value.includes('ofc'))return ['fifa.worldq.ofc','fifa.friendly','fifa.world'];
+ return [value,'fifa.friendly','fifa.world'];
+}
+async function fetchEspnNationalTeamHistory(team){
+ const codes=[...new Set(nationalHistoryCodes(team.code))],year=new Date().getUTCFullYear(),requests=[];
+ for(const code of codes){const seasons=code===String(team.code).replace(/^ESPN-/,'')?[year,year-1]:[year];for(const season of seasons)requests.push({code,season});}
+ const results=await Promise.allSettled(requests.map(async request=>{
+  const url='https://site.api.espn.com/apis/site/v2/sports/soccer/'+request.code+'/teams/'+encodeURIComponent(team.id)+'/schedule?season='+request.season+'&region=fr&lang=fr';
+  const response=await fetch(url,{signal:AbortSignal.timeout(15000),headers:{'User-Agent':'GOLD-PRONOS/1.0'}});
+  if(!response.ok)throw Error('HTTP '+response.status);
+  const payload=await response.json();
+  return (payload.events||payload.items||[]).map(event=>({event,code:request.code}));
+ }));
+ const byId=new Map();
+ for(const result of results)if(result.status==='fulfilled')for(const item of result.value){const id=String(item.event?.id||item.event?.uid||'');if(id&&!byId.has(id))byId.set(id,item);}
+ return [...byId.values()].map(({event,code})=>{
+  const comp=event.competitions?.[0]||{},competitors=comp.competitors||[],home=competitors.find(x=>x.homeAway==='home')||competitors[0],away=competitors.find(x=>x.homeAway==='away')||competitors[1];
+  const status=comp.status?.type||event.status?.type||{},state=status.state;
+  if(!home||!away||!(status.completed||state==='post'))return null;
+  const hs=home.score===null||home.score===undefined||home.score===''?NaN:Number(home.score),as=away.score===null||away.score===undefined||away.score===''?NaN:Number(away.score),date=Date.parse(event.date||'');
+  if(!Number.isFinite(date)||date>=Date.now()||!Number.isInteger(hs)||!Number.isInteger(as)||hs<0||as<0)return null;
+  const homeTeam=home.team||{},awayTeam=away.team||{};
+  return {id:'espn-'+String(event.id||event.uid),utcDate:new Date(date).toISOString(),status:'FINISHED',
+   competition:{name:String(comp.name||event.name||code),code:'ESPN-'+code},
+   homeTeam:{id:String(homeTeam.id||home.id||''),name:String(homeTeam.displayName||homeTeam.name||''),abbreviation:String(homeTeam.abbreviation||''),country:{name:String(homeTeam.location||''),code:''},logo:''},
+   awayTeam:{id:String(awayTeam.id||away.id||''),name:String(awayTeam.displayName||awayTeam.name||''),abbreviation:String(awayTeam.abbreviation||''),country:{name:String(awayTeam.location||''),code:''},logo:''},
+   score:{fullTime:{home:hs,away:as}},source:'ESPN',providers:['ESPN']};
+ }).filter(Boolean);
+}
+async function fetchEspnNationalHistories(teams){
+ const unique=[...teams.values()].filter(x=>x.id).slice(0,80),results=new Array(unique.length);let cursor=0,completed=0;
+ const workers=Array.from({length:6},async()=>{while(true){const i=cursor++;if(i>=unique.length)break;try{results[i]=await fetchEspnNationalTeamHistory(unique[i]);}catch(error){console.log('Historique national ESPN indisponible '+unique[i].name+': '+(error?.message||error));results[i]=[]}completed++;if(completed%10===0||completed===unique.length)console.log('Historiques ESPN des sélections '+completed+'/'+unique.length);}});
+ await Promise.all(workers);
+ return results.flat();
+}
+
 async function fetchSportScoreDay(day){
  const date=day.slice(0,4)+'-'+day.slice(4,6)+'-'+day.slice(6,8);
  const url='https://sportscore.com/api/v1/fixtures/?sport=football&date='+date+'&limit=200&src=gold-pronos';
@@ -130,8 +204,8 @@ async function discoverEspnLeagues(){
   for(const item of found)if(!merged.has(item[0]))merged.set(item[0],item);
   // Garde les compétitions prioritaires, puis ajoute un échantillon mondial découvert.
   // Cette limite évite une explosion du nombre de requêtes sur la source publique.
-  leagues=[...merged.values()].slice(0,100);
-  console.log('Répertoire ESPN : '+found.length+' compétitions découvertes, '+leagues.length+' retenues (maximum 100).');
+  leagues=[...merged.values()].slice(0,150);
+  console.log('Répertoire ESPN : '+found.length+' compétitions découvertes, '+leagues.length+' retenues (maximum 150).');
  }catch(error){console.log('Répertoire ESPN indisponible, catalogue prioritaire conservé : '+error.message)}
 }
 (async()=>{
@@ -172,6 +246,8 @@ async function discoverEspnLeagues(){
  }});
  await Promise.all(historyWorkers);
  const historyExtraMatches=historyExtraResults.flat();
+ const [espnNationalHistory,openLigaHistory]=await Promise.all([fetchEspnNationalHistories(nationalUpcomingTeams),fetchOpenLigaHistory()]);
+ console.log('Sources historiques complémentaires : ESPN sélections '+espnNationalHistory.length+' · OpenLigaDB '+openLigaHistory.length+' résultats.');
  const normalize=value=>String(value||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
  const combined=[...espnMatches];
  for(const item of sportMatches){
@@ -188,7 +264,7 @@ async function discoverEspnLeagues(){
  const unique=new Map(combined.map(m=>[m.id,m]));
  const matches=[...unique.values()].sort((a,b)=>new Date(a.utcDate)-new Date(b.utcDate));
  if(!matches.length)throw new Error('Aucune rencontre reçue après '+tasks.length+' requêtes ESPN et '+dates.length+' requêtes SportScore. Le calendrier existant ne sera pas remplacé.');
- const now=Date.now(),futureLimit=now+14*86400000,upcomingTeams=new Set(),upcomingIdentityById=new Map(),nationalUpcomingNames=new Set();
+ const now=Date.now(),futureLimit=now+14*86400000,upcomingTeams=new Set(),upcomingIdentityById=new Map(),nationalUpcomingNames=new Set(),nationalUpcomingTeams=new Map();
  const isNationalCode=code=>/^(?:fifa\.|uefa\.(?:euro|nations|u21)|conmebol\.(?:copa|america\.femenina)|concacaf\.gold|afc\.asian|caf\.nations)/i.test(String(code||''));
  const isNationalFixture=m=>{
   const code=String(m.competition?.code||'').replace(/^ESPN-/,'');
@@ -202,12 +278,12 @@ async function discoverEspnLeagues(){
   for(const side of ['home','away']){
    const team=m[side+'Team'],name=team?.name,key=normalize(name);if(!validTeamName(name))continue;
    upcomingTeams.add(key);if(team?.id)upcomingIdentityById.set(String(team.id),key);
-   if(national)nationalUpcomingNames.add(key);
+   if(national){nationalUpcomingNames.add(key);if(team?.id&&!nationalUpcomingTeams.has(String(team.id)))nationalUpcomingTeams.set(String(team.id),{id:String(team.id),name:String(name),code:String(m.competition?.code||'').replace(/^ESPN-/,'')});}
   }
  }
  const canonicalTeamKey=team=>{const name=normalize(team?.name);return upcomingTeams.has(name)?name:upcomingIdentityById.get(String(team?.id||''))||name;};
  const historyCandidatesByKey=new Map(),historyConflicts=new Set();
- for(const m of [...matches,...historyExtraMatches]){
+ for(const m of [...matches,...historyExtraMatches,...espnNationalHistory,...openLigaHistory]){
   const kickoff=Date.parse(m.utcDate),home=canonicalTeamKey(m.homeTeam),away=canonicalTeamKey(m.awayTeam);
   const homeScore=m.score?.fullTime?.home,awayScore=m.score?.fullTime?.away;
   if(m.status!=='FINISHED'||m.scoreConflict||!Number.isFinite(kickoff)||kickoff>=now||kickoff<historyFrom.getTime()||
@@ -229,7 +305,7 @@ async function discoverEspnLeagues(){
  const archivedMatches=[...selectedHistory.values()].sort((a,b)=>Date.parse(a.utcDate)-Date.parse(b.utcDate));
  const teamsWithFourHistory=[...byTeam.entries()].filter(([,rows])=>rows.length>=4).length;
  const nationalTeamsWithFourHistory=[...byTeam.entries()].filter(([name,rows])=>nationalUpcomingNames.has(name)&&rows.length>=4).length;
- const historyOutput={generatedAt:new Date().toISOString(),range:{from:historyFrom.toISOString(),to:new Date(from.getTime()-1).toISOString()},sources:{provider:'SportScore',requestedDays:historyExtraDates.length,sportScoreMatches:historyExtraMatches.length,upcomingTeams:upcomingTeams.size,teamsWithHistory:byTeam.size,teamsWithFourHistory,nationalUpcomingTeams:nationalUpcomingNames.size,nationalTeamsWithHistory:[...byTeam.keys()].filter(name=>nationalUpcomingNames.has(name)).length,nationalTeamsWithFourHistory},matches:archivedMatches};
+ const historyOutput={generatedAt:new Date().toISOString(),range:{from:historyFrom.toISOString(),to:new Date(from.getTime()-1).toISOString()},sources:{providers:['ESPN','SportScore','OpenLigaDB'],sportScoreRequestedDays:historyExtraDates.length,sportScoreMatches:historyExtraMatches.length,espnNationalTeamsRequested:nationalUpcomingTeams.size,espnNationalMatches:espnNationalHistory.length,openLigaMatches:openLigaHistory.length,upcomingTeams:upcomingTeams.size,teamsWithHistory:byTeam.size,teamsWithFourHistory,nationalUpcomingTeams:nationalUpcomingNames.size,nationalTeamsWithHistory:[...byTeam.keys()].filter(name=>nationalUpcomingNames.has(name)).length,nationalTeamsWithFourHistory},matches:archivedMatches};
  fs.writeFileSync('history.json',JSON.stringify(historyOutput));
  console.log('Archive historique : '+archivedMatches.length+' résultats terminés vérifiés · '+teamsWithFourHistory+' équipes avec au moins 4 résultats · '+nationalTeamsWithFourHistory+'/'+nationalUpcomingNames.size+' sélections avec au moins 4 résultats · '+historyExtraDates.length+' journées SportScore.');
  const output={generatedAt:new Date().toISOString(),range:{from:from.toISOString(),to:to.toISOString()},sources:{espn:espnMatches.length,sportscore:sportMatches.length,competitions:leagues.length,days:dates.length,espnDays:espnDates.length,espnCompetitions:leagues.length,espnRequests:tasks.length,sportscoreRequests:sportDates.length,historyRequests:historyExtraDates.length},matches};
