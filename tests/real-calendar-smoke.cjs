@@ -161,8 +161,8 @@ const { chromium } = require('playwright');
       competitions:[{
         name:'International Friendly',
         competitors:[
-          {homeAway:'home',id:String(teamId),team:{id:String(teamId),displayName:team},score:String(i % 2 ? 1 : 2)},
-          {homeAway:'away',id:opponentId,team:{id:opponentId,displayName:'Test Opponent ' + tag + ' ' + i},score:String(i % 2)}
+          {homeAway:'home',id:'competitor-home-' + tag + '-' + i,team:{id:String(teamId),displayName:team},score:String(i % 2 ? 1 : 2)},
+          {homeAway:'away',id:'competitor-away-' + tag + '-' + i,team:{id:opponentId,displayName:'Test Opponent ' + tag + ' ' + i},score:String(i % 2)}
         ],
         status:{type:{completed:true,state:'post',name:'STATUS_FINAL'}}
       }]
