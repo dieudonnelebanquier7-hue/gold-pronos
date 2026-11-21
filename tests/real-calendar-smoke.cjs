@@ -215,9 +215,9 @@ const { chromium } = require('playwright');
       const notice = document.querySelector('#nt-predictions .notice');
       if (!section?.classList.contains('active') || getComputedStyle(section).display === 'none' || !notice) return false;
       const noticeStyle = getComputedStyle(notice);
-      const rect = notice.getBoundingClientRect();
       return noticeStyle.display !== 'none' &&
-        rect.width > 0 && rect.height > 0 &&
+        noticeStyle.visibility !== 'hidden' &&
+        notice.getClientRects().length > 0 &&
         notice.textContent.trim().length > 0;
     }, null, {timeout:15000});
   } catch (error) {
