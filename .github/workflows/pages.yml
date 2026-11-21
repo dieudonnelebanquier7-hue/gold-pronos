@@ -57,14 +57,14 @@ jobs:
             const home = Number(m.score?.fullTime?.home);
             const away = Number(m.score?.fullTime?.away);
             return m.status !== 'FINISHED' || m.scoreConflict === true || !['SportScore','ESPN'].includes(m.source) ||
-              !Number.isFinite(date) || date >= Date.now() || date < Date.now() - 731 * 86400000 ||
+              !Number.isFinite(date) || date >= Date.now() || date < Date.now() - 366 * 86400000 ||
               !m.homeTeam?.name || !m.awayTeam?.name ||
               m.score?.fullTime?.home === null || m.score?.fullTime?.home === undefined ||
               m.score?.fullTime?.away === null || m.score?.fullTime?.away === undefined ||
               !Number.isInteger(home) || !Number.isInteger(away) || home < 0 || away < 0;
           });
           if (invalidHistory.length) throw new Error('Archive historique invalide : ' + invalidHistory.length + '/' + historyRows.length + ' résultat(s).');
-          if (Number(d.sources?.historyRequests || 0) > 180) throw new Error('Collecte historique au-delà de la fenêtre autorisée.');
+          if (Number(d.sources?.historyRequests || 0) > 365) throw new Error('Collecte historique au-delà de la fenêtre autorisée.');
           if (Number(d.sources?.espnRequests || 0) + Number(d.sources?.historyScheduleRequests || 0) > 1500) throw new Error('Budget ESPN dépassé avec les historiques d’équipes.');
           console.log('Archive historique vérifiée :', historyRows.length, 'résultats terminés ;', archive.sources?.teamsWithFourHistory || 0, 'équipes avec 4+ résultats ;', archive.sources?.nationalTeamsWithFourHistory || 0, 'sélections avec 4+ résultats.');
           const generatedAt = Date.parse(d.generatedAt || '');

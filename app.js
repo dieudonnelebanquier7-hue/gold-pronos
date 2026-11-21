@@ -1707,11 +1707,15 @@ async function refresh(){
  if(!matches.length)$('home-matches').innerHTML='<div class="loading">Chargement immédiat du calendrier…</div>';
  try{
   const preloaded=await loadPreloadedFixtures();
-  let archivePromise=null;
+  let archiveResult={loaded:false,added:0};
   if(preloaded.length){
    matches=preloaded;render();renderLive();renderPicks();renderVIP();renderPersonalizedHome();
    $('updated').textContent='Calendrier chargé · '+matches.length+' rencontres vérifiées · actualisation des sources…';
-   archivePromise=loadHistoricalArchive();
+   archiveResult=await loadHistoricalArchive();
+   if(archiveResult.loaded){
+    renderPicks();renderVIP();renderPersonalizedHome();
+    $('updated').textContent='Archive historique : '+archiveResult.added+' résultat(s) vérifié(s) ajouté(s) · actualisation des sources…';
+   }
   }
   const [freshResult,apiResult]=await Promise.all([
    loadEspnFixtures(true).catch(error=>{console.warn('Calendrier ESPN indisponible',error?.message||error);return []}),
@@ -1725,7 +1729,7 @@ async function refresh(){
   }
   const extras=mergeApiFootballFixtures(apiRows);matches=[...matches,...extras];
   if(!matches.length)throw Error('Aucun calendrier récent vérifié disponible');
-  const archiveResult=await (archivePromise||loadHistoricalArchive());
+  if(!preloaded.length)archiveResult=await loadHistoricalArchive();
   const nationalHistory=await loadEspnTeamHistory().catch(error=>{console.warn('Historique des équipes indisponible',error?.message||error);return {teams:0,added:0,apiUnconfirmed:null,apiFailed:1}});
   const apiLiveCheck={changed:false,added:0,count:0};
   const sportScore=await loadSportScoreLive().catch(error=>{console.warn('SportScore indisponible, scores ESPN conservés',error?.message||error);return null});

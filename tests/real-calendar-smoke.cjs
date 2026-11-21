@@ -37,7 +37,7 @@ const { chromium } = require('playwright');
   const invalidHistoryRows = historyRows.filter(m => m.status !== 'FINISHED' || m.scoreConflict === true || !['SportScore','ESPN'].includes(m.source) ||
     !Number.isInteger(Number(m.score?.fullTime?.home)) || !Number.isInteger(Number(m.score?.fullTime?.away)) ||
     Number(m.score.fullTime.home) < 0 || Number(m.score.fullTime.away) < 0 || !m.homeTeam?.name || !m.awayTeam?.name ||
-    Date.parse(m.utcDate||'') < Date.now()-731*86400000 || Date.parse(m.utcDate||'') >= Date.now());
+    Date.parse(m.utcDate||'') < Date.now()-366*86400000 || Date.parse(m.utcDate||'') >= Date.now());
   if (invalidHistoryRows.length) throw new Error('Historical archive contains '+invalidHistoryRows.length+' incomplete or non-finished result(s).');
   const rendered = await page.evaluate(() => ({
     cards: document.querySelectorAll('#home-matches .match').length,
