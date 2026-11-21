@@ -226,7 +226,11 @@ async function loadEspnTeamHistory(){
           ? ['afc.asian','fifa.worldq.afc','fifa.friendly','fifa.world']
           : [item.code,'fifa.friendly','fifa.world'])
     : [item.code];
-   const requests=[...new Set(seniorCodes)].flatMap(code=>(item.national?(code===item.code?[year,year-1,year-2]:[year,year-1]):[null]).map(season=>({code,season})));
+   // Pour les clubs, récupérer aussi la saison précédente : la seule saison par défaut
+   // laisse trop souvent un échantillon trop court en début de championnat.
+   // Pour les sélections, élargir sur trois années dans la compétition principale
+   // et deux années dans les compétitions complémentaires.
+   const requests=[...new Set(seniorCodes)].flatMap(code=>(item.national?(code===item.code?[year,year-1,year-2]:[year,year-1]):[year,year-1,null]).map(season=>({code,season})));
    const responses=await Promise.allSettled(requests.map(({code,season})=>{
     const query=season?'?season='+encodeURIComponent(String(season))+'&region=fr&lang=fr':'?region=fr&lang=fr';
     return get(API+code+'/teams/'+encodeURIComponent(item.id)+'/schedule'+query,15000);
