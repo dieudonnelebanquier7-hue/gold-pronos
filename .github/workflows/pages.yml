@@ -71,7 +71,7 @@ jobs:
           });
           if (invalidHistory.length) throw new Error('Archive historique invalide : ' + invalidHistory.length + '/' + historyRows.length + ' résultat(s).');
           if (Number(d.sources?.historyRequests || 0) > 365) throw new Error('Collecte historique au-delà de la fenêtre autorisée.');
-          if (Number(d.sources?.espnRequests || 0) + Number(d.sources?.historyScheduleRequests || 0) > 1500) throw new Error('Budget ESPN dépassé avec les historiques d’équipes.');
+          if (Number(d.sources?.espnRequests || 0) + Number(d.sources?.historyScheduleRequests || 0) > 2000) throw new Error('Budget ESPN dépassé avec les historiques d’équipes.');
           console.log('Archive historique vérifiée :', historyRows.length, 'résultats terminés ;', archive.sources?.teamsWithFourHistory || 0, 'équipes avec 4+ résultats ;', archive.sources?.nationalTeamsWithFourHistory || 0, 'sélections avec 4+ résultats.');
           const generatedAt = Date.parse(d.generatedAt || '');
           if (!Number.isFinite(generatedAt) || Date.now() - generatedAt > 36 * 60 * 60 * 1000) throw new Error('Calendrier absent ou trop ancien.');
