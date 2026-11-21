@@ -28,7 +28,14 @@ concurrency:
   group: gold-pronos-pages
   cancel-in-progress: true
 jobs:
+  android:
+    if: github.event_name != 'schedule'
+    uses: ./.github/workflows/android-apk.yml
+    permissions:
+      contents: write
   deploy:
+    needs: android
+    if: ${{ always() && (needs.android.result == 'success' || needs.android.result == 'skipped') }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
