@@ -116,11 +116,16 @@ const { chromium } = require('playwright');
     refresh.click();
   });
   try {
+    // The national calendar is rendered before the optional ESPN team-directory
+    // enrichment. Do not make this smoke test wait for all 15 directory requests:
+    // they are supplementary and can take longer than the calendar itself.
     await page.waitForFunction(() => {
       const status = document.querySelector('#nt-source-status')?.textContent || '';
+      const cards = document.querySelectorAll('#nt-fixtures .nt-fixture').length;
       const notice = document.querySelector('#nt-fixtures .notice')?.innerText || '';
-      return /Le catalogue dépend de la couverture publique des fournisseurs/.test(status) || /Impossible de charger le calendrier national/i.test(notice);
-    }, null, {timeout:30000});
+      return (/Calendrier généré le/.test(status) && (cards > 0 || !!notice)) ||
+        /Impossible de charger le calendrier national/i.test(notice);
+    }, null, {timeout:15000});
   } catch (error) {
     const diagnostic = await page.evaluate(() => ({
       status: document.querySelector('#nt-source-status')?.textContent || '',
@@ -179,17 +184,14 @@ const { chromium } = require('playwright');
     localStorage.setItem(key,JSON.stringify(cache));
     window.dispatchEvent(new Event('gold-pronos-team-history-updated'));
   }, seededHistory);
-  // Reload only after the national data loader has fully settled. This makes the
-  // cache-consumption assertion deterministic even if the initial tab click raced.
+  // Trigger a refresh, but do not wait for the optional ESPN team-directory
+  // enrichment. The assertion below waits for the synthetic cache entry to produce
+  // a national prediction card, which is the behavior this test is intended to verify.
   await page.evaluate(() => {
     const refresh = document.querySelector('#nt-refresh');
     if (!refresh) throw new Error('National-team refresh control is missing after history seeding.');
     refresh.click();
   });
-  await page.waitForFunction(() => {
-    const status = document.querySelector('#nt-source-status')?.textContent || '';
-    return /Le catalogue dépend de la couverture publique des fournisseurs/.test(status);
-  }, null, {timeout:30000});
   const placeholderScores = await page.evaluate(() => {
     const isZeroZero = value => /^0\s*[:\-]\s*0$/.test(String(value || '').trim());
     const home = [...document.querySelectorAll('#home-matches .match')].filter(card => {
@@ -255,6 +257,8 @@ const { chromium } = require('playwright');
     nationalFixtureCards,
     nationalCompetitionCards,
     nationalHistoryCacheFixture:nationalFixture.homeTeam.name+' – '+nationalFixture.awayTeam.name,
+    nationalHistorySource:'HISTORIQUE SYNTHÉTIQUE INJECTÉ UNIQUEMENT POUR TEST',
+    nationalSyntheticHistoryMatches:8,
     firstVisibleMatch:firstCard.slice(0,220),
     mobileWidth:await page.evaluate(()=>document.documentElement.clientWidth),
     pageErrors:errors
