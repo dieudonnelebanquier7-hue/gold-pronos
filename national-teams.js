@@ -135,7 +135,14 @@ async function load(){
   if(box)box.innerHTML='<div class="notice">Impossible de charger le calendrier national : '+safe(e.message)+'. Réessaie après actualisation.</div>';
  }finally{busy=false;}
 }
-window.addEventListener('gold-pronos-team-history-updated',()=>{if(!data.length)return;const added=mergeCachedEspnHistories();if(added)renderPredictions()});
+window.addEventListener('gold-pronos-team-history-updated',()=>{
+ if(!data.length)return;
+ // Always refresh the prediction panel after a history-cache update. A cache
+ // write can replace or confirm existing entries without increasing the number
+ // of imported fixtures; the UI must still be brought back in sync.
+ mergeCachedEspnHistories();
+ renderPredictions();
+});
 $('nt-refresh')?.addEventListener('click',load);$('nt-search')?.addEventListener('input',e=>{search=e.target.value;renderTeams();renderFixtures()});$('nt-competition-filter')?.addEventListener('change',e=>{selected=e.target.value;renderFixtures()});$('nt-date-filter')?.addEventListener('change',e=>{filter=e.target.value;renderFixtures()});
 document.querySelector('.tabs')?.addEventListener('click',event=>{const tab=event.target.closest('.tab[data-page="national-teams"]');if(tab&&!data.length)load()});
 })();
