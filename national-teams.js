@@ -149,4 +149,8 @@ window.addEventListener('gold-pronos-team-history-updated',()=>{
 });
 $('nt-refresh')?.addEventListener('click',load);$('nt-search')?.addEventListener('input',e=>{search=e.target.value;renderTeams();renderFixtures()});$('nt-competition-filter')?.addEventListener('change',e=>{selected=e.target.value;renderFixtures()});$('nt-date-filter')?.addEventListener('change',e=>{filter=e.target.value;renderFixtures()});
 document.querySelector('.tabs')?.addEventListener('click',event=>{const tab=event.target.closest('.tab[data-page="national-teams"]');if(tab&&!data.length)load()});
+// Expose a deterministic entry point for browser smoke tests and load the independent
+// national calendar once at startup, so it cannot remain indefinitely on its HTML placeholder.
+window.GoldPronosNationalTeamsLoad=load;
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',load,{once:true});else load();
 })();
