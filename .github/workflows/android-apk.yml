@@ -137,9 +137,28 @@ jobs:
           done
           exit 1
 
+      - name: Install and launch APK on Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          script: |
+            adb logcat -c
+            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+            adb shell monkey -p com.lebanquier.goldpronos 1
+            sleep 10
+            adb shell pidof com.lebanquier.goldpronos
+            if adb logcat -d -s AndroidRuntime:E | grep -E 'FATAL EXCEPTION|Process: com\\.lebanquier\\.goldpronos'; then
+              echo "Crash détecté au lancement Android."
+              exit 1
+            fi
+            adb shell dumpsys activity activities | grep -q 'com.lebanquier.goldpronos'
+            echo "Installation et lancement Android confirmés."
       - name: Publish APK on GitHub Releases
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="android-v0.2-build-${GITHUB_RUN_NUMBER}"
-          gh release create "$TAG" android/app/build/outputs/apk/debug/app-debug.apk             --title "GOLD PRONOS Android v0.2 - Build ${GITHUB_RUN_NUMBER}"             --notes "APK Android de GOLD PRONOS - Le Banquier. Installation manuelle Android. Cette version embarque le calendrier disponible au moment de la compilation. Les analyses avancées et cotes ne sont pas incluses tant qu'elles ne sont pas réellement implémentées et alimentées par une source fiable."
+          gh release create "$TAG" android/app/build/outputs/apk/debug/app-debug.apk             --title "GOLD PRONOS Android v0.2 - Build ${GITHUB_RUN_NUMBER}"             --notes "APK Android de GOLD PRONOS - Le Banquier. Installation manuelle Android. Cette version embarque le calendrier disponible au moment de la compilation et les analyses statistiques 1N2, double chance, buts et BTTS calculées à partir des résultats vérifiés disponibles. Les probabilités sont indicatives ; aucune cote ni absence de joueur n'est inventée."
