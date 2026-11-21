@@ -212,8 +212,10 @@ const { chromium } = require('playwright');
       const section = document.querySelector('#page-national-teams');
       const notice = document.querySelector('#nt-predictions .notice');
       if (!section?.classList.contains('active') || getComputedStyle(section).display === 'none' || !notice) return false;
-      return getComputedStyle(notice).display !== 'none' &&
-        getComputedStyle(notice).visibility !== 'hidden' &&
+      const noticeStyle = getComputedStyle(notice);
+      const rect = notice.getBoundingClientRect();
+      return noticeStyle.display !== 'none' &&
+        rect.width > 0 && rect.height > 0 &&
         notice.textContent.trim().length > 0;
     }, null, {timeout:15000});
   } catch (error) {
