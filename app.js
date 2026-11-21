@@ -186,7 +186,7 @@ let espnHistoryBatchTimer=null;
 async function loadEspnTeamHistory(){
  const now=Date.now(),cache=(()=>{try{return JSON.parse(localStorage.getItem(ESPN_TEAM_HISTORY_CACHE_KEY)||'{}')}catch(_){return {}}})();
  // Récupère les historiques des clubs et sélections. ESPN ne fournit pas toujours le calendrier passé des équipes nationales.
- const upcoming=matches.filter(m=>!m.live&&!m.finished&&Date.parse(m.date)>now&&Date.parse(m.date)<=now+7*86400000&&m.code&&providerNorm(m.home)&&providerNorm(m.away));
+ const upcoming=matches.filter(m=>!m.live&&!m.finished&&Date.parse(m.date)>now&&Date.parse(m.date)<=now+14*86400000&&m.code&&providerNorm(m.home)&&providerNorm(m.away));
  const teams=new Map();
  for(const m of upcoming){
   const kickoff=Date.parse(m.date),national=!!(m.homeNational||m.awayNational||isNationalCompetition(m.code));
