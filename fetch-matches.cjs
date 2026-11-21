@@ -294,7 +294,9 @@ async function discoverEspnLeagues(){
   if(previous){
    const sameScore=Number(previous.score.fullTime.home)===Number(homeScore)&&Number(previous.score.fullTime.away)===Number(awayScore);
    if(!sameScore){historyCandidatesByKey.delete(key);historyConflicts.add(key);continue;}
-   if(m.source==='ESPN'&&previous.source!=='ESPN')historyCandidatesByKey.set(key,m);
+   const preferred=m.source==='ESPN'&&previous.source!=='ESPN'?m:previous;
+   preferred.providers=[...new Set([...(previous.providers||[previous.source]),...(m.providers||[m.source])].filter(Boolean))];
+   historyCandidatesByKey.set(key,preferred);
   }else historyCandidatesByKey.set(key,m);
  }
  const candidates=[...historyCandidatesByKey.values()];
