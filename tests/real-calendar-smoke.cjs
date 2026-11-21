@@ -107,7 +107,7 @@ const { chromium } = require('playwright');
     if (expandedCards <= cards) throw new Error('The progressive-load control did not reveal additional fixtures.');
   }
   // Measure predictions only after the verified archive has been merged into the main statistics index.
-  await page.waitForFunction(() => /archive historique : \d+ résultat/.test(document.querySelector('#updated')?.textContent||''), null, {timeout:30000});
+  await page.waitForFunction(() => /archive historique : \d+ résultat/i.test(document.querySelector('#updated')?.textContent||''), null, {timeout:30000});
   await page.waitForFunction(() => document.querySelectorAll('#picks .pick-card').length > 0, null, {timeout:15000});
   const predictionCards = await page.locator('#picks .pick-card').count();
   const predictionPendingCards = await page.locator('#picks .pick-card').filter({hasText:'Analyse en attente'}).count();
