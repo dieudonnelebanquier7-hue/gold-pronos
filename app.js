@@ -989,20 +989,7 @@ function renderPicks(){
   const confidenceSamples=Math.min(hs.n,as.n,hhs.n,aas.n);
   const confidence=confidenceSamples>=6?'Échantillon correct':confidenceSamples>=4?'Confiance limitée':'Confiance faible';
   const sampleLabel='Forme récente vérifiée · '+(useHomeOverall?'forme globale pour '+m.home+' (domicile insuffisant)':'domicile pour '+m.home)+' · '+(useAwayOverall?'forme globale pour '+m.away+' (extérieur insuffisant)':'extérieur pour '+m.away);
-  const edge=homeForm-awayForm;
-  let strong='Aucun favori net',strongWhy='Écart de forme trop faible pour isoler une victoire.';
-  if(edge>=0.65){strong='V1 · '+m.home;strongWhy='Indice de forme pondéré : '+homeForm.toFixed(2)+' contre '+awayForm.toFixed(2)+' points par match, avec 65 % de poids à cet échantillon de contexte.'}
-  else if(edge<=-0.65){strong='V2 · '+m.away;strongWhy='Indice de forme pondéré : '+awayForm.toFixed(2)+' contre '+homeForm.toFixed(2)+' points par match, avec 65 % de poids à cet échantillon de contexte.'}
-  let double='Non retenu · prudence',doubleWhy='Aucune différence suffisante dans les taux de matchs sans défaite sur les échantillons retenus.';
-  if(hhs.unbeatenRate>=0.70&&hhs.unbeatenRate-aas.unbeatenRate>=0.15){double='1X · '+m.home+' ou nul';doubleWhy='Le '+m.home+' est resté sans défaite dans '+Math.round(hhs.unbeatenRate*100)+' % de ses '+hhs.n+' derniers matchs ('+homeContextLabel+').' }
-  else if(aas.unbeatenRate>=0.70&&aas.unbeatenRate-hhs.unbeatenRate>=0.15){double='2X · '+m.away+' ou nul';doubleWhy='Le '+m.away+' est resté sans défaite dans '+Math.round(aas.unbeatenRate*100)+' % de ses '+aas.n+' derniers matchs ('+awayContextLabel+').' }
-  const avgGoals=(hhs.scored+aas.conceded+aas.scored+hhs.conceded)/2;
-  const rate15=(hhs.over15+aas.over15)/2,rate25=(hhs.over25+aas.over25)/2;
-  const bttsRate=(hhs.bttsRate+aas.bttsRate)/2;
-  const goals15=avgGoals>=2.0&&rate15>=0.65?'+ de 1,5 but':'Non retenu · prudence';
-  const goals25=avgGoals>=2.65&&rate25>=0.55?'+ de 2,5 buts':'Non retenu · prudence';
-  const btts=bttsRate>=0.65&&avgGoals>=2.2?'Oui · signal statistique':'Non retenu · prudence';
-  const sampleLabel='Forme récente vérifiée · '+(useHomeOverall?'forme globale pour '+m.home+' (domicile insuffisant)':'domicile pour '+m.home)+' · '+(useAwayOverall?'forme globale pour '+m.away+' (extérieur insuffisant)':'extérieur pour '+m.away);
+
   el.innerHTML+='<div class="pick-markets">'+
    marketLine('Résultat 1N2',oneXtwo.label,oneXtwo.detail,oneXtwo.kind)+
    marketLine('Double chance',double,doubleWhy,double.startsWith('Pas de sélection')?'market-neutral':'market-positive')+
@@ -1030,7 +1017,7 @@ function renderPicks(){
      away:{sample:as.n,pointsPerMatch:Number(as.ppg.toFixed(2)),goalsScoredAverage:Number(as.scored.toFixed(2)),goalsConcededAverage:Number(as.conceded.toFixed(2)),over15Rate:Number(as.over15.toFixed(3)),over25Rate:Number(as.over25.toFixed(3)),awaySample:aas.n,awayPointsPerMatch:Number(aas.ppg.toFixed(2)),awayUnbeatenRate:Number(aas.unbeatenRate.toFixed(3)),awayBttsRate:Number(aas.bttsRate.toFixed(3))}
     },
     markets:[
-     {name:'Équipe la plus forte',options:['V1','V2','NO_BET'],current:strong.startsWith('V1')?'V1':strong.startsWith('V2')?'V2':'NO_BET'},
+     {name:'Équipe la plus forte',options:['V1','V2','NO_BET'],current:oneXtwo.label.startsWith('1 ·')?'V1':oneXtwo.label.startsWith('2 ·')?'V2':'NO_BET'},
      {name:'Double chance',options:['1X','2X','NO_BET'],current:double.startsWith('1X')?'1X':double.startsWith('2X')?'2X':'NO_BET'},
      {name:'Total buts 1.5',options:['OVER_1_5','NO_BET'],current:goals15.startsWith('+')?'OVER_1_5':'NO_BET'},
      {name:'Total buts 2.5',options:['OVER_2_5','NO_BET'],current:goals25.startsWith('+')?'OVER_2_5':'NO_BET'},
