@@ -9,7 +9,7 @@ let leagues=[
  ['ksa.1','Arabie saoudite · Pro League'],['cze.1','Tchéquie · First League'],['usa.1','États-Unis · MLS'],
  ['rou.1','Roumanie · Liga I'],['rus.1','Russie · Premier League'],['chn.1','Chine · Super League'],
  ['jpn.1','Japon · J1 League'],['bra.1','Brésil · Série A'],['arg.1','Argentine · Liga Profesional'],
- ['mex.1','Mexique · Liga MX'],['bra.2','Brésil · Série B'],['arg.2','Argentine · Primera Nacional'],['bel.2','Belgique · Challenger Pro League'],['sco.2','Écosse · Championship'],['tur.2','Turquie · 1. Lig'],['ksa.2','Arabie saoudite · First Division']['uefa.champions','UEFA · Ligue des champions'],
+ ['mex.1','Mexique · Liga MX'],['bra.2','Brésil · Série B'],['arg.2','Argentine · Primera Nacional'],['bel.2','Belgique · Challenger Pro League'],['sco.2','Écosse · Championship'],['tur.2','Turquie · 1. Lig'],['ksa.2','Arabie saoudite · First Division'],['uefa.champions','UEFA · Ligue des champions'],
  ['uefa.europa','UEFA · Ligue Europa'],['uefa.europa.conf','UEFA · Ligue Conférence'],
  ['afc.champions','AFC · Ligue des champions'],['fifa.world','FIFA · Coupe du monde masculine'],
  ['fifa.worldq.uefa','FIFA · Qualifications Coupe du monde UEFA'],['fifa.worldq.conmebol','FIFA · Qualifications Coupe du monde CONMEBOL'],['fifa.worldq.concacaf','FIFA · Qualifications Coupe du monde CONCACAF'],['fifa.worldq.afc','FIFA · Qualifications Coupe du monde AFC'],['fifa.worldq.caf','FIFA · Qualifications Coupe du monde CAF'],['fifa.worldq.ofc','FIFA · Qualifications Coupe du monde OFC'],
@@ -32,6 +32,7 @@ let leagues=[
  ['uefa.u21','UEFA · Compétitions U21'],
  ['uefa.youthleague','UEFA · Youth League']
 ];
+if(leagues.some(item=>!Array.isArray(item)||item.length!==2||!item[0]||!item[1]))throw new Error('Catalogue des compétitions invalide : chaque entrée doit contenir un code et un libellé.');
 const today=new Date();today.setUTCHours(0,0,0,0);
 const from=new Date(today);from.setUTCDate(from.getUTCDate()-30);
 const historyFrom=new Date(today);historyFrom.setUTCDate(historyFrom.getUTCDate()-365);
