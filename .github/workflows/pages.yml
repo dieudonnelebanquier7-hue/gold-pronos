@@ -52,11 +52,17 @@ jobs:
           const rows = Array.isArray(d.matches) ? d.matches : [];
           const archive = require('./history.json');
           const historyRows = Array.isArray(archive.matches) ? archive.matches : [];
+          const historySourceCounts = historyRows.reduce((counts, match) => {
+            const source = String(match.source || 'unknown');
+            counts[source] = (counts[source] || 0) + 1;
+            return counts;
+          }, {});
+          console.log('Sources de l’archive :', JSON.stringify(historySourceCounts));
           const invalidHistory = historyRows.filter(m => {
             const date = Date.parse(m.utcDate || '');
             const home = Number(m.score?.fullTime?.home);
             const away = Number(m.score?.fullTime?.away);
-            return m.status !== 'FINISHED' || m.scoreConflict === true || !['SportScore','ESPN'].includes(m.source) ||
+            return m.status !== 'FINISHED' || m.scoreConflict === true || !['SportScore','ESPN','OpenLigaDB'].includes(m.source) ||
               !Number.isFinite(date) || date >= Date.now() || date < Date.now() - 366 * 86400000 ||
               !m.homeTeam?.name || !m.awayTeam?.name ||
               m.score?.fullTime?.home === null || m.score?.fullTime?.home === undefined ||
