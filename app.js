@@ -214,19 +214,7 @@ async function loadEspnTeamHistory(){
    // peut ne contenir que quatre matchs. On complète avec les autres compétitions officielles
    // de la même confédération et les amicaux, sans mélanger les identifiants d'équipes.
    const year=nowDateYear(now);
-   const seniorCodes=item.national
-    ? (String(item.code).includes('uefa')
-      ? ['uefa.nations','fifa.worldq.uefa','fifa.friendly','uefa.euro','fifa.world']
-      : String(item.code).includes('caf')
-       ? ['caf.nations','fifa.worldq.caf','fifa.friendly','fifa.world']
-       : String(item.code).includes('conmebol')
-        ? ['conmebol.copa','fifa.worldq.conmebol','fifa.friendly','fifa.world']
-        : String(item.code).includes('concacaf')
-         ? ['concacaf.gold','fifa.worldq.concacaf','fifa.friendly','fifa.world']
-         : String(item.code).includes('afc')
-          ? ['afc.asian','fifa.worldq.afc','fifa.friendly','fifa.world']
-          : [item.code,'fifa.friendly','fifa.world'])
-    : [item.code];
+   const seniorCodes=item.national?nationalHistoryCompetitionCodes(item):[item.code];
    // Pour les clubs, récupérer aussi la saison précédente : la seule saison par défaut
    // laisse trop souvent un échantillon trop court en début de championnat.
    // Pour les sélections, élargir sur trois années dans la compétition principale
@@ -442,6 +430,33 @@ function renderApiFootballDetail(m,data){
 
 function crestUrl(team){const list=Array.isArray(team?.logos)?team.logos:[];const item=list.find(x=>x?.href&&(/default|full|primary/i.test((x.rel||[]).join(' '))||!x.rel))||list.find(x=>x?.href);const url=item?.href||team?.logo||team?.crest||'';try{const u=new URL(url);return u.protocol==='https:'?u.href:''}catch(_){return ''}}
 function isNationalCompetition(code){const value=String(code||'').toLowerCase();return ['fifa.world','fifa.worldq.uefa','fifa.worldq.conmebol','fifa.worldq.concacaf','fifa.worldq.afc','fifa.worldq.caf','fifa.worldq.ofc','fifa.friendly','fifa.friendly.w','caf.nations','uefa.euro','uefa.nations','conmebol.copa','concacaf.gold','afc.asian','uefa.u21','fifa.world.u20','fifa.world.u17','fifa.wwc','fifa.wworld.u17','conmebol.america.femenina'].includes(value)||(/(?:international|national|fifa|world|qualif|nations|copa|africa|gold.?cup|asian|friendly)/i.test(value)&&!/(?:club|league).?friend/i.test(value))}
+function nationalHistoryCompetitionCodes(item){
+ const code=String(item?.code||'').toLowerCase();
+ if(code.includes('uefa'))return ['uefa.nations','fifa.worldq.uefa','fifa.friendly','uefa.euro','fifa.world'];
+ if(code.includes('caf'))return ['caf.nations','fifa.worldq.caf','fifa.friendly','fifa.world'];
+ if(code.includes('conmebol'))return ['conmebol.copa','fifa.worldq.conmebol','fifa.friendly','fifa.world'];
+ if(code.includes('concacaf'))return ['concacaf.gold','fifa.worldq.concacaf','fifa.friendly','fifa.world'];
+ if(code.includes('afc'))return ['afc.asian','fifa.worldq.afc','fifa.friendly','fifa.world'];
+ if(code.includes('ofc'))return ['fifa.worldq.ofc','fifa.friendly','fifa.world'];
+ const name=providerNorm(item?.team);
+ const groups=[
+  ['uefa','albania andorra armenia austria azerbaijan belarus belgium bosnia and herzegovina bulgaria croatia cyprus czech republic czechia denmark england estonia faroe islands finland france georgia germany gibraltar greece hungary iceland israel italy kazakhstan kosovo latvia liechtenstein lithuania luxembourg malta moldova montenegro netherlands north macedonia northern ireland norway poland portugal republic of ireland romania russia san marino scotland serbia slovakia slovenia spain sweden switzerland turkey ukraine wales'],
+  ['caf','algeria angola benin botswana burkina faso burundi cameroon cape verde central african republic chad comoros congo dr congo democratic republic of the congo ivory coast cote divoire djibouti egypt equatorial guinea eritrea eswatini ethiopia gabon gambia ghana guinea guinea bissau kenya lesotho liberia libya madagascar malawi mali mauritania mauritius morocco mozambique namibia niger nigeria rwanda sao tome senegal seychelles sierra leone somalia south africa south sudan sudan tanzania togo tunisia uganda zambia zimbabwe'],
+  ['conmebol','argentina bolivia brazil brasil chile colombia ecuador paraguay peru uruguay venezuela'],
+  ['concacaf','antigua and barbuda aruba bahamas barbados belize bermuda british virgin islands canada cayman islands costa rica cuba curacao dominica dominican republic el salvador grenada guatemala guyana haiti honduras jamaica mexico montserrat nicaragua panama puerto rico saint kitts and nevis saint lucia saint vincent and the grenadines suriname trinidad and tobago united states usa'],
+  ['afc','afghanistan australia bahrain bangladesh bhutan brunei cambodia china chinese taipei guam hong kong india indonesia iran iraq japan jordan kuwait kyrgyzstan laos lebanon macau malaysia maldives mongolia myanmar nepal north korea oman pakistan palestine philippines qatar saudi arabia singapore south korea sri lanka syria tajikistan thailand timor leste turkmenistan united arab emirates uae uzbekistan vietnam yemen'],
+  ['ofc','american samoa cook islands fiji new caledonia new zealand papua new guinea samoa solomon islands tahiti tonga vanuatu']
+ ];
+ for(const [confed,countries] of groups)if((' '+countries.split(' ').join(' ')+' ').includes(' '+name+' ')){
+  if(confed==='uefa')return ['uefa.nations','fifa.worldq.uefa','fifa.friendly','uefa.euro','fifa.world'];
+  if(confed==='caf')return ['caf.nations','fifa.worldq.caf','fifa.friendly','fifa.world'];
+  if(confed==='conmebol')return ['conmebol.copa','fifa.worldq.conmebol','fifa.friendly','fifa.world'];
+  if(confed==='concacaf')return ['concacaf.gold','fifa.worldq.concacaf','fifa.friendly','fifa.world'];
+  if(confed==='afc')return ['afc.asian','fifa.worldq.afc','fifa.friendly','fifa.world'];
+  return ['fifa.worldq.ofc','fifa.friendly','fifa.world'];
+ }
+ return [item.code,'fifa.friendly','fifa.world'];
+}
 const FIFA_TO_ISO2={ENG:'gb-eng',SCO:'gb-sct',WAL:'gb-wls',NIR:'gb-nir',FRA:'fr',GER:'de',ESP:'es',ITA:'it',POR:'pt',NED:'nl',BEL:'be',SUI:'ch',AUT:'at',DEN:'dk',SWE:'se',NOR:'no',FIN:'fi',POL:'pl',CZE:'cz',SVK:'sk',CRO:'hr',SRB:'rs',BIH:'ba',SVN:'si',HUN:'hu',ROU:'ro',BUL:'bg',GRE:'gr',TUR:'tr',UKR:'ua',RUS:'ru',IRL:'ie',ISL:'is',USA:'us',CAN:'ca',MEX:'mx',BRA:'br',ARG:'ar',URU:'uy',CHI:'cl',COL:'co',ECU:'ec',PER:'pe',PAR:'py',BOL:'bo',JPN:'jp',KOR:'kr',CHN:'cn',AUS:'au',NZL:'nz',IRN:'ir',KSA:'sa',QAT:'qa',UAE:'ae',IRQ:'iq',JOR:'jo',UZB:'uz',IND:'in',SEN:'sn',CIV:'ci',NGA:'ng',GHA:'gh',CMR:'cm',MAR:'ma',ALG:'dz',TUN:'tn',EGY:'eg',RSA:'za',COD:'cd',CGO:'cg',BFA:'bf',MLI:'ml',GNB:'gw',CPV:'cv',GAB:'ga',ANG:'ao',ZAM:'zm',ZIM:'zw',MOZ:'mz',TAN:'tz',UGA:'ug',KEN:'ke',ETH:'et',BEN:'bj',TOG:'tg',GUI:'gn',LBR:'lr',SLE:'sl',MTN:'mr',NAM:'na',BOT:'bw',MAD:'mg',COM:'km',LES:'ls',SWZ:'sz',HAI:'ht',JAM:'jm',CRC:'cr',PAN:'pa',HON:'hn',GUA:'gt',SLV:'sv',TRI:'tt',CUB:'cu',DOM:'do',PUR:'pr',FRO:'fo',LUX:'lu',EST:'ee',LVA:'lv',LTU:'lt',GEO:'ge',ARM:'am',AZE:'az',KAZ:'kz',THA:'th',VIE:'vn',MAS:'my',IDN:'id',PHI:'ph',HKG:'hk',TPE:'tw',GBR:'gb',CHE:'ch',DEU:'de',PRT:'pt',NLD:'nl',DNK:'dk',HRV:'hr',BGR:'bg',GRC:'gr',SVK:'sk',SVN:'si',HUN:'hu',ROU:'ro',AUT:'at',LUX:'lu',CYP:'cy',MLT:'mt',MDA:'md',MNE:'me',MKD:'mk',BLR:'by',LTU:'lt',LVA:'lv',EST:'ee',GEO:'ge',ARM:'am',AZE:'az',KAZ:'kz',KGZ:'kg',TJK:'tj',TKM:'tm',UZB:'uz',AFG:'af',ALB:'al',AND:'ad',ATG:'ag',ARU:'aw',BAH:'bs',BAN:'bd',BAR:'bb',BER:'bm',BLR:'by',BLZ:'bz',BRU:'bn',BDI:'bi',CAM:'kh',CAF:'cf',CHA:'td',CYP:'cy',DMA:'dm',DJI:'dj',ERI:'er',EQG:'gq',FIJ:'fj',GAM:'gm',GRN:'gd',GUY:'gy',ISR:'il',KOS:'xk',KGZ:'kg',LIE:'li',LBA:'ly',LCA:'lc',MAC:'mo',MWI:'mw',MDV:'mv',MLT:'mt',MDA:'md',MNE:'me',MGL:'mn',MYA:'mm',NEP:'np',NCL:'nc',PAK:'pk',PNG:'pg',PRK:'kp',RWA:'rw',SAM:'ws',SEY:'sc',SKN:'kn',SOL:'sb',SOM:'so',SSD:'ss',STP:'st',SUD:'sd',SUR:'sr',SYR:'sy',TJK:'tj',TKM:'tm',TLS:'tl',TAH:'pf',VIN:'vc',VAN:'vu',YEM:'ye'};
 const COUNTRY_TO_ISO2={'benin':'bj','france':'fr','germany':'de','espagne':'es','spain':'es','italie':'it','italy':'it','portugal':'pt','pays bas':'nl','netherlands':'nl','belgique':'be','belgium':'be','suisse':'ch','switzerland':'ch','angleterre':'gb-eng','england':'gb-eng','ecosse':'gb-sct','scotland':'gb-sct','pays de galles':'gb-wls','wales':'gb-wls','irlande du nord':'gb-nir','northern ireland':'gb-nir','etats unis':'us','united states':'us','usa':'us','bresil':'br','brazil':'br','argentine':'ar','argentina':'ar','maroc':'ma','morocco':'ma','senegal':'sn','cote divoire':'ci','ivory coast':'ci','nigeria':'ng','cameroun':'cm','cameroon':'cm','ghana':'gh','algerie':'dz','algeria':'dz','tunisie':'tn','tunisia':'tn','afrique du sud':'za','south africa':'za','republique democratique du congo':'cd','congo dr':'cd','japon':'jp','japan':'jp','coree du sud':'kr','south korea':'kr','korea republic':'kr','chine':'cn','china':'cn','australie':'au','australia':'au','nouvelle zelande':'nz','new zealand':'nz','arabie saoudite':'sa','saudi arabia':'sa','iran':'ir','irak':'iq','iraq':'iq','qatar':'qa','emirats arabes unis':'ae','united arab emirates':'ae','cap vert':'cv','cape verde':'cv','republique tcheque':'cz','czech republic':'cz','tchequie':'cz','bosnie herzegovine':'ba','north macedonia':'mk','macedoine du nord':'mk','ukraine':'ua','russie':'ru','russia':'ru','suede':'se','sweden':'se','norvege':'no','norway':'no','danemark':'dk','denmark':'dk','finlande':'fi','finland':'fi','pologne':'pl','poland':'pl','croatie':'hr','croatia':'hr','serbie':'rs','serbia':'rs','roumanie':'ro','romania':'ro','grece':'gr','greece':'gr','turquie':'tr','turkey':'tr','mexique':'mx','mexico':'mx','colombie':'co','colombia':'co','chili':'cl','chile':'cl','uruguay':'uy','equateur':'ec','ecuador':'ec','perou':'pe','peru':'pe','paraguay':'py','bolivie':'bo','bolivia':'bo','jamaica':'jm','canada':'ca','costa rica':'cr','panama':'pa','honduras':'hn','guatemala':'gt','el salvador':'sv','trinite et tobago':'tt','trinidad and tobago':'tt'};
 function teamFlagUrl(team){
