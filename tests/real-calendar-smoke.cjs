@@ -34,7 +34,7 @@ const { chromium } = require('playwright');
   if (!historyResponse.ok()) throw new Error('Verified history archive is not available: HTTP '+historyResponse.status());
   const historyArchive = await historyResponse.json();
   const historyRows = Array.isArray(historyArchive.matches) ? historyArchive.matches : [];
-  const invalidHistoryRows = historyRows.filter(m => m.status !== 'FINISHED' || m.scoreConflict === true || !['SportScore','ESPN'].includes(m.source) ||
+  const invalidHistoryRows = historyRows.filter(m => m.status !== 'FINISHED' || m.scoreConflict === true || !['SportScore','ESPN','OpenLigaDB'].includes(m.source) ||
     !Number.isInteger(Number(m.score?.fullTime?.home)) || !Number.isInteger(Number(m.score?.fullTime?.away)) ||
     Number(m.score.fullTime.home) < 0 || Number(m.score.fullTime.away) < 0 || !m.homeTeam?.name || !m.awayTeam?.name ||
     Date.parse(m.utcDate||'') < Date.now()-366*86400000 || Date.parse(m.utcDate||'') >= Date.now());
