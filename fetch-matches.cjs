@@ -68,7 +68,7 @@ async function fetchLeague(league,day){
      competition:{name:label,code:'ESPN-'+code},
      homeTeam:{id:String(home.team?.id||home.id||''),name:home.team?.displayName||home.team?.name||'Équipe domicile',abbreviation:home.team?.abbreviation||home.team?.shortDisplayName||'',country:{name:home.team?.location||home.team?.displayName||home.team?.name||'',code:home.team?.abbreviation||''},logo:teamLogo(home.team)},
      awayTeam:{id:String(away.team?.id||away.id||''),name:away.team?.displayName||away.team?.name||'Équipe extérieure',abbreviation:away.team?.abbreviation||away.team?.shortDisplayName||'',country:{name:away.team?.location||away.team?.displayName||away.team?.name||'',code:away.team?.abbreviation||''},logo:teamLogo(away.team)},
-     score:{fullTime:{home:home.score==null?null:Number(home.score),away:away.score==null?null:Number(away.score)}},source:'ESPN',providers:['ESPN']};
+     score:{fullTime:{home:home.score==null||String(home.score).trim()===''?null:Number(home.score),away:away.score==null||String(away.score).trim()===''?null:Number(away.score)}},source:'ESPN',providers:['ESPN']};
    }).filter(Boolean);
   }catch(e){if(attempt===1)console.log('Source indisponible '+code+': '+e.message)}
  }
@@ -125,7 +125,7 @@ async function fetchTeamSchedule(code,id,season,label){
     competition:{name:comp?.name||label||'Compétition internationale',code:'ESPN-'+code},
     homeTeam:{id:String(home.team?.id||home.id||''),name:homeName,abbreviation:home.team?.abbreviation||'',country:{name:home.team?.location||homeName,code:''},logo:teamLogo(home.team)},
     awayTeam:{id:String(away.team?.id||away.id||''),name:awayName,abbreviation:away.team?.abbreviation||'',country:{name:away.team?.location||awayName,code:''},logo:teamLogo(away.team)},
-    score:{fullTime:{home:home.score==null?null:Number(home.score),away:away.score==null?null:Number(away.score)}},
+    score:{fullTime:{home:home.score==null||String(home.score).trim()===''?null:Number(home.score),away:away.score==null||String(away.score).trim()===''?null:Number(away.score)}},
     source:'ESPN',providers:['ESPN']
    };
   }).filter(Boolean);
@@ -202,13 +202,18 @@ async function discoverEspnLeagues(){
  for(const item of sportMatches){
   const home=normalize(item.homeTeam.name),away=normalize(item.awayTeam.name),time=Date.parse(item.utcDate);
   const duplicate=combined.find(existing=>normalize(existing.homeTeam?.name)===home&&normalize(existing.awayTeam?.name)===away&&Math.abs(Date.parse(existing.utcDate)-time)<=6*60*60*1000);
-  if(duplicate){duplicate.providers=[...new Set([...(duplicate.providers||['ESPN']),'SportScore'])];}
+  if(duplicate){
+    const a=duplicate.score?.fullTime,b=item.score?.fullTime;
+    if(a?.home!==null&&a?.home!==undefined&&a?.away!==null&&a?.away!==undefined&&b?.home!==null&&b?.home!==undefined&&b?.away!==null&&b?.away!==undefined&&
+       (Number(a.home)!==Number(b.home)||Number(a.away)!==Number(b.away)))duplicate.scoreConflict=true;
+    duplicate.providers=[...new Set([...(duplicate.providers||['ESPN']),'SportScore'])];
+   }
   else combined.push(item);
  }
  const unique=new Map(combined.map(m=>[m.id,m]));
  const matches=[...unique.values()].sort((a,b)=>new Date(a.utcDate)-new Date(b.utcDate));
  if(!matches.length)throw new Error('Aucune rencontre reçue après '+tasks.length+' requêtes ESPN et '+dates.length+' requêtes SportScore. Le calendrier existant ne sera pas remplacé.');
- const now=Date.now(),futureLimit=now+14*86400000,upcomingTeams=new Set();
+ const now=Date.now(),futureLimit=now+14*86400000,upcomingTeams=new Set(),upcomingIdentityById=new Map();
  const isNationalCode=code=>/^(?:fifa\.|uefa\.(?:euro|nations|u21)|conmebol\.(?:copa|america\.femenina)|concacaf\.gold|afc\.asian|caf\.nations)/i.test(String(code||''));
  const nationalTeamMap=new Map();
  for(const m of matches){
@@ -251,28 +256,36 @@ async function discoverEspnLeagues(){
   const home=normalize(item.homeTeam.name),away=normalize(item.awayTeam.name);
   const duplicateIndex=matches.findIndex(existing=>normalize(existing.homeTeam?.name)===home&&normalize(existing.awayTeam?.name)===away&&Math.abs(Date.parse(existing.utcDate)-time)<=6*60*60*1000);
   if(duplicateIndex<0){matches.push(item);continue;}
-  const existing=matches[duplicateIndex],sameScore=Number(existing.score?.fullTime?.home)===Number(item.score?.fullTime?.home)&&Number(existing.score?.fullTime?.away)===Number(item.score?.fullTime?.away);
-  if(!sameScore){existing.scoreConflict=true;continue;}
+  const existing=matches[duplicateIndex],existingHome=existing.score?.fullTime?.home,existingAway=existing.score?.fullTime?.away;
+  const hasExistingScores=existingHome!==null&&existingHome!==undefined&&existingAway!==null&&existingAway!==undefined;
+  const sameScore=hasExistingScores&&Number(existingHome)===Number(item.score?.fullTime?.home)&&Number(existingAway)===Number(item.score?.fullTime?.away);
+  if(hasExistingScores&&!sameScore){existing.scoreConflict=true;continue;}
   if(existing.source!=='ESPN')matches[duplicateIndex]={...item,providers:[...new Set([...(existing.providers||[]),'ESPN','SportScore'])]};
  }
  const scheduleRowsForArchive=scheduleHistoryMatches;
- for(const m of matches){const kickoff=Date.parse(m.utcDate);if(m.status!=='SCHEDULED'||!Number.isFinite(kickoff)||kickoff<=now||kickoff>futureLimit)continue;for(const name of [m.homeTeam?.name,m.awayTeam?.name])if(validTeamName(name))upcomingTeams.add(normalize(name));}
- const historyCandidatesByKey=new Map();
- for(const m of [...matches,...historyExtraMatches,...scheduleRowsForArchive]){
-  const kickoff=Date.parse(m.utcDate),home=normalize(m.homeTeam?.name),away=normalize(m.awayTeam?.name);
-  if(!Number.isFinite(kickoff)||!home||!away)continue;
-  const key=home+'|'+away+'|'+Math.round(kickoff/(6*60*60*1000)),previous=historyCandidatesByKey.get(key);
-  if(!previous||(m.source==='ESPN'&&previous.source!=='ESPN'))historyCandidatesByKey.set(key,m);
+ for(const m of matches){
+  const kickoff=Date.parse(m.utcDate);if(m.status!=='SCHEDULED'||!Number.isFinite(kickoff)||kickoff<=now||kickoff>futureLimit)continue;
+  for(const side of ['home','away']){const team=m[side+'Team'],name=team?.name,key=normalize(name);if(!validTeamName(name))continue;upcomingTeams.add(key);if(team?.id)upcomingIdentityById.set(String(team.id),key);}
  }
- const candidates=[...historyCandidatesByKey.values()].filter(m=>{
-  const kickoff=Date.parse(m.utcDate),home=Number(m.score?.fullTime?.home),away=Number(m.score?.fullTime?.away);
-  return m.status==='FINISHED'&&Number.isFinite(kickoff)&&kickoff<now&&kickoff>=historyFrom.getTime()&&
-   validTeamName(m.homeTeam?.name)&&validTeamName(m.awayTeam?.name)&&
-   m.score?.fullTime?.home!==null&&m.score?.fullTime?.home!==undefined&&m.score?.fullTime?.away!==null&&m.score?.fullTime?.away!==undefined&&
-   Number.isInteger(home)&&Number.isInteger(away)&&home>=0&&away>=0;
- });
+ const canonicalTeamKey=team=>{const name=normalize(team?.name);return upcomingTeams.has(name)?name:upcomingIdentityById.get(String(team?.id||''))||name;};
+ const historyCandidatesByKey=new Map(),historyConflicts=new Set();
+ for(const m of [...matches,...historyExtraMatches,...scheduleRowsForArchive]){
+  const kickoff=Date.parse(m.utcDate),home=canonicalTeamKey(m.homeTeam),away=canonicalTeamKey(m.awayTeam);
+  const homeScore=m.score?.fullTime?.home,awayScore=m.score?.fullTime?.away;
+  if(m.status!=='FINISHED'||m.scoreConflict||!Number.isFinite(kickoff)||kickoff>=now||kickoff<historyFrom.getTime()||
+     !home||!away||homeScore===null||homeScore===undefined||awayScore===null||awayScore===undefined||
+     !Number.isInteger(Number(homeScore))||!Number.isInteger(Number(awayScore))||Number(homeScore)<0||Number(awayScore)<0)continue;
+  const key=home+'|'+away+'|'+Math.round(kickoff/(6*60*60*1000)),previous=historyCandidatesByKey.get(key);
+  if(historyConflicts.has(key))continue;
+  if(previous){
+   const sameScore=Number(previous.score.fullTime.home)===Number(homeScore)&&Number(previous.score.fullTime.away)===Number(awayScore);
+   if(!sameScore){historyCandidatesByKey.delete(key);historyConflicts.add(key);continue;}
+   if(m.source==='ESPN'&&previous.source!=='ESPN')historyCandidatesByKey.set(key,m);
+  }else historyCandidatesByKey.set(key,m);
+ }
+ const candidates=[...historyCandidatesByKey.values()];
  const byTeam=new Map();
- for(const m of candidates){for(const name of [m.homeTeam.name,m.awayTeam.name]){const key=normalize(name);if(!upcomingTeams.has(key))continue;if(!byTeam.has(key))byTeam.set(key,[]);byTeam.get(key).push(m);}}
+ for(const m of candidates){for(const side of ['home','away']){const key=canonicalTeamKey(m[side+'Team']);if(!upcomingTeams.has(key))continue;if(!byTeam.has(key))byTeam.set(key,[]);byTeam.get(key).push(m);}}
  const selectedHistory=new Map();
  for(const rows of byTeam.values()){rows.sort((a,b)=>Date.parse(b.utcDate)-Date.parse(a.utcDate));for(const m of rows.slice(0,8)){if(Date.parse(m.utcDate)>=from.getTime())continue;selectedHistory.set(String(m.id),m);}}
  const archivedMatches=[...selectedHistory.values()].sort((a,b)=>Date.parse(a.utcDate)-Date.parse(b.utcDate));
