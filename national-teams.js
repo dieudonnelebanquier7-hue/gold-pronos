@@ -44,7 +44,7 @@ function mergeCachedEspnHistories(){
    const homeId=String(home.team?.id||home.id||''),awayId=String(away.team?.id||away.id||'');
    if(!id||!(homeId===teamId||awayId===teamId)||!finished||!Number.isFinite(timestamp)||timestamp>=now||timestamp<now-730*86400000)continue;
    const homeName=String(home.team?.displayName||home.team?.name||'').trim(),awayName=String(away.team?.displayName||away.team?.name||'').trim();
-   if(!homeName||!awayName||(!wanted.has(norm(homeName))&&!wanted.has(norm(awayName))))continue;
+   if(!homeName||!awayName)continue; // L'identifiant ESPN vérifié ci-dessus suffit : les noms peuvent varier selon la compétition.
    const homeScore=home.score===null||home.score===undefined||home.score===''?null:Number(home.score),awayScore=away.score===null||away.score===undefined||away.score===''?null:Number(away.score);
    if(!Number.isInteger(homeScore)||!Number.isInteger(awayScore)||homeScore<0||awayScore<0)continue;
    const match={id:'espn-'+id,code:String(item?.code||cacheCode).replace(/^ESPN-/,''),competition:competition.name||'Compétition internationale',home:homeName,away:awayName,homeId,awayId,homeLogo:'',awayLogo:'',date:new Date(timestamp).toISOString(),status:'FINISHED',homeScore,awayScore,source:'ESPN',scoreConflict:false};
@@ -111,25 +111,25 @@ async function load(){
   data=[...uniqueRows.values()].filter(m=>m.home&&m.away&&isNational(m));
   mergeCachedEspnHistories();
   const seen=new Map();
-  data.forEach(m=>[m.home,m.away].forEach(n=>{
-   const k=norm(n);
-   if(k&&!seen.has(k))seen.set(k,{id:k,name:n,country:'',logo:'',source:'Calendrier ESPN / SportScore'});
+  data.forEach(m=>[['home',m.home,m.homeId],['away',m.away,m.awayId]].forEach(([side,name,providerId])=>{
+   const k=String(providerId||'').trim()||norm(name),key=providerId?'espn:'+String(providerId):'name:'+norm(name);
+   if(k&&!seen.has(key))seen.set(key,{id:k,providerId:String(providerId||''),name,country:'',logo:'',source:'Calendrier ESPN / SportScore'});
   }));
   teams=[...seen.values()];
   // Afficher immédiatement le calendrier et les analyses : l’enrichissement ESPN ne doit pas bloquer la rubrique.
   update();
   const status=$('nt-source-status');
   if(status)status.textContent='Calendrier généré le '+(json.generatedAt?dateFmt(json.generatedAt):'date inconnue')+' · '+data.length+' rencontres nationales détectées · '+teams.length+' sélections identifiées dans le calendrier. Enrichissement des répertoires ESPN en cours…';
-  const codes=['fifa.world','fifa.worldq.caf','fifa.worldq.uefa','fifa.worldq.conmebol','fifa.worldq.afc','fifa.worldq.concacaf','fifa.friendly','uefa.nations','uefa.euro','caf.nations','conmebol.copa','concacaf.gold','afc.asian','fifa.wwc','fifa.friendly.w'];
+  const codes=[...new Set(NATIONAL_COMPS.map(item=>item[0]))];
   const batches=[];
   for(let i=0;i<codes.length;i+=4)batches.push(codes.slice(i,i+4));
   for(const group of batches){
    const results=await Promise.all(group.map(fetchTeamsForCompetition));
    for(const list of results)for(const t of list){
-    const k=norm(t.name);
-    const old=teams.find(x=>norm(x.name)===k);
-    if(old){old.logo=old.logo||t.logo;old.source='ESPN'}
-    else teams.push(t);
+    const k=norm(t.name),providerId=String(t.id||'');
+    const old=teams.find(x=>providerId&&(String(x.providerId||'')===providerId||String(x.id||'')===providerId))||teams.find(x=>!x.providerId&&!providerId&&norm(x.name)===k);
+    if(old){old.logo=old.logo||t.logo;old.providerId=old.providerId||providerId;old.source='ESPN'}
+    else teams.push({...t,providerId});
    }
   }
   renderStats();
