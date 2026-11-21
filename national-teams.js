@@ -104,7 +104,11 @@ async function load(){
   const d=await fetch('./matches.json',{cache:'no-store'});
   if(!d.ok)throw Error('Le calendrier préchargé est indisponible');
   const json=await d.json();
-  data=(json.matches||[]).map(normalizeMatch).filter(m=>m.home&&m.away&&isNational(m));
+  let archiveRows=[];
+  try{const historyResponse=await fetch('./history.json',{cache:'no-store'});if(historyResponse.ok){const archive=await historyResponse.json();archiveRows=Array.isArray(archive.matches)?archive.matches:[];}}catch(error){console.warn('Archive historique nationale indisponible',error?.message||error)}
+  const combinedRows=[...(json.matches||[]),...archiveRows],uniqueRows=new Map();
+  for(const raw of combinedRows){const item=normalizeMatch(raw);if(item.id&&item.home&&item.away&&!uniqueRows.has(item.id))uniqueRows.set(item.id,item);}
+  data=[...uniqueRows.values()].filter(m=>m.home&&m.away&&isNational(m));
   mergeCachedEspnHistories();
   const seen=new Map();
   data.forEach(m=>[m.home,m.away].forEach(n=>{

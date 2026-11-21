@@ -34,6 +34,7 @@ let leagues=[
 ];
 const today=new Date();today.setUTCHours(0,0,0,0);
 const from=new Date(today);from.setUTCDate(from.getUTCDate()-30);
+const historyFrom=new Date(today);historyFrom.setUTCDate(historyFrom.getUTCDate()-180);
 const to=new Date(today);to.setUTCDate(to.getUTCDate()+14);
 const ymd=d=>d.toISOString().slice(0,10).replace(/-/g,'');
 function validTeamName(value){
@@ -106,6 +107,8 @@ async function fetchSportScoreDay(day){
 
 const dates=[];
 for(let d=new Date(from);d<=to;d.setUTCDate(d.getUTCDate()+1))dates.push(ymd(d));
+const historyExtraDates=[];
+for(let d=new Date(historyFrom);d<from;d.setUTCDate(d.getUTCDate()+1))historyExtraDates.push(ymd(d));
 async function discoverEspnLeagues(){
  try{
   const response=await fetch('https://site.api.espn.com/apis/site/v2/sports/soccer',{signal:AbortSignal.timeout(12000),headers:{'User-Agent':'GOLD-PRONOS/1.0'}});
@@ -135,8 +138,14 @@ async function discoverEspnLeagues(){
  // ESPN sert de source de contrôle pour les rencontres du jour. SportScore fournit le calendrier mondial sur toute la fenêtre.
  // Le calendrier préchargé doit couvrir les 14 prochains jours, pas seulement aujourd’hui.
  // Les 30 jours passés restent collectés par SportScore ; ESPN complète les rencontres à venir.
- const espnDates=dates.filter(day=>day>=ymd(today)&&day<=ymd(to));
+ // Réserve jusqu'à 1 500 requêtes ESPN : 15 jours futurs (aujourd'hui + 14),
+ // puis jusqu'à 10 jours de résultats passés pour renforcer les historiques sans dépasser le quota.
+ const maxEspnDays=Math.max(15,Math.floor(1500/leagues.length));
+ const espnHistoryDays=Math.max(0,Math.min(10,maxEspnDays-15));
+ const espnHistoryFrom=new Date(today);espnHistoryFrom.setUTCDate(espnHistoryFrom.getUTCDate()-espnHistoryDays);
+ const espnDates=dates.filter(day=>day>=ymd(espnHistoryFrom)&&day<=ymd(to));
  const tasks=leagues.flatMap(league=>espnDates.map(day=>({league,day})));
+ console.log('Collecte ESPN : '+espnHistoryDays+' jour(s) historique(s) + 15 jour(s) de calendrier, '+tasks.length+' requêtes.');
  const results=new Array(tasks.length);let cursor=0,completed=0,nonEmpty=0;
  const workers=Array.from({length:10},async()=>{while(true){
   const i=cursor++;if(i>=tasks.length)break;
@@ -154,6 +163,16 @@ async function discoverEspnLeagues(){
  const sportWorkers=Array.from({length:3},async()=>{while(true){const i=sportCursor++;if(i>=sportDates.length)break;sportResults[i]=await fetchSportScoreDay(sportDates[i]);}});
  await Promise.all(sportWorkers);
  const sportMatches=sportResults.flat();
+ // Archive complémentaire de 180 jours : seules les dernières rencontres vérifiées
+ // des équipes ayant un match à venir seront conservées dans history.json.
+ const historyExtraResults=new Array(historyExtraDates.length);let historyCursor=0,historyCompleted=0;
+ const historyWorkers=Array.from({length:3},async()=>{while(true){
+  const i=historyCursor++;if(i>=historyExtraDates.length)break;
+  historyExtraResults[i]=await fetchSportScoreDay(historyExtraDates[i]);historyCompleted++;
+  if(historyCompleted%50===0||historyCompleted===historyExtraDates.length)console.log('Historique SportScore '+historyCompleted+'/'+historyExtraDates.length+' journées collectées');
+ }});
+ await Promise.all(historyWorkers);
+ const historyExtraMatches=historyExtraResults.flat();
  const normalize=value=>String(value||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
  const combined=[...espnMatches];
  for(const item of sportMatches){
@@ -165,7 +184,24 @@ async function discoverEspnLeagues(){
  const unique=new Map(combined.map(m=>[m.id,m]));
  const matches=[...unique.values()].sort((a,b)=>new Date(a.utcDate)-new Date(b.utcDate));
  if(!matches.length)throw new Error('Aucune rencontre reçue après '+tasks.length+' requêtes ESPN et '+dates.length+' requêtes SportScore. Le calendrier existant ne sera pas remplacé.');
- const output={generatedAt:new Date().toISOString(),range:{from:from.toISOString(),to:to.toISOString()},sources:{espn:espnMatches.length,sportscore:sportMatches.length,competitions:leagues.length,days:dates.length,espnDays:espnDates.length,espnCompetitions:leagues.length,espnRequests:tasks.length,sportscoreRequests:sportDates.length},matches};
+ const now=Date.now(),futureLimit=now+14*86400000,upcomingTeams=new Set();
+ for(const m of matches){const kickoff=Date.parse(m.utcDate);if(m.status!=='SCHEDULED'||!Number.isFinite(kickoff)||kickoff<=now||kickoff>futureLimit)continue;for(const name of [m.homeTeam?.name,m.awayTeam?.name])if(validTeamName(name))upcomingTeams.add(normalize(name));}
+ const candidates=[...matches,...historyExtraMatches].filter(m=>{
+  const kickoff=Date.parse(m.utcDate),home=Number(m.score?.fullTime?.home),away=Number(m.score?.fullTime?.away);
+  return m.status==='FINISHED'&&Number.isFinite(kickoff)&&kickoff<now&&kickoff>=historyFrom.getTime()&&
+   validTeamName(m.homeTeam?.name)&&validTeamName(m.awayTeam?.name)&&
+   m.score?.fullTime?.home!==null&&m.score?.fullTime?.home!==undefined&&m.score?.fullTime?.away!==null&&m.score?.fullTime?.away!==undefined&&
+   Number.isInteger(home)&&Number.isInteger(away)&&home>=0&&away>=0;
+ });
+ const byTeam=new Map();
+ for(const m of candidates){for(const name of [m.homeTeam.name,m.awayTeam.name]){const key=normalize(name);if(!upcomingTeams.has(key))continue;if(!byTeam.has(key))byTeam.set(key,[]);byTeam.get(key).push(m);}}
+ const selectedHistory=new Map();
+ for(const rows of byTeam.values()){rows.sort((a,b)=>Date.parse(b.utcDate)-Date.parse(a.utcDate));for(const m of rows.slice(0,8)){if(Date.parse(m.utcDate)>=from.getTime())continue;selectedHistory.set(String(m.id),m);}}
+ const archivedMatches=[...selectedHistory.values()].sort((a,b)=>Date.parse(a.utcDate)-Date.parse(b.utcDate));
+ const historyOutput={generatedAt:new Date().toISOString(),range:{from:historyFrom.toISOString(),to:new Date(from.getTime()-1).toISOString()},sources:{provider:'SportScore',requestedDays:historyExtraDates.length,receivedMatches:historyExtraMatches.length,upcomingTeams:upcomingTeams.size,teamsWithHistory:byTeam.size},matches:archivedMatches};
+ fs.writeFileSync('history.json',JSON.stringify(historyOutput));
+ console.log('Archive historique : '+archivedMatches.length+' résultats terminés vérifiés · '+byTeam.size+'/'+upcomingTeams.size+' équipes avec historique · '+historyExtraDates.length+' journées supplémentaires.');
+ const output={generatedAt:new Date().toISOString(),range:{from:from.toISOString(),to:to.toISOString()},sources:{espn:espnMatches.length,sportscore:sportMatches.length,competitions:leagues.length,days:dates.length,espnDays:espnDates.length,espnCompetitions:leagues.length,espnRequests:tasks.length,sportscoreRequests:sportDates.length,historyRequests:historyExtraDates.length},matches};
  fs.writeFileSync('matches.json',JSON.stringify(output));
  console.log('Calendrier : '+matches.length+' rencontres uniques · ESPN '+espnMatches.length+' sur '+espnDates.length+' jours et '+leagues.length+' compétitions · SportScore '+sportMatches.length+' sur '+dates.length+' jours.');
 })().catch(error=>{console.error(error);process.exit(1)});

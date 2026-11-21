@@ -50,6 +50,22 @@ jobs:
           node <<'NODE'
           const d = require('./matches.json');
           const rows = Array.isArray(d.matches) ? d.matches : [];
+          const archive = require('./history.json');
+          const historyRows = Array.isArray(archive.matches) ? archive.matches : [];
+          const invalidHistory = historyRows.filter(m => {
+            const date = Date.parse(m.utcDate || '');
+            const home = Number(m.score?.fullTime?.home);
+            const away = Number(m.score?.fullTime?.away);
+            return m.status !== 'FINISHED' || m.source !== 'SportScore' ||
+              !Number.isFinite(date) || date >= Date.now() || date < Date.now() - 181 * 86400000 ||
+              !m.homeTeam?.name || !m.awayTeam?.name ||
+              m.score?.fullTime?.home === null || m.score?.fullTime?.home === undefined ||
+              m.score?.fullTime?.away === null || m.score?.fullTime?.away === undefined ||
+              !Number.isInteger(home) || !Number.isInteger(away) || home < 0 || away < 0;
+          });
+          if (invalidHistory.length) throw new Error('Archive historique invalide : ' + invalidHistory.length + '/' + historyRows.length + ' résultat(s).');
+          if (Number(d.sources?.historyRequests || 0) > 180) throw new Error('Collecte historique au-delà de la fenêtre autorisée.');
+          console.log('Archive historique vérifiée :', historyRows.length, 'résultats terminés ;', archive.sources?.teamsWithHistory || 0, 'équipes couvertes.');
           const generatedAt = Date.parse(d.generatedAt || '');
           if (!Number.isFinite(generatedAt) || Date.now() - generatedAt > 36 * 60 * 60 * 1000) throw new Error('Calendrier absent ou trop ancien.');
           const sources = d.sources || {};

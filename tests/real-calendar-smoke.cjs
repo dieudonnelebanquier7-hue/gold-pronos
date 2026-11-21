@@ -30,6 +30,14 @@ const { chromium } = require('playwright');
   if (!calendarResponse.ok()) throw new Error('Generated matches.json is not available to the application: HTTP '+calendarResponse.status());
   const calendar = await calendarResponse.json();
   if (!Array.isArray(calendar.matches) || !calendar.matches.length) throw new Error('Generated real calendar is empty');
+  const historyResponse = await page.request.get('http://127.0.0.1:4173/history.json');
+  if (!historyResponse.ok()) throw new Error('Verified history archive is not available: HTTP '+historyResponse.status());
+  const historyArchive = await historyResponse.json();
+  const historyRows = Array.isArray(historyArchive.matches) ? historyArchive.matches : [];
+  const invalidHistoryRows = historyRows.filter(m => m.status !== 'FINISHED' || m.source !== 'SportScore' ||
+    !Number.isInteger(Number(m.score?.fullTime?.home)) || !Number.isInteger(Number(m.score?.fullTime?.away)) ||
+    Number(m.score.fullTime.home) < 0 || Number(m.score.fullTime.away) < 0 || !m.homeTeam?.name || !m.awayTeam?.name);
+  if (invalidHistoryRows.length) throw new Error('Historical archive contains '+invalidHistoryRows.length+' incomplete or non-finished result(s).');
   const rendered = await page.evaluate(() => ({
     cards: document.querySelectorAll('#home-matches .match').length,
     homeText: document.querySelector('#home-matches')?.innerText || '',
@@ -264,6 +272,8 @@ const { chromium } = require('playwright');
   const result = {
     ok:true,
     generatedMatches:calendar.matches.length,
+    historicalArchiveMatches:historyRows.length,
+    historicalArchiveTeams:Number(historyArchive.sources?.teamsWithHistory||0),
     eligibleMatches:eligibleMatches.length,
     visibleHomeCards:cards,
     expandedHomeCards:expandedCards,

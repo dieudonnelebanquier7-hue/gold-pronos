@@ -504,7 +504,7 @@ function renderPersonalizedHome(){
  $('edit-football-prefs').onclick=()=>showOnboarding(true);
 }
 function initOnboarding(){const form=$('onboarding-form');if(!form)return;form.onsubmit=e=>{e.preventDefault();const p={player:$('onboard-player').value.trim(),club:$('onboard-club').value.trim(),country:$('onboard-country').value.trim(),competitions:[...$('onboard-competitions').selectedOptions].map(o=>o.value)};saveFootballPrefs(p);$('onboarding').hidden=true;renderPersonalizedHome();};$('onboarding-skip').onclick=()=>{$('onboarding').hidden=true;saveFootballPrefs({});};showOnboarding();renderPersonalizedHome();}
-function render(){const q=$('search').value.toLowerCase(),f=$('date-filter').value,now=new Date(),today=dateKeyInAppZone(now),tomorrow=dateKeyInAppZone(now+86400000);let list=matches.filter(m=>(!q||(m.home+' '+m.away+' '+m.league).toLowerCase().includes(q)));list=list.filter(m=>{const d=new Date(m.date);if(f==='all')return true;if(f==='live')return m.live;if(f==='finished')return m.finished;if(f==='upcoming')return !m.live&&!m.finished&&d>now;if(f==='today')return dateKeyInAppZone(m.date)===today;if(f==='tomorrow')return dateKeyInAppZone(m.date)===tomorrow;if(f==='next7')return !m.live&&!m.finished&&d>=now&&d<now.getTime()+7*86400000;if(f==='next14')return !m.live&&!m.finished&&d>=now&&d<now.getTime()+14*86400000;if(f==='past7')return m.finished&&d>=now.getTime()-7*86400000;return true});list.sort((x,y)=>compareMatchPriority(x,y));const box=$('home-matches');box.replaceChildren();const visible=list.slice(0,homeDisplayLimit);if(!list.length){box.innerHTML='<div class="notice">Aucun match vérifié pour cette période. Choisis une autre date ou actualise le calendrier.</div>'}else{const shownDays=new Set();for(const m of visible){const key=dateKeyInAppZone(m.date);if(!shownDays.has(key)){shownDays.add(key);const h=document.createElement('h3');h.className='day-heading';h.textContent=appDate(m.date,{weekday:'long',day:'numeric',month:'long',year:'numeric'});box.append(h)}box.append(card(m))}if(list.length>visible.length){const more=document.createElement('button');more.type='button';more.className='ghost';more.textContent='Afficher '+Math.min(350,list.length-visible.length)+' autres rencontres · '+visible.length+' / '+list.length;more.onclick=()=>{homeDisplayLimit+=350;render()};box.append(more)}}$('match-count').textContent=matches.length}
+function render(){const q=$('search').value.toLowerCase(),f=$('date-filter').value,now=new Date(),today=dateKeyInAppZone(now),tomorrow=dateKeyInAppZone(now+86400000);let list=matches.filter(m=>(f==='finished'||!m.historyOnly)&&(!q||(m.home+' '+m.away+' '+m.league).toLowerCase().includes(q)));list=list.filter(m=>{const d=new Date(m.date);if(f==='all')return true;if(f==='live')return m.live;if(f==='finished')return m.finished;if(f==='upcoming')return !m.live&&!m.finished&&d>now;if(f==='today')return dateKeyInAppZone(m.date)===today;if(f==='tomorrow')return dateKeyInAppZone(m.date)===tomorrow;if(f==='next7')return !m.live&&!m.finished&&d>=now&&d<now.getTime()+7*86400000;if(f==='next14')return !m.live&&!m.finished&&d>=now&&d<now.getTime()+14*86400000;if(f==='past7')return m.finished&&d>=now.getTime()-7*86400000;return true});list.sort((x,y)=>compareMatchPriority(x,y));const box=$('home-matches');box.replaceChildren();const visible=list.slice(0,homeDisplayLimit);if(!list.length){box.innerHTML='<div class="notice">Aucun match vérifié pour cette période. Choisis une autre date ou actualise le calendrier.</div>'}else{const shownDays=new Set();for(const m of visible){const key=dateKeyInAppZone(m.date);if(!shownDays.has(key)){shownDays.add(key);const h=document.createElement('h3');h.className='day-heading';h.textContent=appDate(m.date,{weekday:'long',day:'numeric',month:'long',year:'numeric'});box.append(h)}box.append(card(m))}if(list.length>visible.length){const more=document.createElement('button');more.type='button';more.className='ghost';more.textContent='Afficher '+Math.min(350,list.length-visible.length)+' autres rencontres · '+visible.length+' / '+list.length;more.onclick=()=>{homeDisplayLimit+=350;render()};box.append(more)}}$('match-count').textContent=matches.filter(m=>!m.historyOnly).length}
 function renderLive(){
  const box=$('live-matches');if(!box)return;box.replaceChildren();
  const unique=new Map();
@@ -1661,14 +1661,57 @@ async function loadPreloadedFixtures(){
   }).filter(m=>{const t=Date.parse(m.date);return Number.isFinite(t)&&t>=min&&t<=max&&String(m.raw?.homeTeam?.name||'').trim()&&String(m.raw?.awayTeam?.name||'').trim()}).sort((a,b)=>new Date(a.date)-new Date(b.date));
  }catch(error){console.warn('Calendrier préchargé indisponible',error?.message||error);return []}
 }
+let historyArchiveLoaded=false,historyArchivePromise=null;
+async function loadHistoricalArchive(){
+ if(historyArchiveLoaded)return {loaded:true,added:0};
+ if(historyArchivePromise)return historyArchivePromise;
+ historyArchivePromise=(async()=>{
+  try{
+   const archive=await get('./history.json',15000),rows=Array.isArray(archive?.matches)?archive.matches:[];
+   const now=Date.now(),known=new Set(matches.map(m=>String(m.id))),added=[];
+   for(const raw of rows){
+    const c=String(raw?.competition?.code||''),isEspn=c.startsWith('ESPN-')||String(raw?.source||'').toLowerCase()==='espn';
+    const isSportScore=c.toLowerCase().startsWith('sportscore:')||String(raw?.source||'').toLowerCase()==='sportscore';
+    const code=c.startsWith('ESPN-')?c.slice(5):(isEspn?'eng.1':isSportScore?c:'');
+    const status=String(raw?.status||'').toUpperCase(),finished=status==='FINISHED',national=isNationalCompetition(code);
+    const item={
+     id:String(raw?.id||'').replace(/^espn-/,''),
+     code,source:raw?.source||(isEspn?'ESPN':isSportScore?'SportScore':''),
+     providers:Array.isArray(raw?.providers)&&raw.providers.length?raw.providers:[raw?.source||(isEspn?'ESPN':isSportScore?'SportScore':'')],
+     league:raw?.competition?.name||'Compétition',competition:raw?.competition?.name||'',
+     home:raw?.homeTeam?.name||'',away:raw?.awayTeam?.name||'',
+     homeLogo:raw?.homeTeam?.logo||'',awayLogo:raw?.awayTeam?.logo||'',
+     homeNational:national,awayNational:national,
+     homeId:raw?.homeTeam?.id||null,awayId:raw?.awayTeam?.id||null,
+     homeScore:raw?.score?.fullTime?.home??null,awayScore:raw?.score?.fullTime?.away??null,
+     date:raw?.utcDate,status:finished?'FINISHED':status,live:false,finished,
+     periodDetail:'',periodNumber:0,clockBaseSeconds:null,clockUpdatedAt:now,clockRunning:false,
+     venue:'',raw,historyOnly:true,scoreConflict:false
+    };
+    if(!item.id||known.has(item.id)||!trustedFinishedResult(item,now))continue;
+    known.add(item.id);added.push(item);
+   }
+   if(added.length){matches.push(...added);matches.sort((a,b)=>Date.parse(a.date)-Date.parse(b.date));}
+   historyArchiveLoaded=true;
+   console.info('[GOLD PRONOS] Archive historique chargé : '+added.length+' résultats vérifiés.');
+   return {loaded:true,added:added.length,teams:Number(archive?.sources?.teamsWithHistory||0)};
+  }catch(error){
+   console.warn('[GOLD PRONOS] Archive historique indisponible :',error?.message||error);
+   return {loaded:false,added:0,error:String(error?.message||error)};
+  }finally{if(!historyArchiveLoaded)historyArchivePromise=null;}
+ })();
+ return historyArchivePromise;
+}
 async function refresh(){
  if(busy)return;busy=true;
  if(!matches.length)$('home-matches').innerHTML='<div class="loading">Chargement immédiat du calendrier…</div>';
  try{
   const preloaded=await loadPreloadedFixtures();
+  let archivePromise=null;
   if(preloaded.length){
    matches=preloaded;render();renderLive();renderPicks();renderVIP();renderPersonalizedHome();
    $('updated').textContent='Calendrier chargé · '+matches.length+' rencontres vérifiées · actualisation des sources…';
+   archivePromise=loadHistoricalArchive();
   }
   const [freshResult,apiResult]=await Promise.all([
    loadEspnFixtures(true).catch(error=>{console.warn('Calendrier ESPN indisponible',error?.message||error);return []}),
@@ -1682,6 +1725,7 @@ async function refresh(){
   }
   const extras=mergeApiFootballFixtures(apiRows);matches=[...matches,...extras];
   if(!matches.length)throw Error('Aucun calendrier récent vérifié disponible');
+  const archiveResult=await (archivePromise||loadHistoricalArchive());
   const nationalHistory=await loadEspnTeamHistory().catch(error=>{console.warn('Historique des équipes indisponible',error?.message||error);return {teams:0,added:0,apiUnconfirmed:null,apiFailed:1}});
   const apiLiveCheck={changed:false,added:0,count:0};
   const sportScore=await loadSportScoreLive().catch(error=>{console.warn('SportScore indisponible, scores ESPN conservés',error?.message||error);return null});
@@ -1690,7 +1734,9 @@ async function refresh(){
   const providers=['ESPN'];if(sportScoreCheck.confirmed||matches.some(m=>(m.providers||[]).some(p=>String(p).toLowerCase()==='sportscore')))providers.push('SportScore');
   const historyStatus=nationalHistory.apiUnconfirmed===null?'Vérification des historiques indisponible':nationalHistory.apiUnconfirmed>0?'Historique incomplet pour '+nationalHistory.apiUnconfirmed+' équipe(s) · pronostics concernés ignorés':'Historiques suffisants';
   const providerStatus=apiFootballUnavailableReason?'ESPN · API-Football indisponible · mode de secours actif':providers.join(' + ');
-  $('updated').textContent='Données actualisées · '+matches.length+' rencontres · '+providerStatus+' · '+historyStatus+' · '+appDate(new Date(),{dateStyle:'medium',timeStyle:'short'});
+  const calendarCount=matches.filter(m=>!m.historyOnly).length;
+  const archiveStatus=archiveResult.loaded?'archive historique : '+archiveResult.added+' résultat(s) vérifié(s) ajouté(s)':'archive historique indisponible';
+  $('updated').textContent='Données actualisées · '+calendarCount+' rencontres · '+archiveStatus+' · '+providerStatus+' · '+historyStatus+' · '+appDate(new Date(),{dateStyle:'medium',timeStyle:'short'});
  }catch(e){
   console.warn('Actualisation du calendrier incomplète',e?.message||e);
   if(matches.length){render();renderLive();renderPicks();$('updated').textContent='Calendrier préchargé · '+matches.length+' rencontres · sources complémentaires indisponibles'}
