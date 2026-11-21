@@ -45,8 +45,10 @@ const { chromium } = require('playwright');
   const firstCard = rendered.firstCard;
   // The application intentionally loads the verified rolling window (35 days back to 14 days ahead).
   // Compare the home counter with that eligible window, not with older/far-future archive rows.
-  const minDate = rendered.now - 35 * 86400000;
-  const maxDate = rendered.now + 14 * 86400000;
+  const generatedFrom = Date.parse(calendar.range?.from || '');
+  const generatedTo = Date.parse(calendar.range?.to || '');
+  const minDate = Number.isFinite(generatedFrom) ? generatedFrom : rendered.now - 35 * 86400000;
+  const maxDate = Number.isFinite(generatedTo) ? generatedTo : rendered.now + 14 * 86400000;
   const eligibleMatches = calendar.matches.filter(m => {
     const date = Date.parse(m.utcDate || '');
     return Number.isFinite(date) && date >= minDate && date <= maxDate &&
