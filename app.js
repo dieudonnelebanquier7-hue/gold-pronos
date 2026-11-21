@@ -11,6 +11,7 @@ const leagues=[['eng.1','Angleterre · Premier League'],['eng.2','Angleterre · 
  ['fifa.world.u20','FIFA · Coupe du monde U20 masculine'],['fifa.world.u17','FIFA · Coupe du monde U17 masculine'],
  ['fifa.wworld.u17','FIFA · Coupe du monde U17 féminine'],['fifa.friendly','FIFA · Matchs amicaux masculins'],
  ['uefa.u21','UEFA · Compétitions U21'],['uefa.youthleague','UEFA · Youth League']];
+leagues.splice(0,leagues.length,...new Map(leagues.map(item=>[item[0],item])).values());
 if(leagues.some(item=>!Array.isArray(item)||item.length!==2||!item[0]||!item[1]))throw new Error('Catalogue des compétitions invalide : chaque entrée doit contenir un code et un libellé.');
 const standingsLeagues=leagues;
 let matches=[],worldLeagues=[],worldLeaguesSource='ESPN',apiFootballUnavailableReason='',activeLeague='eng.1',busy=false,worldDirectoryReady=Promise.resolve(),homeDisplayLimit=350;
