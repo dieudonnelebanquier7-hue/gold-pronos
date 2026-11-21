@@ -23,7 +23,7 @@ jobs:
         run: node fetch-matches.cjs
       - name: Verify generated fixtures JSON
         run: |
-          node -e "const d=JSON.parse(require('fs').readFileSync('matches.json','utf8')); if(!Array.isArray(d.matches)||!d.matches.length) process.exit(1); console.log(d.matches.length+' fixtures validated');"
+          node -e "const fs=require('fs'),d=JSON.parse(fs.readFileSync('matches.json','utf8')),h=JSON.parse(fs.readFileSync('history.json','utf8')); if(!Array.isArray(d.matches)||!d.matches.length||!Array.isArray(h.matches)) process.exit(1); console.log(d.matches.length+' fixtures and '+h.matches.length+' historical results validated');"
       - name: Generate French football news for Android
         run: |
           node fetch-news.cjs
@@ -56,9 +56,10 @@ jobs:
       - name: Prepare Capacitor Android project
         run: |
           mkdir -p www
-          cp index.html app.js auth.js styles.css i18n.js sw.js national-teams.js manifest.webmanifest icon.svg matches.json news.json www/
+          cp index.html app.js auth.js styles.css i18n.js sw.js national-teams.js manifest.webmanifest icon.svg matches.json history.json news.json www/
           test -s www/auth.js
           test -s www/national-teams.js
+          test -s www/history.json
           node --check www/auth.js
           node --check www/national-teams.js
           node --check www/app.js
