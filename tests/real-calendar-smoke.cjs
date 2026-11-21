@@ -34,6 +34,19 @@ const { chromium } = require('playwright');
   if (!historyResponse.ok()) throw new Error('Verified history archive is not available: HTTP '+historyResponse.status());
   const historyArchive = await historyResponse.json();
   const historyRows = Array.isArray(historyArchive.matches) ? historyArchive.matches : [];
+  const invalidCalendarRows = calendar.matches.filter(m => {
+    const date = Date.parse(m.utcDate || '');
+    return !m.id || !m.homeTeam?.name || !m.awayTeam?.name || !m.competition?.name ||
+      !m.competition?.code || !Number.isFinite(date);
+  });
+  if (invalidCalendarRows.length) throw new Error('Competition-by-competition audit found '+invalidCalendarRows.length+' fixture(s) with missing identity, competition or kickoff data.');
+  const competitionAudit = new Map();
+  for (const fixture of calendar.matches) {
+    const code = String(fixture.competition.code);
+    competitionAudit.set(code, (competitionAudit.get(code) || 0) + 1);
+  }
+  if (!Number.isInteger(calendar.sources?.competitions) || calendar.sources.competitions < 1) throw new Error('Competition catalogue provenance is missing from matches.json.');
+  console.log('Competition audit: '+competitionAudit.size+' competitions represented · '+calendar.matches.length+' fixtures checked.');
   const invalidHistoryRows = historyRows.filter(m => m.status !== 'FINISHED' || m.scoreConflict === true || !['SportScore','ESPN','OpenLigaDB'].includes(m.source) ||
     !Number.isInteger(Number(m.score?.fullTime?.home)) || !Number.isInteger(Number(m.score?.fullTime?.away)) ||
     Number(m.score.fullTime.home) < 0 || Number(m.score.fullTime.away) < 0 || !m.homeTeam?.name || !m.awayTeam?.name ||
