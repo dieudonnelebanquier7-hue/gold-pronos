@@ -1,15 +1,15 @@
 'use strict';
 const fs=require('node:fs');
 let leagues=[
- ['eng.1','Angleterre · Premier League'],['eng.2','Angleterre · Championship'],
+ ['eng.1','Angleterre · Premier League'],['eng.2','Angleterre · Championship'],['eng.3','Angleterre · League One'],['eng.4','Angleterre · League Two'],
  ['esp.1','Espagne · LaLiga'],['esp.2','Espagne · Segunda'],
- ['ger.1','Allemagne · Bundesliga'],['ita.1','Italie · Serie A'],['fra.1','France · Ligue 1'],
+ ['ger.1','Allemagne · Bundesliga'],['ger.2','Allemagne · 2. Bundesliga'],['ger.3','Allemagne · 3. Liga'],['ita.1','Italie · Serie A'],['fra.1','France · Ligue 1'],['ita.2','Italie · Serie B'],['fra.2','France · Ligue 2'],['por.2','Portugal · Liga Portugal 2'],['ned.2','Pays-Bas · Eerste Divisie'],
  ['ned.1','Pays-Bas · Eredivisie'],['por.1','Portugal · Liga'],['tur.1','Turquie · Süper Lig'],
  ['nor.1','Norvège · Eliteserien'],['swe.1','Suède · Allsvenskan'],['sui.1','Suisse · Super League'],
  ['ksa.1','Arabie saoudite · Pro League'],['cze.1','Tchéquie · First League'],['usa.1','États-Unis · MLS'],
  ['rou.1','Roumanie · Liga I'],['rus.1','Russie · Premier League'],['chn.1','Chine · Super League'],
  ['jpn.1','Japon · J1 League'],['bra.1','Brésil · Série A'],['arg.1','Argentine · Liga Profesional'],
- ['mex.1','Mexique · Liga MX'],['uefa.champions','UEFA · Ligue des champions'],
+ ['mex.1','Mexique · Liga MX'],['bra.2','Brésil · Série B'],['arg.2','Argentine · Primera Nacional'],['bel.2','Belgique · Challenger Pro League'],['sco.2','Écosse · Championship'],['tur.2','Turquie · 1. Lig'],['ksa.2','Arabie saoudite · First Division']['uefa.champions','UEFA · Ligue des champions'],
  ['uefa.europa','UEFA · Ligue Europa'],['uefa.europa.conf','UEFA · Ligue Conférence'],
  ['afc.champions','AFC · Ligue des champions'],['fifa.world','FIFA · Coupe du monde masculine'],
  ['fifa.worldq.uefa','FIFA · Qualifications Coupe du monde UEFA'],['fifa.worldq.conmebol','FIFA · Qualifications Coupe du monde CONMEBOL'],['fifa.worldq.concacaf','FIFA · Qualifications Coupe du monde CONCACAF'],['fifa.worldq.afc','FIFA · Qualifications Coupe du monde AFC'],['fifa.worldq.caf','FIFA · Qualifications Coupe du monde CAF'],['fifa.worldq.ofc','FIFA · Qualifications Coupe du monde OFC'],
