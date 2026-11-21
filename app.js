@@ -954,16 +954,59 @@ function pick1N2(model,home,away){
  if(outcomes[0].p<.45||gap<.08)return {label:'Pas de sélection 1N2',detail:'Probabilités estimées : 1 '+pct(model.pHome)+' · N '+pct(model.pDraw)+' · 2 '+pct(model.pAway)+'. Écart insuffisant pour isoler un résultat.',kind:'market-neutral'};
  return {label:outcomes[0].label+' ('+pct(outcomes[0].p)+')',detail:'Estimation indicative : 1 '+pct(model.pHome)+' · N '+pct(model.pDraw)+' · 2 '+pct(model.pAway)+'. Modèle buts + résultats récents vérifiés.',kind:'market-positive'};
 }
+function buildPredictionHistoryIndex(now=Date.now()){
+ const byName=new Map(),byId=new Map();
+ const add=(map,key,match)=>{if(!key)return;if(!map.has(key))map.set(key,[]);map.get(key).push(match)};
+ for(const m of matches){
+  if(!trustedFinishedResult(m,now))continue;
+  add(byName,providerNorm(m.home),m);add(byName,providerNorm(m.away),m);
+  const sources=[m.source,...(Array.isArray(m.providers)?m.providers:[])].filter(Boolean).map(v=>String(v).toLowerCase());
+  if(sources.includes('espn')){
+   if(m.homeId)add(byId,'espn:'+String(m.homeId),m);
+   if(m.awayId)add(byId,'espn:'+String(m.awayId),m);
+  }
+  if(sources.includes('api-football')){
+   const homeId=m.apiHomeId||(String(m.source||'').toLowerCase()==='api-football'?m.homeId:null);
+   const awayId=m.apiAwayId||(String(m.source||'').toLowerCase()==='api-football'?m.awayId:null);
+   if(homeId)add(byId,'api:'+String(homeId),m);
+   if(awayId)add(byId,'api:'+String(awayId),m);
+  }
+ }
+ return {byName,byId};
+}
+function recentFromPredictionIndex(index,team,exclude,venue=null,teamId=null,teamSource=null,apiTeamId=null){
+ const source=String(teamSource||'').toLowerCase(),teamKey=providerNorm(team),candidates=new Set(index.byName.get(teamKey)||[]);
+ if(source==='espn'&&teamId)for(const m of index.byId.get('espn:'+String(teamId))||[])candidates.add(m);
+ const wantedApiId=apiTeamId||(source==='api-football'?teamId:null);
+ if(wantedApiId)for(const m of index.byId.get('api:'+String(wantedApiId))||[])candidates.add(m);
+ return [...candidates].filter(x=>{
+  if(x.id===exclude)return false;
+  const sources=[x.source,...(Array.isArray(x.providers)?x.providers:[])].filter(Boolean).map(v=>String(v).toLowerCase());
+  const hasEspn=sources.includes('espn'),hasApi=sources.includes('api-football');
+  const homeId=String(x.homeId||''),awayId=String(x.awayId||'');
+  const espnHome=source==='espn'&&hasEspn&&teamId&&homeId===String(teamId);
+  const espnAway=source==='espn'&&hasEspn&&teamId&&awayId===String(teamId);
+  const fixtureHomeApiId=x.apiHomeId||(String(x.source||'').toLowerCase()==='api-football'?x.homeId:null);
+  const fixtureAwayApiId=x.apiAwayId||(String(x.source||'').toLowerCase()==='api-football'?x.awayId:null);
+  const apiHome=wantedApiId&&hasApi&&fixtureHomeApiId&&String(fixtureHomeApiId)===String(wantedApiId);
+  const apiAway=wantedApiId&&hasApi&&fixtureAwayApiId&&String(fixtureAwayApiId)===String(wantedApiId);
+  const homeConflict=source==='espn'&&hasEspn&&teamId&&homeId&&homeId!==String(teamId);
+  const awayConflict=source==='espn'&&hasEspn&&teamId&&awayId&&awayId!==String(teamId);
+  const sameHome=!!(espnHome||apiHome)||(!homeConflict&&providerNorm(x.home)===teamKey);
+  const sameAway=!!(espnAway||apiAway)||(!awayConflict&&providerNorm(x.away)===teamKey);
+  return venue==='home'?sameHome:venue==='away'?sameAway:sameHome||sameAway;
+ }).sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,8);
+}
 function renderPicks(){
  const box=$('picks');if(!box)return;
- const now=Date.now(),horizon=now+7*86400000;
+ const now=Date.now(),horizon=now+7*86400000,historyIndex=buildPredictionHistoryIndex(now);
  const dayMatches=matches.filter(m=>trustedUpcomingFixture(m,now,horizon)).sort((a,b)=>competitionImportance(b)-competitionImportance(a)||new Date(a.date)-new Date(b.date));const picksToRender=dayMatches;
  box.replaceChildren();
  const heading=document.createElement('div');heading.className='notice';heading.innerHTML='<b>PRONOSTICS · 7 PROCHAINS JOURS</b><br>'+dayMatches.length+' rencontre(s) à venir · pronostic affiché pour chaque rencontre confirmée · '+safe(appDate(now,{weekday:'long',day:'numeric',month:'long'}))+' au '+safe(appDate(horizon,{day:'numeric',month:'long'}))+' · Sélections calculées à partir des résultats vérifiés disponibles.';box.append(heading);
  if(!dayMatches.length){const empty=document.createElement('div');empty.className='notice';empty.textContent='Aucun match à venir confirmé dans les sept prochains jours pour les compétitions suivies. Le calendrier sera actualisé automatiquement.';box.append(empty);return}
  for(const m of picksToRender){
-  const h=recent(m.home,m.id,null,m.homeId,m.source,m.apiHomeId),a=recent(m.away,m.id,null,m.awayId,m.source,m.apiAwayId),hs=matchStats(h,m.home,m.homeId,m.source,m.apiHomeId),as=matchStats(a,m.away,m.awayId,m.source,m.apiAwayId);
-  const hHome=recent(m.home,m.id,'home',m.homeId,m.source,m.apiHomeId),aAway=recent(m.away,m.id,'away',m.awayId,m.source,m.apiAwayId);
+  const h=recentFromPredictionIndex(historyIndex,m.home,m.id,null,m.homeId,m.source,m.apiHomeId),a=recentFromPredictionIndex(historyIndex,m.away,m.id,null,m.awayId,m.source,m.apiAwayId),hs=matchStats(h,m.home,m.homeId,m.source,m.apiHomeId),as=matchStats(a,m.away,m.awayId,m.source,m.apiAwayId);
+  const hHome=recentFromPredictionIndex(historyIndex,m.home,m.id,'home',m.homeId,m.source,m.apiHomeId),aAway=recentFromPredictionIndex(historyIndex,m.away,m.id,'away',m.awayId,m.source,m.apiAwayId);
   // Si l'échantillon domicile/extérieur est trop court, utiliser la forme globale vérifiée.
   // Les cartes indiquent explicitement ce repli et ne présentent pas la forme globale comme une statistique de lieu.
   const useHomeOverall=hHome.length<2,useAwayOverall=aAway.length<2;
