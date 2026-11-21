@@ -237,18 +237,19 @@ async function discoverEspnLeagues(){
  const sportWorkers=Array.from({length:3},async()=>{while(true){const i=sportCursor++;if(i>=sportDates.length)break;sportResults[i]=await fetchSportScoreDay(sportDates[i]);}});
  await Promise.all(sportWorkers);
  const sportMatches=sportResults.flat();
- // Archive complémentaire de 180 jours : seules les dernières rencontres vérifiées
+ // Archive complémentaire sur 365 jours : seules les dernières rencontres vérifiées
  // des équipes ayant un match à venir seront conservées dans history.json.
  const historyExtraResults=new Array(historyExtraDates.length);let historyCursor=0,historyCompleted=0;
- const historyWorkers=Array.from({length:3},async()=>{while(true){
+ const historyWorkers=Array.from({length:1},async()=>{while(true){
   const i=historyCursor++;if(i>=historyExtraDates.length)break;
   historyExtraResults[i]=await fetchSportScoreDay(historyExtraDates[i]);historyCompleted++;
+  // SportScore répond fréquemment HTTP 429 lorsque l'archive quotidienne est aspirée trop vite.
+  // Un débit inférieur à 60 requêtes/minute évite de perdre presque tout l'historique.
+  if(i<historyExtraDates.length-1)await new Promise(resolve=>setTimeout(resolve,1100));
   if(historyCompleted%50===0||historyCompleted===historyExtraDates.length)console.log('Historique SportScore '+historyCompleted+'/'+historyExtraDates.length+' journées collectées');
  }});
  await Promise.all(historyWorkers);
  const historyExtraMatches=historyExtraResults.flat();
- const [espnNationalHistory,openLigaHistory]=await Promise.all([fetchEspnNationalHistories(nationalUpcomingTeams),fetchOpenLigaHistory()]);
- console.log('Sources historiques complémentaires : ESPN sélections '+espnNationalHistory.length+' · OpenLigaDB '+openLigaHistory.length+' résultats.');
  const normalize=value=>String(value||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
  const combined=[...espnMatches];
  for(const item of sportMatches){
@@ -282,6 +283,8 @@ async function discoverEspnLeagues(){
    if(national){nationalUpcomingNames.add(key);if(team?.id&&!nationalUpcomingTeams.has(String(team.id)))nationalUpcomingTeams.set(String(team.id),{id:String(team.id),name:String(name),code:String(m.competition?.code||'').replace(/^ESPN-/,'')});}
   }
  }
+ const [espnNationalHistory,openLigaHistory]=await Promise.all([fetchEspnNationalHistories(nationalUpcomingTeams),fetchOpenLigaHistory()]);
+ console.log('Sources historiques complémentaires : ESPN sélections '+espnNationalHistory.length+' · OpenLigaDB '+openLigaHistory.length+' résultats.');
  const canonicalTeamKey=team=>{const name=normalize(team?.name);return upcomingTeams.has(name)?name:upcomingIdentityById.get(String(team?.id||''))||name;};
  const historyCandidatesByKey=new Map(),historyConflicts=new Set();
  for(const m of [...matches,...historyExtraMatches,...espnNationalHistory,...openLigaHistory]){
