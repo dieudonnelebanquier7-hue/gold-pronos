@@ -263,7 +263,12 @@ async function loadEspnTeamHistory(){
   // Traiter le calendrier par lots successifs : une seule passe de 30 équipes laissait
   // la majorité des clubs sans historique jusqu'à une nouvelle visite de l'application.
   renderPicks();renderVIP();renderPersonalizedHome();
-  if(tasks.length>=30&&!espnHistoryBatchTimer){
+  const hasMoreHistoryTasks=allTasks.some(item=>{
+   const entry=cache[item.code+'|'+item.id];
+   const fresh=entry&&now-Number(entry.at||0)<(entry.events?.length?6*60*60*1000:10*60*1000)&&Array.isArray(entry.events);
+   return !fresh;
+  });
+  if(hasMoreHistoryTasks&&!espnHistoryBatchTimer){
    espnHistoryBatchTimer=setTimeout(()=>{
     espnHistoryBatchTimer=null;
     loadEspnTeamHistory().catch(error=>console.warn('Lot suivant des historiques ESPN indisponible',error?.message||error));
