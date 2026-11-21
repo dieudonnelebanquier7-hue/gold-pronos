@@ -182,6 +182,7 @@ function mergeApiFootballFixtures(rows){
 function nowDateYear(timestamp=Date.now()){return new Date(timestamp).getUTCFullYear()}
 const ESPN_TEAM_HISTORY_CACHE_KEY='gold-pronos-espn-team-history-v4';
 const API_FOOTBALL_TEAM_HISTORY_CACHE_KEY='gold-pronos-api-team-history-v3';
+let espnHistoryBatchTimer=null;
 async function loadEspnTeamHistory(){
  const now=Date.now(),cache=(()=>{try{return JSON.parse(localStorage.getItem(ESPN_TEAM_HISTORY_CACHE_KEY)||'{}')}catch(_){return {}}})();
  // Récupère les historiques des clubs et sélections. ESPN ne fournit pas toujours le calendrier passé des équipes nationales.
@@ -259,7 +260,17 @@ async function loadEspnTeamHistory(){
  }
  if(API_FOOTBALL_TEMPORARILY_DISABLED){
   matches.sort((a,b)=>new Date(a.date)-new Date(b.date));
+  // Traiter le calendrier par lots successifs : une seule passe de 30 équipes laissait
+  // la majorité des clubs sans historique jusqu'à une nouvelle visite de l'application.
+  renderPicks();renderVIP();renderPersonalizedHome();
+  if(tasks.length>=30&&!espnHistoryBatchTimer){
+   espnHistoryBatchTimer=setTimeout(()=>{
+    espnHistoryBatchTimer=null;
+    loadEspnTeamHistory().catch(error=>console.warn('Lot suivant des historiques ESPN indisponible',error?.message||error));
+   },1500);
+  }
   const apiUnconfirmed=[...teams.values()].filter(item=>recent(item.team,'__history_probe__',null,item.id,'espn',item.apiFootballId).length<5).length;
+  console.info('[GOLD PRONOS] Historiques clubs : '+added+' résultats ajoutés ; '+tasks.length+'/'+allTasks.length+' équipes traitées dans ce lot ; '+apiUnconfirmed+' équipes encore sous-échantillonnées.');
   return {teams:teams.size,requested:tasks.length,added,failed,apiRequested:0,apiAdded:0,apiFailed:0,apiUnconfirmed};
  }
  // Repli API-Football : recherche les équipes par nom puis récupère leurs 10 derniers matchs terminés.
