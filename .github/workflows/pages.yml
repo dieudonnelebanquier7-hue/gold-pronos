@@ -75,6 +75,12 @@ jobs:
           console.log('Archive historique vérifiée :', historyRows.length, 'résultats terminés ;', archive.sources?.teamsWithFourHistory || 0, 'équipes avec 4+ résultats ;', archive.sources?.nationalTeamsWithFourHistory || 0, 'sélections avec 4+ résultats.');
           const generatedAt = Date.parse(d.generatedAt || '');
           if (!Number.isFinite(generatedAt) || Date.now() - generatedAt > 36 * 60 * 60 * 1000) throw new Error('Calendrier absent ou trop ancien.');
+          const coverage = Array.isArray(d.sources?.competitionCoverage) ? d.sources.competitionCoverage : [];
+          if (coverage.length !== Number(d.sources?.competitions || 0) || coverage.some(item => !item.code || !Number.isInteger(item.daysRequested) || item.daysRequested < 7)) {
+            throw new Error('Rapport de couverture par compétition absent ou incomplet.');
+          }
+          if (Number(archive.sources?.espnNationalTeamsRequested || 0) > 80) throw new Error('Budget de récupération des sélections nationales dépassé.');
+          console.log('Couverture compétition par compétition :', coverage.length, 'codes interrogés ;', coverage.filter(item => item.fixtures > 0).length, 'avec des rencontres confirmées.');
           const sources = d.sources || {};
           if (sources.espnRequests > 1500 || sources.sportscoreRequests > 50) throw new Error('Quota de collecte inattendu : vérifier les limites des sources.');
           if (Number(sources.espnDays || 0) < 7 || Number(sources.espnCompetitions || 0) < 30) throw new Error('Couverture ESPN trop étroite : collecte multi-jours ou compétitions mondiales absente.');
