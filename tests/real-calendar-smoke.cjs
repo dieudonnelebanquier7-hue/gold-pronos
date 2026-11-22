@@ -141,23 +141,19 @@ const { chromium } = require('playwright');
     if (!tab) throw new Error('Independent national-team tab is missing.');
     tab.click();
   });
-  // Trigger the visible refresh control as a deterministic fallback while the tab activation loads the section.
-  await page.evaluate(() => {
-    if (typeof window.GoldPronosNationalTeamsLoad !== 'function') throw new Error('National-team loader was not initialized.');
-    // Start the loader without awaiting optional ESPN team-directory enrichment; the calendar render is awaited below.
-    void window.GoldPronosNationalTeamsLoad();
-  });
+  // The national page already starts its loader on DOMContentLoaded and when its tab is opened.
+  // Do not start a second load here: that can replace a just-rendered list with the loading placeholder
+  // while a duplicate 14 MB calendar/history fetch is still in progress.
   try {
-    // The national calendar is rendered before the optional ESPN team-directory
-    // enrichment. Do not make this smoke test wait for all 15 directory requests:
-    // they are supplementary and can take longer than the calendar itself.
+    // The national calendar is rendered before optional ESPN team-directory enrichment.
+    // Wait for the visible fixture list or an explicit empty-state notice, not for directory enrichment.
     await page.waitForFunction(() => {
       const status = document.querySelector('#nt-source-status')?.textContent || '';
       const cards = document.querySelectorAll('#nt-fixtures .nt-fixture').length;
       const notice = document.querySelector('#nt-fixtures .notice')?.innerText || '';
       return (/Calendrier généré le/.test(status) && (cards > 0 || !!notice)) ||
         /Impossible de charger le calendrier national/i.test(notice);
-    }, null, {timeout:15000});
+    }, null, {timeout:30000});
   } catch (error) {
     const diagnostic = await page.evaluate(() => ({
       status: document.querySelector('#nt-source-status')?.textContent || '',
