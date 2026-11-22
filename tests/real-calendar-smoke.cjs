@@ -142,9 +142,10 @@ const { chromium } = require('playwright');
     tab.click();
   });
   // Trigger the visible refresh control as a deterministic fallback while the tab activation loads the section.
-  await page.evaluate(async () => {
+  await page.evaluate(() => {
     if (typeof window.GoldPronosNationalTeamsLoad !== 'function') throw new Error('National-team loader was not initialized.');
-    await window.GoldPronosNationalTeamsLoad();
+    // Start the loader without awaiting optional ESPN team-directory enrichment; the calendar render is awaited below.
+    void window.GoldPronosNationalTeamsLoad();
   });
   try {
     // The national calendar is rendered before the optional ESPN team-directory
