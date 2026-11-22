@@ -45,6 +45,9 @@ const { chromium } = require('playwright');
     ,...nationalHistory('Ghana','212','gha',[[0,2],[0,2],[0,2],[0,2]])
   ];
   await page.route('**/matches.json', route => route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({generatedAt:new Date().toISOString(),matches:fixtures})}));
+  // Isolate the browser test from the real generated archive and explicitly exercise a cross-provider numeric-ID collision.
+  // The SportScore row deliberately reuses ESPN team ID 202 but has a different team name; it must not count as Nigeria history.
+  await page.route('**/history.json*', route => route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({generatedAt:new Date().toISOString(),sources:{teamsWithHistory:0},matches:[{id:'sportscore-colliding-team-id-202',utcDate:new Date(now-2*86400000).toISOString(),status:'FINISHED',source:'SportScore',providers:['SportScore'],competition:{name:'Test International Friendly',code:'sportscore:international-friendly'},homeTeam:{id:'202',name:'Unrelated Test Team'},awayTeam:{id:'999',name:'Other Test Team'},score:{fullTime:{home:2,away:0}}}]})}));
   await page.route('**/news.json*', route => route.fulfill({
     status:200,
     contentType:'application/json',
