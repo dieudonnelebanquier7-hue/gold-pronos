@@ -40,6 +40,25 @@ const { chromium } = require('playwright');
       !m.competition?.code || !Number.isFinite(date);
   });
   if (invalidCalendarRows.length) throw new Error('Competition-by-competition audit found '+invalidCalendarRows.length+' fixture(s) with missing identity, competition or kickoff data.');
+  const temporalQuarantine = calendar.sources?.temporalStatusQuarantine;
+  const quarantinedFixtures = Array.isArray(calendar.quarantinedFixtures) ? calendar.quarantinedFixtures : [];
+  if (!temporalQuarantine || !Number.isInteger(temporalQuarantine.staleScheduled) || !Number.isInteger(temporalQuarantine.futureFinished)) {
+    throw new Error('Temporal-status quarantine diagnostics are missing or invalid.');
+  }
+  const staleScheduledRows = calendar.matches.filter(m => m.status === 'SCHEDULED' && Date.parse(m.utcDate) < Date.now() - 6 * 60 * 60 * 1000);
+  const futureFinishedRows = calendar.matches.filter(m => m.status === 'FINISHED' && Date.parse(m.utcDate) > Date.now() + 6 * 60 * 60 * 1000);
+  if (staleScheduledRows.length || futureFinishedRows.length) {
+    throw new Error('Calendar still exposes temporally inconsistent statuses: '+JSON.stringify({staleScheduled:staleScheduledRows.length,futureFinished:futureFinishedRows.length}));
+  }
+  const quarantinedStale = quarantinedFixtures.filter(m => m.reason === 'STALE_SCHEDULED');
+  const quarantinedFuture = quarantinedFixtures.filter(m => m.reason === 'FUTURE_FINISHED');
+  if (quarantinedStale.length !== temporalQuarantine.staleScheduled || quarantinedFuture.length !== temporalQuarantine.futureFinished) {
+    throw new Error('Quarantine diagnostics do not match their retained fixture records.');
+  }
+  const quarantinedIds = new Set(quarantinedFixtures.map(m => String(m.id || '')));
+  if (calendar.matches.some(m => quarantinedIds.has(String(m.id || '')))) {
+    throw new Error('A quarantined fixture is still present in the published calendar.');
+  }
   const competitionAudit = new Map();
   for (const fixture of calendar.matches) {
     const code = String(fixture.competition.code);
@@ -292,6 +311,8 @@ const { chromium } = require('playwright');
   const result = {
     ok:true,
     generatedMatches:calendar.matches.length,
+    quarantinedStaleScheduled:temporalQuarantine.staleScheduled,
+    quarantinedFutureFinished:temporalQuarantine.futureFinished,
     historicalArchiveMatches:historyRows.length,
     historicalArchiveTeams:Number(historyArchive.sources?.teamsWithHistory||0),
     historicalArchiveTeamsWithFourHistory:Number(historyArchive.sources?.teamsWithFourHistory||0),
