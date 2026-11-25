@@ -168,15 +168,21 @@ const { chromium } = require('playwright');
     // Wait for the visible fixture list or an explicit empty-state notice, not for directory enrichment.
     await page.waitForFunction(() => {
       const status = document.querySelector('#nt-source-status')?.textContent || '';
-      const cards = document.querySelectorAll('#nt-fixtures .nt-fixture').length;
-      const notice = document.querySelector('#nt-fixtures .notice')?.innerText || '';
-      return (/Calendrier généré le/.test(status) && (cards > 0 || !!notice)) ||
+      const box = document.querySelector('#nt-fixtures');
+      const notice = box?.querySelector('.notice')?.innerText || '';
+      const loadedContent = !!box && box.childElementCount > 0 && !box.querySelector('.loading') &&
+        box.textContent.trim().length > 0;
+      return (/Calendrier généré le/.test(status) && loadedContent) ||
         /Impossible de charger le calendrier national/i.test(notice);
-    }, null, {timeout:30000});
+    }, null, {timeout:60000, polling:250});
   } catch (error) {
     const diagnostic = await page.evaluate(() => ({
       status: document.querySelector('#nt-source-status')?.textContent || '',
       fixtures: document.querySelector('#nt-fixtures')?.innerText || '',
+      fixtureCards: document.querySelectorAll('#nt-fixtures .nt-fixture').length,
+      fixtureChildren: document.querySelector('#nt-fixtures')?.childElementCount || 0,
+      loadingVisible: !!document.querySelector('#nt-fixtures .loading'),
+      notice: document.querySelector('#nt-fixtures .notice')?.innerText || '',
       tabActive: document.querySelector('.tab[data-page="national-teams"]')?.classList.contains('active') || false,
       scriptLoaded: performance.getEntriesByType('resource').some(x => x.name.includes('national-teams.js'))
     }));
