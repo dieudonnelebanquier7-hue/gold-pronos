@@ -237,14 +237,9 @@ const { chromium } = require('playwright');
     localStorage.setItem(key,JSON.stringify(cache));
     window.dispatchEvent(new Event('gold-pronos-team-history-updated'));
   }, seededHistory);
-  // Trigger a refresh, but do not wait for the optional ESPN team-directory
-  // enrichment. The assertion below waits for the synthetic cache entry to produce
-  // a national prediction card, which is the behavior this test is intended to verify.
-  await page.evaluate(() => {
-    const refresh = document.querySelector('#nt-refresh');
-    if (!refresh) throw new Error('National-team refresh control is missing after history seeding.');
-    refresh.click();
-  });
+  // The storage event above already refreshes the prediction panel. Do not click
+  // the full-calendar refresh control here: it replaces the visible fixture list
+  // with a loading placeholder while the 14 MB calendar/history files are fetched again.
   const placeholderScores = await page.evaluate(() => {
     const isZeroZero = value => /^0\s*[:\-]\s*0$/.test(String(value || '').trim());
     const home = [...document.querySelectorAll('#home-matches .match')].filter(card => {
@@ -313,6 +308,7 @@ const { chromium } = require('playwright');
   }
   const nationalFixtureCards = await page.locator('#nt-fixtures .nt-fixture').count();
   const nationalCompetitionCards = await page.locator('#nt-competition-list .nt-comp-card').count();
+  if (!nationalFixtureCards) throw new Error('The independent national fixture calendar has no rendered match cards after the history-cache test.');
   if (!nationalCompetitionCards) throw new Error('The independent national competition catalogue did not render.');
   const result = {
     ok:true,
