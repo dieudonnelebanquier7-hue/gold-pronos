@@ -355,6 +355,7 @@ async function loadEspnTeamHistory(){
 }
 const API_FOOTBALL_LIVE_CACHE_KEY='gold-pronos-api-football-live-v1';
 async function loadApiFootballLive(force=false){
+ if(API_FOOTBALL_TEMPORARILY_DISABLED)return [];
  const now=Date.now();
  if(!force){try{const cache=JSON.parse(localStorage.getItem(API_FOOTBALL_LIVE_CACHE_KEY)||'null');if(cache&&now-cache.at<30*1000&&Array.isArray(cache.fixtures))return cache.fixtures}catch(_){}}
  const data=await apiFootballRequest({action:'live'});
@@ -389,6 +390,7 @@ function mergeApiFootballLiveFixtures(rows){
  return {changed,added,count:(rows||[]).length};
 }
 async function loadApiFootballFixtures(force=false){
+ if(API_FOOTBALL_TEMPORARILY_DISABLED)return [];
  const now=Date.now();
  if(!force){try{const cache=JSON.parse(localStorage.getItem(API_FOOTBALL_CACHE_KEY)||'null'),age=now-Number(cache?.at||0);if(cache&&Array.isArray(cache.fixtures)&&age<(cache.fixtures.length?6*60*60*1000:10*60*1000))return cache.fixtures}catch(_){}}
  const start=new Date();start.setUTCHours(0,0,0,0);start.setUTCDate(start.getUTCDate()-90);

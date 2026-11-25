@@ -20,6 +20,7 @@ jobs:
           node --check sw.js
           node --check fetch-matches.cjs
           node --check fetch-news.cjs
+          node tests/api-football-disabled.test.cjs
       - name: Smoke-check every navigation page and static element
         run: |
           node <<'NODE'
