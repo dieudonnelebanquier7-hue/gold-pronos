@@ -1,5 +1,6 @@
 'use strict';
 const fs=require('node:fs');
+const {mapRateLimited}=require('./history-fetch-scheduler.cjs');
 let leagues=[
  ['eng.1','Angleterre · Premier League'],['eng.2','Angleterre · Championship'],['eng.3','Angleterre · League One'],['eng.4','Angleterre · League Two'],
  ['esp.1','Espagne · LaLiga'],['esp.2','Espagne · Segunda'],
@@ -267,16 +268,15 @@ async function discoverEspnLeagues(){
  const sportMatches=sportResults.flat();
  // Archive complémentaire sur 365 jours : seules les dernières rencontres vérifiées
  // des équipes ayant un match à venir seront conservées dans history.json.
- const historyExtraResults=new Array(historyExtraDates.length);let historyCursor=0,historyCompleted=0;
- const historyWorkers=Array.from({length:1},async()=>{while(true){
-  const i=historyCursor++;if(i>=historyExtraDates.length)break;
-  historyExtraResults[i]=await fetchSportScoreDay(historyExtraDates[i]);historyCompleted++;
-  // SportScore répond fréquemment HTTP 429 lorsque l'archive quotidienne est aspirée trop vite.
-  // Un débit inférieur à 60 requêtes/minute évite de perdre presque tout l'historique.
-  if(i<historyExtraDates.length-1)await new Promise(resolve=>setTimeout(resolve,1100));
+ let historyCompleted=0;
+ // Limite globalement le débit à moins de 55 requêtes/minute tout en autorisant
+ // plusieurs requêtes lentes à attendre en parallèle : la collecte reste sous le
+ // délai de 30 minutes du job Android même si certains jours expirent à 8 secondes.
+ const historyExtraResults=await mapRateLimited(historyExtraDates,async day=>{
+  const result=await fetchSportScoreDay(day);historyCompleted++;
   if(historyCompleted%50===0||historyCompleted===historyExtraDates.length)console.log('Historique SportScore '+historyCompleted+'/'+historyExtraDates.length+' journées collectées');
- }});
- await Promise.all(historyWorkers);
+  return result;
+ },{concurrency:8,minIntervalMs:1100});
  const historyExtraMatches=historyExtraResults.flat();
  const normalize=value=>String(value||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
  const combined=[...espnMatches];
