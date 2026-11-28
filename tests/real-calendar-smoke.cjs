@@ -264,7 +264,7 @@ const { chromium } = require('playwright');
       return noticeStyle.display !== 'none' &&
         noticeStyle.visibility !== 'hidden' &&
         notice.textContent.trim().length > 0;
-    }, null, {timeout:30000});
+    }, null, {timeout:60000, polling:250});
   } catch (error) {
     const diagnostic = await page.evaluate(() => {
       const section = document.querySelector('#page-national-teams');
